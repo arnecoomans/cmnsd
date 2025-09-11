@@ -1,0 +1,29 @@
+/static/*
+
+# Ignore Python files
+*.pyc
+*~
+*.bak
+__pycache__
+
+# Venv
+/.venv
+# Keep database outside repo
+*.sqlite3
+
+# allow for custom css's
+custom_*.css
+
+# Keep logs outside repo
+/logs
+/gunicorn
+/run
+
+
+# Keep mac-folders outside repo
+.DS_Store
+# Development
+old_*
+dev_*
+*.old
+*.dev
