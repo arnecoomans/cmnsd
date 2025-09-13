@@ -1,0 +1,2 @@
+class ResponseUtil:
+  pass
