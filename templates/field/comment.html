@@ -1,0 +1,10 @@
+<div class="comment" id="comment-{{ comment.id }}">
+  <div class="comment-header">
+    <span class="comment-author">{{ comment.user.get_full_name|default:comment.user.username }}</span>
+    <span class="comment-date">{{ comment.date_created }}</span>
+    <span class="comment-visibility">({{ comment.get_status_display }} - {{ comment.get_visibility_display }})</span>
+  </div>
+  <div class="comment-body">
+    {{ comment.content }}
+  </div>
+</div>
