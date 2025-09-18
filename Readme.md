@@ -30,3 +30,13 @@ CMNS projects decreases.
 
 ### Usage instructions
 @Todo
+
+## Configuration
+### Queryset
+- SEARCH_QUERY_CHARACTER = 'q'
+### Json
+- JSON_BLOCKED_MODELS = []
+- JSON_PROTECTED_FIELDS = []
+- JSON_RENDER_REMOVE_NEWLINES =[]
+
+
