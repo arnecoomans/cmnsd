@@ -23,19 +23,14 @@ import json
 
 ''' Import Utilities '''
 from .json__utils_messages import MessageUtil
-from .json__utils_security import SecurityUtil
 from .json__utils_request import RequestUtil
 from .json__utils_response import ResponseUtil
-from .json__utils_filter import FilterUtil
 
-class JsonUtils(MessageUtil, RequestUtil, FilterUtil, SecurityUtil, ResponseUtil, View):
+from .cmnsd_filter import FilterClass
+
+class JsonUtil(MessageUtil, RequestUtil, ResponseUtil, FilterClass, View):
   
   def __init__(self):
-    self.__model = None
-    self.__model_name = None
-    self.__object = None
-    self.__object_name = None
-    self.__attributes = {}
     super().__init__()
 
   def dispatch(self, request, *args, **kwargs):

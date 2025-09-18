@@ -1,112 +1,95 @@
-from django.http import JsonResponse
-from django.core.exceptions import PermissionDenied
 from django.utils.translation import gettext_lazy as _
 import traceback
 from django.conf import settings
-from markdown import markdown
-from django.core.exceptions import PermissionDenied, ObjectDoesNotExist
-from django.db import models
 from django.apps import apps
 
-
 from .json_utils import JsonUtil
-
-class JsonDispatch(JsonUtil):
-  ''' Meta classes for detection and dispatching
-  '''
-  class meta_model:
-    def __init__(self, override_model=None):
-      self.name = None
-      self.model = None
-      self.override_model = override_model
-      
-    def __str__(self):
-      return str(self.name)
-
-    def dispatch(self, request, *args, **kwargs):
-        self.__detect()
-        return super().dispatch(request, *args, **kwargs)
-
-    def __detect(self, override_model=None):
-      # Process Model Override
-      if override_model or self.override_model:
-        override_model = override_model or self.override_model
-        if isinstance(override_model, str):
-          # If a model name is supplied, detect model based on supplied name
-          model_name = override_model
-        elif isinstance(override_model, type) and issubclass(override_model, models.Model):
-          # If a model class is supplied, use it directly
-          self.name = override_model._meta.model_name
-          self.model = override_model
-          return
-        else:
-          raise ValueError(_("invalid model override").capitalize())
-      else:
-        model_name = override_model or self.get_value_from_request('model', default=None)
-      if not model_name:
-        # If still no model name is provided, raise an error
-        raise ValueError(_("no model name provided in meta_model.detect()").capitalize())
-      # See if model is available in installed_apps
-      self.model = self.get_model_from_apps(model_name)
-      self.name = self.model._meta.model_name
-      return
+from .json_utils_meta_class import meta_model, meta_field, meta_object
+from .json__crud_read import CrudRead
+''' Meta classes for detection and dispatching
+'''
+class JsonDispatch(JsonUtil, CrudRead):    
     
-    def get_model_from_apps(self, model_name):
-      """ When supplied with a model name, loop through installed app models
-          and return the model if a single match is found
-      """
-      # If the model name contains a comma, take only the first part
-      if ',' in model_name:
-        model_name = model_name.split(',')[0].strip()
-      try:
-        matching_models = []
-        # Walk through all installed apps
-        for app_config in apps.get_app_configs():
-          # Security-measure: Skip Django's built-in apps
-          secure_string = 'django.contrib.'
-          if app_config.name[:len(secure_string)] == secure_string:
-            continue
-          # Skip models that are blocked in settings
-          elif app_config.name in getattr(settings, 'JSON_BLOCKED_MODELS', []):
-            continue
-          try:
-            # Fetch model from app_config
-            model = app_config.get_model(str(model_name))
-            if model:
-              matching_models.append(model)
-          except LookupError:
-            # Model does not exist in app, skip model
-            continue
-        if len(matching_models) == 0:
-          raise ObjectDoesNotExist(_("no model with the name '{}' could be found".format(model_name)).capitalize())
-        elif len(matching_models) > 1:
-          raise ObjectDoesNotExist(_("multiple models with the name '{}' were found. specify 'app_label.modelname' instead.".format({model_name})).capitalize())
-      except Exception as e:
-        raise ValueError(_("no model with the name '{}' could be found".format(model_name)).capitalize())
-      return matching_models[0]
-    
-    
-  
-  class meta_object:
-    pass
-
-  def __init__(self, request):
-    self.request = request
+  def __init__(self):
     self.model = None
-    self.object = None
+    self.obj = None
+    self.fields = {}
     super().__init__()
 
   def dispatch(self, request, *args, **kwargs):
-    self.model = self.meta_model()
-    self.object = self.meta_object()
+    try:
+      # Detect model based on request data
+      self.__detect_model()
+      # Detect object based on request data if model is detected
+      self.__detect_object()
+      # Detect fields based on request data if object is detected
+      self.__detect_fields()
+    except Exception as e:
+      # Exception Handling
+      if getattr(settings, "DEBUG", False):
+        # Log the exception trackback to the console or log when
+        # DEBUG is True in settings.py
+        traceback.print_exc()
+      self.messages.add(str(e), 'error')
+      return self.return_response(status=400)
     return super().dispatch(request, *args, **kwargs)
   
+  ''' Detect actions '''
+  def __detect_model(self):
+    if self.get_value_from_request('model', silent=True):
+      try:
+        self.model = meta_model(self.get_value_from_request('model'))
+      except Exception as e:
+        return self.return_response({'error 1': str(e)}, status=400)
+
+  def __detect_object(self):
+    # Fetch Object in <str:object_id> or <str:object_slug>
+    if self.get_value_from_request('object_id', silent=True) or \
+        self.get_value_from_request('object_slug', silent=True):
+      if not self.model:
+        # Should not occur due to urls.py requirement of model
+        return self.return_response({'error 2': _("model is required for object lookup").capitalize()}, status=400)
+        raise ValueError(_("model is required for object lookup").capitalize())
+      # Lookup object by ID or slug via meta_object class, allowing for empty ID or slug
+      # Pass filtered queryset to meta_object to ensure security-measures are applied
+      self.obj = meta_object( self.model.model, 
+                              qs=self.filter(self.model.model.objects.all()),
+                              id=self.get_value_from_request('object_id', silent=True), 
+                              slug=self.get_value_from_request('object_slug', silent=True))
   
-  def get_model(self):
-    return False
+  def __detect_fields(self):
+    # Fetch Field in <str:field>
+    if self.get_value_from_request('field', silent=True):
+      if not self.obj:
+        if not self.model:
+          # If an invalid model is passed, this will be caught in __detect_object above
+          self.messages.add(_("model is required for field lookup").capitalize(), 'error')
+        else:
+          # If invalid object is passed, this will be caught in __detect_object above
+          self.messages.add(_("object is required for field lookup").capitalize(), 'error')
+        # Stop processing and return errors
+        return self.return_response(status=400)
+      # Handle special field values: show all fields when __all__ is passed
+      if self.get_value_from_request('field') == '__all__':
+       fields = [field.name for field in self.obj.list_fields()]
+      else:
+        fields = [attribute.strip() for attribute in self.get_value_from_request('field').split(',')]
+      for field in fields:
+        # Check if field exists as attribute of object
+        if not hasattr(self.obj.obj, field):
+          self.messages.add(_("field '{}' is not found in {} '{}'").format(field, self.model.name, self.obj).capitalize())
+          continue
+        self.obj.fields.append(field)
+        try:
+          setattr(self.obj, field, meta_field(self.obj, field))
+        except Exception as e:
+          # Field could not be set, so remove from requested fields
+          self.obj.fields.remove(field)
+          self.messages.add(_("field '{}' could not be set in {} '{}': {}").format(field, self.model.name, self.obj, e).capitalize(), 'warning')
+        
+  ''' CRUD actions '''
+  def get(self, request, *args, **kwargs):
+    return self.return_response(payload=self.crud__read())
   
-  def get_object(self):
-    return False
-  
-  
-  
+  def post(self, request, *args, **kwargs):
+    return self.return_response({'info': 'POST method not yet implemented'}, status=501)

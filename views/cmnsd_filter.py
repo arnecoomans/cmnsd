@@ -1,0 +1,117 @@
+# from django.contrib import messages
+# from html import escape
+from django.db.models import Q, QuerySet
+from django.db.models.fields import CharField, TextField
+from django.db.models.fields.related import ManyToManyField
+from django.utils.translation import gettext_lazy as _
+from django.conf import settings
+
+class FilterClass:
+  def filter(self, queryset):
+    model = queryset.model
+    ''' Conditionally filter queryset based on field availablity '''
+    if 'status' in [field.name for field in model._meta.get_fields()]:
+      queryset = self.filter_status(queryset)
+    if 'visibility' in [field.name for field in model._meta.get_fields()]:
+      queryset = self.filter_visibility(queryset)
+    if self.get_value_from_request(getattr(settings, 'SEARCH_QUERY_CHARACTER', 'q'), default=False, silent=True):
+      queryset = self.filter_freetextsearch(queryset)
+    return queryset
+  
+  ''' Filter by object status '''
+  def filter_status(self, queryset):
+    return queryset.filter(status='p')
+  
+  ''' Filter by object visibility '''
+  def filter_visibility(self, queryset):
+    ''' Add private objects for current user to queryset '''
+    if self.request.user.is_authenticated:
+      ''' Show public and community, family if family is configured, and private if owner '''
+      queryset =  queryset.filter(visibility='p') |\
+                  queryset.filter(visibility='c') |\
+                  queryset.filter(visibility='f', user=self.request.user) |\
+                  queryset.filter(visibility='f', user__profile__family=self.request.user) |\
+                  queryset.filter(visibility='q', user=self.request.user)
+    else:
+      ''' Only public objects for anonymous users '''
+      queryset =  queryset.filter(visibility='p')
+    return queryset
+  
+  ''' Free text search filter '''
+  def filter_freetextsearch(self, queryset, query=None):
+    """ Returns the queryset filtered by a free text search query.
+        The query is taken from the request, using the key defined in settings.
+        If the query is found, it searches for the query in all CharField and TextField fields of the model.
+        If the model has ManyToMany fields, it will also search in the related CharField and TextField fields.
+        If no query is found, it returns the original queryset
+    """
+    if not query:
+      query = self.get_value_from_request(getattr(settings, 'SEARCH_QUERY_CHARACTER', 'q'), default=False, silent=True)
+    if query:
+      # Build a Q object for the search query using the provided query string
+      q_obj = self.__build_search_query(query, queryset.model)
+      # Apply the Q object filter to the queryset
+      queryset = queryset.filter(q_obj).distinct()
+    # Return the queryset, which is either filtered or the original queryset
+    return queryset
+
+  def __get_searchable_fields(self, model):
+    """
+    Returns a list of fields that can be used for searching in the given model.
+    This includes CharField and TextField fields, as well as ManyToMany fields
+    that are related to CharField or TextField fields.
+    """
+    fields = []
+    for field in model._meta.get_fields():
+      if isinstance(field, (CharField, TextField)):
+        # Include CharField and TextField fields
+        fields.append(field.name)
+      elif isinstance(field, ManyToManyField):
+        # Include ManyToMany fields, but only if they are related to CharField or TextField
+        related_model = field.remote_field.model
+        for related_field in related_model._meta.fields:
+          if isinstance(related_field, (CharField, TextField)):
+            fields.append(f"{field.name}__{related_field.name}")
+    return fields
+
+  def __build_q_for_term_group(self, terms, model):
+    """ Builds a Q object for a group of terms, where each term must match
+        all searchable fields of the model.
+        If no terms are provided, it returns an empty Q object.
+    """
+    fields = self.__get_searchable_fields(model)
+    group_q = Q()
+    found = False
+
+    for field in fields:
+      field_q = Q()
+      for term in terms:
+        field_q &= Q(**{f"{field}__icontains": term})
+      # Check if the AND query has results, else an empty Q object should be returned
+      if model.objects.filter(field_q).exists():
+        group_q |= field_q
+        found = True
+    return group_q if found else Q(pk__in=[])
+  
+  def __build_search_query(self, query_string, model):
+    """ Builds a Q object for a free text search query.
+        The query string can contain terms separated by '&&' (AND) and '||' (OR).
+        If no query string is provided, it returns an empty Q object.
+    """
+    if not query_string:
+      return Q()
+    # Replace custom operators with Django's Q operators, to allow __and__ and __or__ in the query string
+    # while also allowing for '&&' (encoded to %26%26) and '||' as logical operators
+    query_string = query_string.lower().replace('__and__', '&&').replace('__or__', '||')
+    query_string = query_string.lower().replace(' and ', '&&').replace(' or ', '||')
+    q_obj = Q()
+    or_groups = [group.strip() for group in query_string.split('||') if group.strip()]
+    found_valid_group = False
+    for group in or_groups:
+      and_terms = [term.strip() for term in group.split('&&') if term.strip()]
+      group_q = self.__build_q_for_term_group(and_terms, model)
+      test_qs = model.objects.filter(group_q)
+      if test_qs.exists():
+        q_obj |= group_q
+        found_valid_group = True
+    return q_obj if found_valid_group else Q(pk__in=[])
