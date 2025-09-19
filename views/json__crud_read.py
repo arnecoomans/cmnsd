@@ -16,7 +16,7 @@ class CrudRead:
         payload[self.model.name] = self.render_obj(self.obj)
       elif self.model:
         # If only model is detected, add the rendered model to the payload
-        payload = self.render_model(self.model)
+        payload[self.model.name] = self.render_model(self.model)
     except Exception as e:
       # Log the exception trackback to the console or log when
       # DEBUG is True in settings.py
