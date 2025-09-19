@@ -70,7 +70,8 @@ class JsonDispatch(JsonUtil, CrudRead):
         # Stop processing and return errors
         return self.return_response(status=400)
       # Handle special field values: show all fields when __all__ is passed
-      if self.get_value_from_request('field') == '__all__':
+      if self.get_value_from_request('field') == '__all__' and self.request.user.is_staff:
+       # __all__ search query is only allowed for staff users
        fields = [field.name for field in self.obj.list_fields()]
       else:
         fields = [attribute.strip() for attribute in self.get_value_from_request('field').split(',')]

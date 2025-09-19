@@ -8,7 +8,7 @@ from django.utils.translation import gettext_lazy as _
 from django.conf import settings
 
 class FilterClass:
-  def filter(self, queryset):
+  def filter(self, queryset, suppress_search=False):
     model = queryset.model
     search_query_char = getattr(settings, 'SEARCH_QUERY_CHARACTER', 'q')
     search_fields = self.__get_search_fields(model)
@@ -19,15 +19,16 @@ class FilterClass:
       queryset = self.filter_status(queryset)
     if 'visibility' in [field.name for field in model._meta.get_fields()]:
       queryset = self.filter_visibility(queryset)
-    ''' Field specific filtering '''
-    if len(search_fields) > 0:
-      queryset = self.search_results(queryset, search_fields)
-    ''' Free text search '''
-    if self.get_value_from_request(search_query_char, default=False, silent=True):
-      queryset = self.filter_freetextsearch(queryset)
-    ''' Exclude results based on settings '''
-    if self.get_value_from_request(search_exclude_char, default=False, silent=True):
-      queryset = self.exclude_results(queryset)
+    if not suppress_search:
+      ''' Field specific filtering '''
+      if len(search_fields) > 0:
+        queryset = self.search_results(queryset, search_fields)
+      ''' Free text search '''
+      if self.get_value_from_request(search_query_char, default=False, silent=True):
+        queryset = self.filter_freetextsearch(queryset)
+      ''' Exclude results based on settings '''
+      if self.get_value_from_request(search_exclude_char, default=False, silent=True):
+        queryset = self.exclude_results(queryset)
     return queryset
   
   ''' Security Measure '''
@@ -170,29 +171,38 @@ class FilterClass:
       if value:
         queryset = self.__search_queryset(queryset.model, queryset, field, value)
         # queryset = queryset.filter(**{f"{field}__icontains": value})
-    return queryset
+    return queryset.order_by().distinct()
   
   def __search_queryset(self, model, queryset, field_name, value):
-    """
-    Build a queryset filter dynamically, supporting relations.
-    """
-    # Extract the last field in the relation path
+    # Extract last field in relation path
     last_field_name = field_name.split("__")[-1]
     if not self.__field_is_secure(last_field_name):
       return queryset.none()
+
+    # Traverse relations to find the base field model
     base_field = model
     for part in field_name.split("__")[:-1]:
-      
       base_field = base_field._meta.get_field(part).related_model
-    field = base_field._meta.get_field(last_field_name) if hasattr(base_field, '_meta') else None
+    field = base_field._meta.get_field(last_field_name) if hasattr(base_field, "_meta") else None
 
-    # Choose lookup based on field type
+    # Pick lookup operator
     if isinstance(field, (models.CharField, models.TextField)):
       lookup = f"{field_name}__icontains"
+      parent_lookup = f"{'__'.join(field_name.split('__')[:-1])}__parent__{last_field_name}__icontains"
     else:
       lookup = f"{field_name}__exact"
+      parent_lookup = f"{'__'.join(field_name.split('__')[:-1])}__parent__{last_field_name}__exact"
 
-    return queryset.filter(**{lookup: value})
+    # Always build the base filter
+    filters = Q(**{lookup: value})
+
+    # If the model has a self-referential 'parent', include parent filter
+    if hasattr(base_field, "_meta") and "parent" in [f.name for f in base_field._meta.get_fields()]:
+      print("Self-referential 'parent' field found.")
+      filters |= Q(**{parent_lookup: value})
+    print(filters)
+    return queryset.filter(filters)
+
   
   def exclude_results(self, queryset, exclude_character=None, **kwargs):
     """ Exclude results based on settings.
@@ -205,5 +215,5 @@ class FilterClass:
       exclude_fields = [field.strip() for field in exclude_fields if field.strip()]
       for exclusion in exclude_fields:
         key,value = exclusion.split(':') if ':' in exclusion else (exclusion, 'true')
-        queryset = queryset.exclude(**{key: value})
+        queryset = queryset.exclude(**{f"{key}__icontains": value})
     return queryset
