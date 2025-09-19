@@ -198,9 +198,7 @@ class FilterClass:
 
     # If the model has a self-referential 'parent', include parent filter
     if hasattr(base_field, "_meta") and "parent" in [f.name for f in base_field._meta.get_fields()]:
-      print("Self-referential 'parent' field found.")
       filters |= Q(**{parent_lookup: value})
-    print(filters)
     return queryset.filter(filters)
 
   
