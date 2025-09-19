@@ -2,6 +2,7 @@
 # from html import escape
 from django.db.models import Q, QuerySet
 from django.db.models.fields import CharField, TextField
+from django.db import models
 from django.db.models.fields.related import ManyToManyField
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings
@@ -9,14 +10,55 @@ from django.conf import settings
 class FilterClass:
   def filter(self, queryset):
     model = queryset.model
+    search_query_char = getattr(settings, 'SEARCH_QUERY_CHARACTER', 'q')
+    search_fields = self.__get_search_fields(model)
+    search_exclude_char = getattr(settings, 'SEARCH_EXCLUDE_CHARACTER', 'exclude')
+
     ''' Conditionally filter queryset based on field availablity '''
     if 'status' in [field.name for field in model._meta.get_fields()]:
       queryset = self.filter_status(queryset)
     if 'visibility' in [field.name for field in model._meta.get_fields()]:
       queryset = self.filter_visibility(queryset)
-    if self.get_value_from_request(getattr(settings, 'SEARCH_QUERY_CHARACTER', 'q'), default=False, silent=True):
+    ''' Field specific filtering '''
+    if len(search_fields) > 0:
+      queryset = self.search_results(queryset, search_fields)
+    ''' Free text search '''
+    if self.get_value_from_request(search_query_char, default=False, silent=True):
       queryset = self.filter_freetextsearch(queryset)
+    ''' Exclude results based on settings '''
+    if self.get_value_from_request(search_exclude_char, default=False, silent=True):
+      queryset = self.exclude_results(queryset)
     return queryset
+  
+  ''' Security Measure '''
+  def __field_is_secure(self, field_name):
+    blocked_fields = ['password'] + getattr(settings, 'SEARCH_BLOCKED_FIELDS', [])
+    if field_name in blocked_fields:
+        self.messages.add(_("field '{}' is not allowed for searching due to security reasons.").format(field_name).capitalize(), "error")
+        return False
+    return True
+  ''' Get Searchable Fields from request kwargs 
+      Loop through request GET and POST parameters and check if they are fields in the model.
+      If they are a field, add them to the list of search fields.
+  '''
+  def __get_search_fields(self, model):
+    request_fields = self.__get_searched_fields_from_request()
+    model_fields = [field.name for field in model._meta.get_fields()]
+    query_fields = []
+    for field in request_fields:
+      if field.split('__')[0] in model_fields:
+        query_fields.append(field)
+    return query_fields
+  
+  """ Get all fields from request GET and POST parameters 
+      Return a list of all fields in the request GET and POST parameters."""
+  def __get_searched_fields_from_request(self):
+    search_fields = []
+    for key in self.request.GET.keys():
+      search_fields.append(key)
+    for key in self.request.POST.keys():
+      search_fields.append(key)
+    return search_fields
   
   ''' Filter by object status '''
   def filter_status(self, queryset):
@@ -65,13 +107,15 @@ class FilterClass:
     for field in model._meta.get_fields():
       if isinstance(field, (CharField, TextField)):
         # Include CharField and TextField fields
-        fields.append(field.name)
+        if self.__field_is_secure(field.name):
+          fields.append(field.name)
       elif isinstance(field, ManyToManyField):
         # Include ManyToMany fields, but only if they are related to CharField or TextField
         related_model = field.remote_field.model
         for related_field in related_model._meta.fields:
           if isinstance(related_field, (CharField, TextField)):
-            fields.append(f"{field.name}__{related_field.name}")
+            if self.__field_is_secure(related_field.name):
+              fields.append(f"{field.name}__{related_field.name}")
     return fields
 
   def __build_q_for_term_group(self, terms, model):
@@ -115,3 +159,51 @@ class FilterClass:
         q_obj |= group_q
         found_valid_group = True
     return q_obj if found_valid_group else Q(pk__in=[])
+  
+
+  def search_results(self, queryset, search_fields):
+    """ Search results based on specific fields.
+        If no search fields are provided, it returns the original queryset.
+    """
+    for field in search_fields:
+      value = self.get_value_from_request(field, default=None, silent=True)
+      if value:
+        queryset = self.__search_queryset(queryset.model, queryset, field, value)
+        # queryset = queryset.filter(**{f"{field}__icontains": value})
+    return queryset
+  
+  def __search_queryset(self, model, queryset, field_name, value):
+    """
+    Build a queryset filter dynamically, supporting relations.
+    """
+    # Extract the last field in the relation path
+    last_field_name = field_name.split("__")[-1]
+    if not self.__field_is_secure(last_field_name):
+      return queryset.none()
+    base_field = model
+    for part in field_name.split("__")[:-1]:
+      
+      base_field = base_field._meta.get_field(part).related_model
+    field = base_field._meta.get_field(last_field_name) if hasattr(base_field, '_meta') else None
+
+    # Choose lookup based on field type
+    if isinstance(field, (models.CharField, models.TextField)):
+      lookup = f"{field_name}__icontains"
+    else:
+      lookup = f"{field_name}__exact"
+
+    return queryset.filter(**{lookup: value})
+  
+  def exclude_results(self, queryset, exclude_character=None, **kwargs):
+    """ Exclude results based on settings.
+        If the model has an 'exclude' field, it will exclude objects where exclude=True.
+    """
+    if not exclude_character:
+      exclude_character = getattr(settings, 'SEARCH_EXCLUDE_CHARACTER', 'exclude')
+    exclude_fields = self.get_value_from_request(exclude_character, default='', silent=True).split(',')
+    if exclude_fields:
+      exclude_fields = [field.strip() for field in exclude_fields if field.strip()]
+      for exclusion in exclude_fields:
+        key,value = exclusion.split(':') if ':' in exclusion else (exclusion, 'true')
+        queryset = queryset.exclude(**{key: value})
+    return queryset

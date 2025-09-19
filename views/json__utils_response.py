@@ -82,7 +82,6 @@ class ResponseUtil:
       # Add POST parameters to debug info
       for key, value in self.request.POST.items():
         response_data['__meta']['request']['post_' + key] = value
-    print(response_data)
     return JsonResponse(response_data)
 
   def __get_payload_size(self, payload):

@@ -34,6 +34,8 @@ CMNS projects decreases.
 ## Configuration
 ### Queryset
 - SEARCH_QUERY_CHARACTER = 'q'
+- SEARCH_EXCLUDE_CHARACTER = 'exclude'
+- SEARCH_BLOCKED_FIELDS = []
 ### Json
 - JSON_BLOCKED_MODELS = []
 - JSON_PROTECTED_FIELDS = []
