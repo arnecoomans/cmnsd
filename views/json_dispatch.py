@@ -40,6 +40,7 @@ class JsonDispatch(JsonUtil, CrudRead):
       try:
         self.model = meta_model(self.get_value_from_request('model'))
       except Exception as e:
+        self.messages.add(str(e), 'error')
         return self.return_response({'error 1': str(e)}, status=400)
 
   def __detect_object(self):
