@@ -30,7 +30,7 @@ class ResponseUtil:
     ''' Get model name, object name and attributes '''
     response_data = {
       "status": self.status,
-      "messages": self.messages.get(),
+      "messages": [self.__render_message(message) for message in self.messages.get()],
     }
     ''' Add payload to response if present '''
     if payload:
@@ -117,7 +117,6 @@ class ResponseUtil:
         pass
     ''' No template found, return string value of field '''
     self.messages.add(_("{} template for '{}:{}' not found in field/ when rendering field").format(format, self.model.name, field).capitalize(), "debug")
-    print(template_names)
     if not field or not hasattr(self.obj, field):
       return ''
     return str(getattr(self.obj, field).value())
@@ -197,3 +196,15 @@ class ResponseUtil:
       object_list = self.filter(object_list)
     context[model_name] = object_list
     return self.render(field=None, template_names=template_names, format=format, context=context)
+  
+  def __render_message(self, message):
+    ''' Render message via template if available '''
+    try:
+      rendered_message = render_to_string('core/message.html', {'message': message})
+      message['rendered'] = rendered_message.replace('\n', '').replace('\r', '').replace('\t', '')
+      return message
+    except TemplateDoesNotExist:
+      pass
+    ''' No template found, return string value of message '''
+    self.messages.add(_("Message template not found when rendering message").capitalize(), "debug")
+    return str(message)

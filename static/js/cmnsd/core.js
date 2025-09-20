@@ -3,7 +3,7 @@
 
 import { createRequester, toQuery } from './http.js';
 import * as dom from './dom.js';
-import { normalize as normalizeMessages, render as renderMessages } from './messages.js';
+import * as msg from './messages.js';
 import { createLoader } from './loader.js';
 import { createActionBinder } from './actions.js';
 
@@ -22,7 +22,9 @@ const state = {
   }
 };
 
-function dbg(...args) { if (state.config.debug) console.debug('[cmnsd]', ...args); }
+function dbg(...args) {
+  if (state.config.debug) console.debug('[cmnsd]', ...args);
+}
 export function getConfig() { return state.config; }
 export function setConfig(next) { state.config = { ...state.config, ...next }; }
 
@@ -34,8 +36,9 @@ const loader = createLoader({
   get: (url, options) => api.get(url, options),
   update: dom.update,
   insert: dom.insert,
-  normalizeMessages,
-  renderMessages,
+  normalizeMessages: msg.normalize,
+  renderMessages: (list, opts) =>
+    msg.render(list, { ...state.config.messages, ...opts }),
   dbg
 });
 
@@ -43,8 +46,9 @@ const loader = createLoader({
 const bindActions = createActionBinder({
   request,
   loadContent: loader.loadContent,
-  normalizeMessages,
-  renderMessages,
+  normalizeMessages: msg.normalize,
+  renderMessages: (list, opts) =>
+    msg.render(list, { ...state.config.messages, ...opts }),
   dbg,
   getConfig: () => state.config
 });
@@ -76,16 +80,20 @@ export const api = {
 
   // Messages
   messages: {
-    normalize: normalizeMessages,
+    normalize: msg.normalize,
     render: (response, opts) => {
-      const list = normalizeMessages(response);
+      const list = msg.normalize(response);
       dbg('messages:render', { count: list.length });
-      renderMessages(list, { ...state.config.messages, ...opts });
+      msg.render(list, { ...state.config.messages, ...opts });
     }
   },
 
   // Utilities
-  util: { toQuery, htmlToFragment: dom.htmlToFragment, resolveContainer: dom.resolveContainer },
+  util: {
+    toQuery,
+    htmlToFragment: dom.htmlToFragment,
+    resolveContainer: dom.resolveContainer
+  },
 
   // Content loader
   loadContent: loader.loadContent
