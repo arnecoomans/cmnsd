@@ -1,0 +1,1 @@
+{% load i18n %}<a href="{{ link.url }}" target="_blank" rel="noopener noreferrer" title="{% blocktranslate with linkname=link.name|default:link %}Open '{{ linkname }}' in a new window{% endblocktranslate %}">{{ link.name|default:link }}</a>
