@@ -96,6 +96,12 @@ class ResponseUtil:
   def render(self, field=None, template_names=[], format='html', context={}):
     ''' In-function configuration '''
     remove_newlines = getattr(settings, 'JSON_RENDER_REMOVE_NEWLINES', False)
+    ''' Add request and permissions to context '''
+    context = context | {
+      'request': self.request,
+      'user': self.request.user,
+      'permissions': self.request.user.get_all_permissions(),
+    }
     ''' Render attribute via template if available '''
     for template in template_names:
       try:
@@ -111,6 +117,7 @@ class ResponseUtil:
         pass
     ''' No template found, return string value of field '''
     self.messages.add(_("{} template for '{}:{}' not found in field/ when rendering field").format(format, self.model.name, field).capitalize(), "debug")
+    print(template_names)
     if not field or not hasattr(self.obj, field):
       return ''
     return str(getattr(self.obj, field).value())
