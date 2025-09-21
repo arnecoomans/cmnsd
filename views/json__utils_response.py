@@ -181,12 +181,16 @@ class ResponseUtil:
     if not model or not model.model:
       return ''
     model_name = model.model._meta.verbose_name_plural
-    ''' Build template names to try to render '''
+    ''' Build template names to try to render '''  
     template_names = [
+      # f'model/{ model._meta.verbose_name_plural.lower() }.{ format }',
       f'model/{ model.name.lower() }/list.{ format }',
       f'model/{ model.name.lower() }_list.{ format }',
       f'model/{ model.name.lower() }.{ format }',
     ]
+    # Prepend template name with verbose_name_plural if available
+    if hasattr(model.model, '_meta'):
+      template_names.insert(0, f'model/{ model.model._meta.verbose_name_plural.lower() }.{ format }',)
     ''' Build rendering context '''
     context = context | {
       'model_name': model_name,
