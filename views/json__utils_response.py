@@ -17,7 +17,7 @@ class ResponseUtil:
 
   def dispatch(self, request, *args, **kwargs):
     return super().dispatch(request, *args, **kwargs)
-  
+
   def return_response(self, payload=None, **kwargs):
     """
     Prepare and return a structured JSON response.
@@ -57,6 +57,7 @@ class ResponseUtil:
         "model": str(self.model.name if self.model else None),
         "object": str(self.obj if self.obj else None),
         "fields": str(self.obj.fields) if self.obj else None,
+        "crud_action": str(self.crud_action),
         "payload_size": str(self.__get_payload_size(payload)),
         "debug": settings.DEBUG,
         "request_user": {
@@ -98,6 +99,7 @@ class ResponseUtil:
     remove_newlines = getattr(settings, 'JSON_RENDER_REMOVE_NEWLINES', False)
     ''' Add request and permissions to context '''
     context = context | {
+      'crud_action': getattr(self, 'crud_action', 'read'),
       'request': self.request,
       'user': self.request.user,
       'permissions': self.request.user.get_all_permissions(),

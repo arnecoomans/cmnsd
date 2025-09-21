@@ -14,6 +14,7 @@ class JsonDispatch(JsonUtil, CrudRead):
     self.model = None
     self.obj = None
     self.fields = {}
+    self.crud_action = 'read'
     super().__init__()
 
   def dispatch(self, request, *args, **kwargs):
@@ -91,6 +92,7 @@ class JsonDispatch(JsonUtil, CrudRead):
         
   ''' CRUD actions '''
   def get(self, request, *args, **kwargs):
+    self.crud_action = 'read'
     return self.return_response(payload=self.crud__read())
   
   def post(self, request, *args, **kwargs):
