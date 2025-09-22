@@ -11,12 +11,24 @@ from .json__crud_read import CrudRead
 class JsonDispatch(JsonUtil, CrudRead):    
     
   def __init__(self):
+    super().__init__()
     self.model = None
     self.obj = None
     self.fields = {}
-    self.crud_action = 'read'
-    super().__init__()
-
+    self.modes = {'editable': False}
+    
+  def __guess_modes(self):
+    for mode in ['editable']:
+      # Ensure mode is set to False by default
+      modes = {mode: False}
+      # Look for mode in GET or POST request data and set to True if found
+      if mode in [key.lower() for key in self.request.GET.keys()]:
+        modes[mode] = True
+      elif mode in [key.lower() for key in self.request.POST.keys()]:
+        modes[mode] = True
+    # Return the modes dict
+    return modes
+  
   def dispatch(self, request, *args, **kwargs):
     try:
       # Detect model based on request data
@@ -92,7 +104,7 @@ class JsonDispatch(JsonUtil, CrudRead):
         
   ''' CRUD actions '''
   def get(self, request, *args, **kwargs):
-    self.crud_action = 'read'
+    self.modes = self.__guess_modes()
     return self.return_response(payload=self.crud__read())
   
   def post(self, request, *args, **kwargs):

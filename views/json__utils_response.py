@@ -57,7 +57,7 @@ class ResponseUtil:
         "model": str(self.model.name if self.model else None),
         "object": str(self.obj if self.obj else None),
         "fields": str(self.obj.fields) if self.obj else None,
-        "crud_action": str(self.crud_action),
+        "mode": str(self.modes) if hasattr(self, 'modes') else False,
         "payload_size": str(self.__get_payload_size(payload)),
         "debug": settings.DEBUG,
         "request_user": {
@@ -99,7 +99,7 @@ class ResponseUtil:
     remove_newlines = getattr(settings, 'JSON_RENDER_REMOVE_NEWLINES', False)
     ''' Add request and permissions to context '''
     context = context | {
-      'crud_action': getattr(self, 'crud_action', 'read'),
+      'crud_mode': getattr(self, 'modes', {'editable': False}),
       'request': self.request,
       'user': self.request.user,
       'permissions': self.request.user.get_all_permissions(),

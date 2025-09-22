@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 import json
+import traceback
 
 ''' Configuration options 
   - json_request_default_data_sources: 
@@ -15,8 +16,8 @@ class RequestUtil:
   def __init__(self):
     super().__init__()
 
-  def dispatch(self, request, *args, **kwargs):
-    return super().dispatch(request, *args, **kwargs)
+  # def dispatch(self, request, *args, **kwargs):
+  #   return super().dispatch(request, *args, **kwargs)
   
   def setup(self, request, *args, **kwargs):
     # Run setup for SecurityUtil
@@ -86,6 +87,7 @@ class RequestUtil:
         value = self.request.META.get(self.__get_header_key(key), None)
     except Exception as e:
       self.messages.add(_("error when fetching value: {}").format(str(e)).capitalize(), "debug")
+      traceback.print_exc()
     if value is None and default is not None and not silent:
       self.messages.add(_("value \"{}\" not found in request, falling back to default: \"{}\"").format(str(key), str(default)).capitalize(), "debug")
     elif value is None and not silent:
