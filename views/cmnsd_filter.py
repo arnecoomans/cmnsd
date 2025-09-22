@@ -1,5 +1,3 @@
-# from django.contrib import messages
-# from html import escape
 from django.db.models import Q, QuerySet
 from django.db.models.fields import CharField, TextField
 from django.db import models
