@@ -1,4 +1,4 @@
-/static/*
+/static/uploads/
 
 # Ignore Python files
 *.pyc
