@@ -22,6 +22,8 @@ custom_*.css
 
 # Keep mac-folders outside repo
 .DS_Store
+*/.DS_Store
+
 # Development
 old_*
 dev_*
