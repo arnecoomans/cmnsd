@@ -1,5 +1,10 @@
-// Public entry for cmnsd
+// Entry point for cmnsd
 // Indentation: 2 spaces. Docs in English.
-import { api } from './core.js';
-export default api;
-if (typeof window !== 'undefined') window.cmnsd = api;
+
+import * as core from './core.js';
+
+// Default export is the entire core (so cmnsd.init() works)
+export default core;
+
+// Also re-export all named functions for flexibility
+export * from './core.js';

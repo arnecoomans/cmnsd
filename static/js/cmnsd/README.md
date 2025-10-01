@@ -1,28 +1,38 @@
-# cmnsd — tiny DOM + HTTP helper for Django-backed apps
+# cmnsd
+
+> ⚡ This framework was created iteratively with ChatGPT.
+ — tiny DOM + HTTP + UI helpers for Django-backed apps
 
 A minimal, framework-agnostic ES module that centralizes:
 
-- Fetching JSON/HTML from your Django endpoints (CSRF-aware)
-- Distributing multi-key `payload` objects into containers
-- Rendering Bootstrap alerts from server `messages`
-- **Generic actions** via `data-*` attributes (`data-action`): click/submit handlers that fire requests without extra JS
-- Helpful `console.debug` traces
+- Fetching JSON/HTML from your Django endpoints (CSRF-aware)  
+- Distributing multi-key `payload` objects into containers  
+- Rendering Bootstrap alerts from server `messages` (even on error responses)  
+- **Generic actions** via `data-*` attributes (`data-action`)  
+- **Autosuggest** feature: adds autocomplete inputs driven by JSON endpoints  
+- Helpful `console.debug` traces  
 
 **Indentation:** 2 spaces. **Docs:** English. **No bundler required** (native ES modules).
+
+---
 
 ## Files
 
 ```
 cmnsd/
-  index.js       # public entry (default export, also sets window.cmnsd)
-  core.js        # central config, composition, public API
-  http.js        # fetch wrapper + CSRF + toQuery
-  dom.js         # inject / insert / update / on + tiny DOM utils
-  messages.js    # normalize & render Bootstrap alerts
-  loader.js      # loadContent({ url, map, ... })
-  actions.js     # generic data-action delegation (click/submit)
+  index.js        # public entry (default export, also sets window.cmnsd)
+  core.js         # central config, composition, public API
+  http.js         # fetch wrapper + CSRF + toQuery (never throws on !ok)
+  dom.js          # inject / insert / update / on + dispatches cmnsd:content:applied
+  messages.js     # normalize & render Bootstrap alerts with stacking + auto-dismiss
+  loader.js       # loadContent({ url, map, ... }) (renders messages even on error)
+  actions.js      # generic data-action delegation (click/submit, shows messages even on error)
+  autosuggest.js  # auto-initializes [data-autosuggest] inputs
+  messages.css    # styling for floating alerts
   README.md
 ```
+
+---
 
 ## Install (Django)
 
@@ -35,28 +45,31 @@ In your template:
 ```html
 {% load static %}
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="{% static 'cmnsd/messages.css' %}" rel="stylesheet">
 
-<div id="alerts"></div>
-<div id="tasks"></div>
-<div id="news"></div>
+<div id="messages" class="cmnsd-messages"></div>
 
 <script type="module">
   import cmnsd from "{% static 'cmnsd/index.js' %}";
+  import { initAutosuggest } from "{% static 'cmnsd/autosuggest.js' %}";
 
   cmnsd.init({
     baseURL: '/api/',
-    debug: true, // enable console.debug tracing
-    messages: { container: '#alerts', dismissible: true, clearBefore: true },
-    actions: { autoBind: true } // bind delegated [data-action] on document
+    debug: true,
+    messages: { container: '#messages', dismissible: true, clearBefore: false, max: 5 },
+    actions: { autoBind: true }
   });
 
-  // Load some sections on page-load
   cmnsd.loadContent({
     url: '/api/dashboard/summary/',
     map: { tasks_html: '#tasks', news_html: '#news' }
   });
+
+  initAutosuggest(); // autosuggest also rescans automatically after content loads
 </script>
 ```
+
+---
 
 ## API
 
@@ -77,14 +90,17 @@ Global options (all optional):
   messages?: {
     container?: string | Element,
     dismissible?: boolean,
-    clearBefore?: boolean
+    clearBefore?: boolean, // default false
+    max?: number           // max stacked messages (default 5)
   },
   actions?: {
-    autoBind?: boolean, // default true — binds generic [data-action]
-    root?: Element | Document // default document
+    autoBind?: boolean, // default true
+    root?: Element | Document
   }
 }
 ```
+
+---
 
 ### HTTP
 
@@ -96,37 +112,57 @@ await cmnsd.patch(url, { data });
 await cmnsd.delete(url, { params });
 ```
 
-- Objects passed as `params` become query strings.
-- `data` may be a `FormData`, `string`, `Blob`, or plain object (JSON).
+- `params` → query string (object or querystring).  
+- `data` → `FormData`, `string`, `Blob`, or plain object (JSON).  
+- ✅ Returns `{ status, ok, ...json }` even on non-200.  
+
+---
 
 ### DOM helpers
 
 ```js
 cmnsd.update('#container', '<div>html</div>');
-cmnsd.insert('#container', '<div>append</div>'); // alias of inject
-cmnsd.inject('#container', NodeOrHTML);
+cmnsd.insert('#container', '<div>append</div>', { position: 'top' });
+cmnsd.inject('#container', NodeOrHTML); // legacy
 cmnsd.on(document, 'click', '.btn', (e, btn) => { ... });
 ```
+
+- `insert` replaces an element with same `id` if present, otherwise adds new content.  
+- `update` clears and replaces all content.  
+- After `insert`/`update`, a `cmnsd:content:applied` event is dispatched, so other features (like autosuggest) can re-scan.  
+
+---
 
 ### Messages
 
 ```js
-cmnsd.messages.render(response); // reads response.messages/message and shows Bootstrap alerts
+cmnsd.messages.render(response); // reads response.messages/message and shows alerts
 ```
 
-Accepted shapes:
+- Supports `{ message: "Saved" }`  
+- Supports `{ messages: ["Saved", "All good"] }`  
+- Supports `{ messages: [{ level: "success", text: "Saved" }] }`  
+- Supports `{ messages: [{ level: "info", message: "Saved" }] }`  
+- Also handles `{ rendered: "<div class='alert ...'>...</div>" }`  
 
-```json
-{ "message": "Saved" }
-{ "messages": ["Saved", "All good"] }
-{ "messages": [{ "level": "success", "text": "Saved" }] }
-```
+**Features**:
+- Stacks messages (default `clearBefore: false`).  
+- Auto-dismiss per level (configurable durations).  
+- Max stack (default 5).  
+- Fixed, centered alert container (`.cmnsd-messages`), with translucent Bootstrap colors, blur, rounded corners, and shadow.  
+- ✅ Messages are rendered even on error responses.  
 
-Levels map to Bootstrap: `debug→secondary`, `info→info`, `success→success`, `warning→warning`, `error→danger`.
+---
+
+### Message Styling (`messages.css`)
+
+See included `messages.css` for styling. Alerts are translucent, blurred, and stack at the top center of the viewport.
+
+---
 
 ### `cmnsd.loadContent({ url, params, map, mode, onDone })`
 
-Fetches `url` and distributes `response.payload` into containers defined by `map`:
+Fetches `url` and distributes `response.payload` into containers defined by `map`.
 
 ```js
 await cmnsd.loadContent({
@@ -149,74 +185,107 @@ Expected server response:
     "news_html": "<article>...</article>"
   },
   "messages": [
-    { "level": "success", "text": "Dashboard up-to-date." }
+    { "level": "success", "text": "Dashboard updated." }
   ]
 }
 ```
 
+**Behavior:**  
+- ✅ Renders messages even when `ok === false`.  
+- ✅ Adds a generic `"Load failed."` danger message on non-200.  
+- ✅ Only updates containers if `ok === true`.  
+
+---
+
 ### Generic actions via `data-action`
 
-Add `data-action` to any **button/link/form** to make it “live” without extra JS. Everything is driven by `data-*` attributes:
+Attributes:
 
-Attribute | Type | Meaning
----|---|---
-`data-url` | string | Endpoint. Falls back to `href` (links) or `action` (forms).
-`data-method` | string | `GET`, `POST`, `PUT`, `PATCH`, `DELETE`. Defaults: link→`GET`, button/form→`POST`.
-`data-params` | string | JSON object or querystring (`"a=1&b=2"`).
-`data-body` | string | `"form"` (submits nearest form) or JSON string.
-`data-confirm` | string | Show a confirm dialog before proceeding.
-`data-disable` | present | If present, the element is disabled during the request.
-`data-map` | JSON | Distribute **this response's** `payload` into containers. Example: `{"tasks_html":"#tasks"}`.
-`data-mode` | string | `update` (default) or `insert` when using `data-map`.
-`data-refresh-url` | string | Follow-up GET to refresh content after action succeeds.
-`data-refresh-params` | string | JSON or querystring for the refresh request.
-`data-refresh-map` | JSON | Map for distributing the refresh payload.
-`data-refresh-mode` | string | `update` or `insert` for the refresh distribution.
+| Attribute              | Meaning                                                  |
+|------------------------|----------------------------------------------------------|
+| `data-action`          | Activate element as action trigger                       |
+| `data-url`             | Endpoint (falls back to `href` or `action`)              |
+| `data-method`          | GET/POST/PUT/PATCH/DELETE (default: link=GET, form=POST) |
+| `data-params`          | JSON or querystring (`{"a":1}` or `a=1`)                 |
+| `data-body`            | `"form"` (submits nearest form) or JSON string           |
+| `data-confirm`         | Confirm dialog                                           |
+| `data-disable`         | Disable element during request                           |
+| `data-map`             | Map payload keys to selectors (update from response)     |
+| `data-mode`            | `update` (default) or `insert`                           |
+| `data-refresh-url`     | Follow-up GET to refresh content                         |
+| `data-refresh-params`  | Params for refresh                                       |
+| `data-refresh-map`     | Map for refresh payload                                  |
+| `data-refresh-mode`    | Mode for refresh (`update`/`insert`)                     |
 
-Examples:
+Example:
 
 ```html
-<!-- Approve (POST), then refresh the dashboard sections -->
-<button
-  type="button"
-  class="btn btn-sm btn-primary"
-  data-action
-  data-url="/api/tasks/123/approve/"
-  data-method="POST"
-  data-confirm="Approve this task?"
-  data-disable
-  data-refresh-url="/api/dashboard/summary/"
-  data-refresh-map='{"tasks_html":"#tasks","news_html":"#news"}'
-  data-refresh-mode="update"
->Approve</button>
-
-<!-- Delete (DELETE) and use the SAME response payload to update #tasks -->
 <a
   href="/api/tasks/123/"
-  class="link-danger"
   data-action
   data-method="DELETE"
-  data-confirm="Delete this task?"
+  data-confirm="Delete?"
   data-map='{"tasks_html":"#tasks"}'
-  data-mode="update"
->Delete</a>
-
-<!-- Inline create: submit the form (body=form) and update #tasks from response -->
-<form data-action data-url="/api/tasks/create/" data-body="form" data-map='{"tasks_html":"#tasks"}'>
-  <input name="title" required>
-  <button class="btn btn-success" data-disable>Create</button>
-</form>
+>[X]</a>
 ```
+
+**Behavior:**  
+- ✅ Renders messages even when `ok === false`.  
+- ✅ Adds a generic `"Action failed."` danger message on non-200.  
+- ✅ Only updates/refreshes containers if `ok === true`.  
+
+---
+
+### Autosuggest (`autosuggest.js`)
+
+Any `<input>` with `data-autosuggest` is automatically initialized. Works on page-load and for AJAX-inserted content.
+
+```html
+<input
+  type="text"
+  name="tag"
+  class="form-control"
+  data-autosuggest
+  data-url="/json/locations/suggest/"
+  data-param="q"
+  data-container="tags"
+  data-field-input="name"
+  data-field-hidden="slug"
+  data-extra-params='{"format":"json"}'
+/>
+```
+
+**Features:**
+
+- Shows suggestions from server after 2+ chars.  
+- Supports `data-container` to drill into nested payloads (e.g. `payload.tags`).  
+- Supports `data-extra-params` to add query params.  
+- Creates (or reuses) hidden fields for both `data-field-hidden` and `data-field-input`.  
+- If suggestion with `slug` is clicked → submits `slug=<slug>`.  
+- If free text typed → submits `name=<value>`.  
+- Automatically rebinds after every `cmnsd:content:applied`.  
+
+Example server response:
+
+```json
+{
+  "payload": {
+    "tags": {
+      "klein-zwembad": { "slug": "klein-zwembad", "name": "Klein Zwembad" },
+      "opzetzwembad": { "slug": "opzetzwembad", "name": "Opzetzwembad" }
+    }
+  }
+}
+```
+
+---
 
 ## Debugging
 
-Set `debug: true` in `init()` to see `console.debug` logs for requests, content loads, and actions.
+- Set `debug: true` in `init()` to log requests, loads, actions, and messages.  
+- Autosuggest logs to `[cmnsd:autosuggest]`.  
 
-## Notes
-
-- CSRF token is read from cookie `csrftoken` by default; override via `csrftoken` in `init()` if needed.
-- This library is framework-agnostic; Bootstrap is **only** used for alert styling.
-- Works with server responses that return HTML snippets or plain strings for each payload key.
+---
 
 ## License
 

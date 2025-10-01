@@ -1,11 +1,11 @@
-// Central config, composition, and public API for cmnsd.
+// Core initializer for cmnsd.
 // Indentation: 2 spaces. Docs in English.
 
-import { createRequester, toQuery } from './http.js';
+import { api } from './http.js';
 import * as dom from './dom.js';
 import * as msg from './messages.js';
-import { createLoader } from './loader.js';
 import { createActionBinder } from './actions.js';
+import { createLoader } from './loader.js';
 
 const state = {
   config: {
@@ -13,25 +13,18 @@ const state = {
     headers: {},
     csrftoken: null,
     credentials: 'same-origin',
-    beforeRequest: null,
-    afterResponse: null,
-    onError: (e) => console.error('[cmnsd]', e),
-    debug: true,
-    messages: { container: null, dismissible: true, clearBefore: true },
-    actions: { autoBind: true, root: null }
+    debug: false,
+    messages: { container: '#messages', dismissible: true, clearBefore: false, max: 5 },
+    actions: { autoBind: true }
   }
 };
 
 function dbg(...args) {
-  if (state.config.debug) console.debug('[cmnsd]', ...args);
+  if (state.config.debug) {
+    console.debug('[cmnsd]', ...args);
+  }
 }
-export function getConfig() { return state.config; }
-export function setConfig(next) { state.config = { ...state.config, ...next }; }
 
-// HTTP requester bound to current config
-const request = createRequester(() => state.config);
-
-// Loader (content distributor) that uses api.get internally
 const loader = createLoader({
   get: (url, options) => api.get(url, options),
   update: dom.update,
@@ -39,12 +32,12 @@ const loader = createLoader({
   normalizeMessages: msg.normalize,
   renderMessages: (list, opts) =>
     msg.render(list, { ...state.config.messages, ...opts }),
-  dbg
+  dbg,
+  getConfig: () => state.config
 });
 
-// Actions binder (generic data-action handler)
-const bindActions = createActionBinder({
-  request,
+const actionBinder = createActionBinder({
+  request: api.request || ((m, u, o) => api[m.toLowerCase()](u, o)),
   loadContent: loader.loadContent,
   normalizeMessages: msg.normalize,
   renderMessages: (list, opts) =>
@@ -53,48 +46,26 @@ const bindActions = createActionBinder({
   getConfig: () => state.config
 });
 
-export const api = {
-  init(options = {}) {
-    setConfig(options);
-    dbg('init', { config: state.config });
+export function init(config = {}) {
+  state.config = {
+    ...state.config,
+    ...config,
+    messages: { ...state.config.messages, ...(config.messages || {}) },
+    actions: { ...state.config.actions, ...(config.actions || {}) }
+  };
 
-    if (state.config.actions?.autoBind) {
-      const root = state.config.actions.root || document;
-      bindActions(root);
-    }
-    return this;
-  },
+  if (state.config.actions.autoBind) {
+    actionBinder(document);
+  }
 
-  // HTTP
-  get(url, options) { return request('GET', url, options); },
-  post(url, options) { return request('POST', url, options); },
-  put(url, options) { return request('PUT', url, options); },
-  patch(url, options) { return request('PATCH', url, options); },
-  delete(url, options) { return request('DELETE', url, options); },
+  dbg('init', state.config);
+}
 
-  // DOM
-  inject: dom.inject,
-  insert: dom.insert,
-  update: dom.update,
-  on: dom.on,
+export function getConfig() {
+  return state.config;
+}
 
-  // Messages
-  messages: {
-    normalize: msg.normalize,
-    render: (response, opts) => {
-      const list = msg.normalize(response);
-      dbg('messages:render', { count: list.length });
-      msg.render(list, { ...state.config.messages, ...opts });
-    }
-  },
+// ✅ Re-export loadContent at top level
+export const loadContent = loader.loadContent;
 
-  // Utilities
-  util: {
-    toQuery,
-    htmlToFragment: dom.htmlToFragment,
-    resolveContainer: dom.resolveContainer
-  },
-
-  // Content loader
-  loadContent: loader.loadContent
-};
+export { loader, actionBinder, dom, msg, api, dbg };

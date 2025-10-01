@@ -8,40 +8,28 @@ function mapLevel(lvl) {
     success: 'success',
     warning: 'warning',
     error: 'danger',
-    secondary: 'secondary' // explicit support if backend sends "secondary"
+    secondary: 'secondary'
   };
   return m[lvl] || 'info';
 }
 
-/**
- * Default auto-dismiss durations in milliseconds per level.
- * Set to 0 to disable auto-dismiss for that level.
- */
 const defaultTimeouts = {
   debug: 10000,    // 10s
   info: 20000,     // 20s
   success: 20000,  // 20s
   warning: 30000,  // 30s
   error: 60000,    // 60s
-  secondary: 10000 // treat like debug
+  secondary: 10000
 };
 
-/**
- * Normalize different backend message shapes into a unified array:
- *   { level, text }
- *   { level, message }
- *   { level, rendered }
- */
 export function normalize(response) {
   if (!response) return [];
   const out = [];
 
-  // single top-level string message
   if (typeof response?.message === 'string') {
     out.push({ level: 'info', text: response.message });
   }
 
-  // array of messages
   if (Array.isArray(response?.messages)) {
     response.messages.forEach(m => {
       if (!m) return;
@@ -53,8 +41,11 @@ export function normalize(response) {
         if (text) {
           out.push({ level: (m.level || 'info').toLowerCase(), text });
         } else if (m.rendered) {
-          // pass along raw HTML
-          out.push({ level: (m.level || 'info').toLowerCase(), text: m.rendered, rendered: true });
+          out.push({
+            level: (m.level || 'info').toLowerCase(),
+            text: m.rendered,
+            rendered: true
+          });
         }
       }
     });
@@ -64,20 +55,13 @@ export function normalize(response) {
 }
 
 /**
- * Render a list of normalized messages as Bootstrap alerts.
- * If a message has { rendered: true }, its HTML is inserted directly.
- * Additionally, each message is logged to console.debug.
- *
- * @param {Array} list - normalized messages
- * @param {Object} opts - render options
- * @param {string|Element} opts.container - target element/selector
- * @param {boolean} opts.dismissible - allow manual close
- * @param {boolean} opts.clearBefore - clear existing messages
- * @param {Object} opts.timeouts - optional override per level in ms
+ * Render messages as Bootstrap alerts.
+ * By default, new messages are *appended* (clearBefore=false).
+ * Max stack size enforced via opts.max (default 5).
  */
 export function render(
   list,
-  { container, dismissible = true, clearBefore = true, timeouts = {} } = {}
+  { container, dismissible = true, clearBefore = false, timeouts = {}, max = 5 } = {}
 ) {
   if (!container) return;
   const host =
@@ -85,14 +69,13 @@ export function render(
       ? document.querySelector(container)
       : container;
   if (!host) return;
+
   if (clearBefore) host.replaceChildren();
 
   list.forEach(({ text, level = 'info', rendered }) => {
-    // Log every message to console.debug
     console.debug('[cmnsd:message]', { level, text, rendered });
 
     if (rendered) {
-      // Insert server-provided HTML directly
       host.insertAdjacentHTML('beforeend', text);
       return;
     }
@@ -116,7 +99,7 @@ export function render(
     div.prepend(span);
     host.appendChild(div);
 
-    // Auto-dismiss timer
+    // Auto-dismiss
     const timeout =
       typeof timeouts[level] === 'number'
         ? timeouts[level]
@@ -125,10 +108,18 @@ export function render(
       setTimeout(() => {
         if (div && div.parentNode) {
           div.classList.remove('show');
-          // remove after fade transition if using Bootstrap
-          setTimeout(() => div.remove(), 150);
+          setTimeout(() => div.remove(), 300); // match CSS transition
         }
       }, timeout);
     }
   });
+
+  // Enforce max stack size
+  const alerts = host.querySelectorAll('.alert');
+  if (alerts.length > max) {
+    const excess = alerts.length - max;
+    for (let i = 0; i < excess; i++) {
+      alerts[i].remove(); // remove oldest (top-most)
+    }
+  }
 }

@@ -1,82 +1,113 @@
-// HTTP wrapper with Django-friendly CSRF and JSON handling.
+// HTTP utilities for cmnsd
 // Indentation: 2 spaces. Docs in English.
 
-export function getCSRFCookie(name = 'csrftoken') {
-  if (typeof document === 'undefined') return null;
-  const m = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
-  return m ? decodeURIComponent(m[1]) : null;
-}
+import { getConfig } from './core.js';
 
-export function toQuery(params = {}) {
-  const q = new URLSearchParams();
-  Object.entries(params || {}).forEach(([k, v]) => {
-    if (v == null) return;
-    Array.isArray(v) ? v.forEach(it => q.append(k, it)) : q.append(k, String(v));
-  });
-  const s = q.toString();
-  return s ? `?${s}` : '';
+/**
+ * Get a cookie by name
+ * @param {string} name
+ * @returns {string|null}
+ */
+function getCookie(name) {
+  if (!document.cookie) return null;
+  const cookies = document.cookie.split(';');
+  for (let c of cookies) {
+    const [k, v] = c.trim().split('=');
+    if (k === name) return decodeURIComponent(v);
+  }
+  return null;
 }
 
 /**
- * Create a request function bound to a config getter.
- * Keeps http stateless and testable.
- * @param {() => any} getConfig
+ * Get the current CSRF token (Django default cookie: "csrftoken")
+ * @returns {string|null}
  */
-export function createRequester(getConfig) {
-  return async function request(method, url, { params, data, headers, signal } = {}) {
-    const cfg = getConfig();
-    const fullURL = new URL((cfg.baseURL || '') + url, window.location.origin);
-    if (params) {
-      const qs = toQuery(params);
-      if (qs) fullURL.search = (fullURL.search ? fullURL.search + '&' : '') + qs.slice(1);
+function getCsrfToken() {
+  return getCookie('csrftoken');
+}
+
+// Build querystring from params
+export function toQuery(params) {
+  if (!params) return '';
+  if (typeof params === 'string') return params;
+  const usp = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => {
+    if (v === undefined || v === null) return;
+    if (Array.isArray(v)) v.forEach(val => usp.append(k, val));
+    else usp.append(k, v);
+  });
+  return usp.toString();
+}
+
+// Generic request
+export async function request(method, url, opts = {}) {
+  const cfg = getConfig();
+  const { params, data, headers = {}, signal } = opts;
+
+  let finalUrl = url;
+  const q = toQuery(params);
+  if (q) finalUrl += (finalUrl.includes('?') ? '&' : '?') + q;
+
+  const init = {
+    method,
+    headers: { ...cfg.headers, ...headers },
+    credentials: cfg.credentials || 'same-origin',
+    signal
+  };
+
+  // Add CSRF if needed
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+    if (!(data instanceof FormData)) {
+      init.headers['Content-Type'] = 'application/json';
     }
-
-    /** @type {RequestInit} */
-    const init = {
-      method,
-      credentials: cfg.credentials || 'same-origin',
-      headers: { 'Accept': 'application/json', ...cfg.headers, ...headers },
-      signal
-    };
-
-    const unsafe = /^(POST|PUT|PATCH|DELETE)$/i.test(method);
-    const token = cfg.csrftoken || getCSRFCookie();
-    if (unsafe && token) init.headers['X-CSRFToken'] = token;
-
-    if (data !== undefined) {
-      const isFD = (typeof FormData !== 'undefined') && data instanceof FormData;
-      if (isFD) init.body = data;
-      else if (typeof data === 'string' || data instanceof Blob) init.body = data;
-      else { init.headers['Content-Type'] = 'application/json'; init.body = JSON.stringify(data); }
+    // ✅ Always fetch CSRF cookie at call time
+    const token = getCsrfToken();
+    if (token) {
+      init.headers['X-CSRFToken'] = token;
     }
+  }
 
-    try {
-      if (typeof cfg.beforeRequest === 'function') await cfg.beforeRequest({ url: fullURL.toString(), init });
-      if (cfg.debug) console.debug('[cmnsd]', 'request:start', { method, url: fullURL.toString() });
+  if (data) {
+    init.body = data instanceof FormData ? data : JSON.stringify(data);
+  }
 
-      const res = await fetch(fullURL, init);
+  if (cfg.beforeRequest) {
+    await cfg.beforeRequest({ url: finalUrl, init });
+  }
 
-      if (typeof cfg.afterResponse === 'function') { try { await cfg.afterResponse(res.clone()); } catch {} }
+  let res;
+  try {
+    res = await fetch(finalUrl, init);
+  } catch (err) {
+    cfg.onError && cfg.onError(err);
+    throw err;
+  }
 
-      const ct = res.headers.get('content-type') || '';
-      const payload = ct.includes('application/json') ? await res.json()
-                    : ct.includes('text/') ? await res.text()
-                    : await res.blob();
+  let json;
+  try {
+    json = await res.json();
+  } catch {
+    const text = await res.text();
+    json = { text };
+  }
 
-      if (cfg.debug) console.debug('[cmnsd]', 'request:end', { status: res.status, ok: res.ok, url: fullURL.toString() });
+  if (cfg.afterResponse) {
+    await cfg.afterResponse(res);
+  }
 
-      if (!res.ok) {
-        const err = new Error(`HTTP ${res.status}: ${res.statusText}`);
-        err.status = res.status; err.response = res; err.payload = payload;
-        cfg.onError && cfg.onError(err);
-        throw err;
-      }
-      return payload;
-    } catch (err) {
-      if (getConfig().debug) console.debug('[cmnsd]', 'request:error', err);
-      const cfg2 = getConfig();
-      cfg2.onError && cfg2.onError(err);
-      throw err;
-    }
+  // Always return structured result, even on non-200
+  return {
+    status: res.status,
+    ok: res.ok,
+    ...json
   };
 }
+
+// Shortcut methods
+export const api = {
+  get: (url, opts) => request('GET', url, opts),
+  post: (url, opts) => request('POST', url, opts),
+  put: (url, opts) => request('PUT', url, opts),
+  patch: (url, opts) => request('PATCH', url, opts),
+  delete: (url, opts) => request('DELETE', url, opts)
+};
