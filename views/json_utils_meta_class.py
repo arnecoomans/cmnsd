@@ -195,6 +195,6 @@ class meta_field(JsonUtil):
     return isinstance(self.__field, models.BooleanField)
 
   def related_model(self):
-    if self.is_related():
+    if self.is_related() or self.is_foreign_key():
       return self.__field.related_model
     return None

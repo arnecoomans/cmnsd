@@ -1,7 +1,7 @@
 // Autosuggest feature for cmnsd
 // Indentation: 2 spaces. Docs in English.
 
-import { api } from './core.js';
+import { api } from './http.js';
 
 function setupInput(host) {
   // Clean leftover attribute (e.g. from server-rendered HTML)
@@ -15,15 +15,28 @@ function setupInput(host) {
   }
   host.dataset.autosuggestActive = '1';
 
-  // Ignore stray action attributes
-  const strayAttrs = ['action', 'method', 'map', 'body', 'disable', 'confirm'];
+  // Ignore stray action-related attributes (remove from autosuggest inputs)
+  const strayAttrs = [
+    'action',
+    'method',
+    'map',
+    'body',
+    'disable',
+    'confirm'
+  ];
   strayAttrs.forEach(attr => {
     const key = 'data-' + attr;
     if (host.hasAttribute(key)) {
-      console.debug('[cmnsd:autosuggest] ignoring stray', key, 'on', host);
+      console.debug('[cmnsd:autosuggest] removing stray', key, 'on', host);
       host.removeAttribute(key);
     }
   });
+
+  // Explicitly remove data-action if present
+  if (host.hasAttribute('data-action')) {
+    console.debug('[cmnsd:autosuggest] removing stray data-action on', host);
+    host.removeAttribute('data-action');
+  }
 
   const url = host.dataset.url;
   const minChars = parseInt(host.dataset.min || '2', 10);
@@ -131,7 +144,9 @@ function setupInput(host) {
       el.className = 'list-group-item list-group-item-action';
       el.textContent = display;
 
-      el.addEventListener('click', () => {
+      el.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         host.value = display;
         if (submitVal) {
           hiddenSlug.value = submitVal;
@@ -150,18 +165,17 @@ function setupInput(host) {
 
   // Debounced input handler
   host.addEventListener('input', () => {
-  console.debug('[cmnsd:autosuggest] input event', host.value);
-  const q = host.value.trim();
-  hiddenSlug.value = '';
-  hiddenName.value = q;
-  if (q.length < minChars) {
-    clearList();
-    return;
-  }
-  if (timer) clearTimeout(timer);
-  timer = setTimeout(() => fetchSuggestions(q), debounce);
-});
-
+    console.debug('[cmnsd:autosuggest] input event', host.value);
+    const q = host.value.trim();
+    hiddenSlug.value = '';
+    hiddenName.value = q;
+    if (q.length < minChars) {
+      clearList();
+      return;
+    }
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => fetchSuggestions(q), debounce);
+  });
 
   // Hide dropdown on blur
   host.addEventListener('blur', () => {
@@ -183,6 +197,7 @@ export function initAutosuggest(root = document) {
   });
 }
 
+// Initial scan
 document.addEventListener('DOMContentLoaded', () => {
   console.debug('[cmnsd:autosuggest] DOMContentLoaded fired');
   initAutosuggest();
@@ -190,6 +205,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Always rescan the full document after content loads
 document.addEventListener('cmnsd:content:applied', e => {
-  console.debug('[cmnsd:autosuggest] content applied from', e.target);
+  console.debug(
+    '[cmnsd:autosuggest] content applied event fired from',
+    e.detail?.container || e.target
+  );
   initAutosuggest(document);
 });

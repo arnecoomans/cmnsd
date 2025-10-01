@@ -38,7 +38,6 @@ export function toNodes(payload) {
 }
 
 export function normalizePayload(payload) {
-  // Kept for backwards-compat where callers want a Fragment
   const frag = document.createDocumentFragment();
   toNodes(payload).forEach(n => frag.appendChild(n));
   return frag;
@@ -56,20 +55,26 @@ export function inject(container, payload) {
 
 /**
  * Replace the content of a container.
- * Fires cmnsd:content:applied on the container afterwards.
+ * Fires cmnsd:content:applied on both the container and the document.
  */
 export function update(container, payload) {
   const el = resolveContainer(container);
   el.replaceChildren();
   el.appendChild(normalizePayload(payload));
 
-  // const ev = new CustomEvent('cmnsd:content:applied', { bubbles: true });
-  // el.dispatchEvent(ev);
   const ev = new CustomEvent('cmnsd:content:applied', {
     bubbles: true,
     detail: { container: el }
   });
+  console.debug('[cmnsd:dom] dispatching cmnsd:content:applied', el);
+
+  // Dispatch on container
   el.dispatchEvent(ev);
+  // Also dispatch on document for global listeners
+  document.dispatchEvent(new CustomEvent('cmnsd:content:applied', {
+    bubbles: true,
+    detail: { container: el }
+  }));
 
   return el;
 }
@@ -78,11 +83,7 @@ export function update(container, payload) {
  * Insert nodes at the top or bottom of the container.
  * If any inserted element has an id that already exists
  * within the container, the existing element is replaced in place.
- * Fires cmnsd:content:applied on the container afterwards.
- *
- * @param {string|Element} container
- * @param {any} payload - string | Node | Node[] | DocumentFragment
- * @param {{ position?: 'top' | 'bottom' }} [options]
+ * Fires cmnsd:content:applied on both the container and the document.
  */
 export function insert(container, payload, options = {}) {
   const el = resolveContainer(container);
@@ -107,8 +108,19 @@ export function insert(container, payload, options = {}) {
     else el.appendChild(node);
   });
 
-  const ev = new CustomEvent('cmnsd:content:applied', { bubbles: true });
+  const ev = new CustomEvent('cmnsd:content:applied', {
+    bubbles: true,
+    detail: { container: el }
+  });
+  console.debug('[cmnsd:dom] dispatching cmnsd:content:applied', el);
+
+  // Dispatch on container
   el.dispatchEvent(ev);
+  // Also dispatch on document for global listeners
+  document.dispatchEvent(new CustomEvent('cmnsd:content:applied', {
+    bubbles: true,
+    detail: { container: el }
+  }));
 
   return el;
 }
@@ -126,3 +138,4 @@ export function on(root, type, selector, handler, options) {
   base.addEventListener(type, wrapped, options);
   return () => base.removeEventListener(type, wrapped, options);
 }
+// End of dom.js

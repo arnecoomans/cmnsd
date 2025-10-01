@@ -151,6 +151,10 @@ class ResponseUtil:
       f'object/{ self.model.name.lower() }_{ field }.{ format }',
       f'field/{ field }.{ format }',
     ]
+    # Prepend template list with model-specific field template if available
+    if hasattr(getattr(self.obj, field).related_model(), 'js_template_name') and getattr(self.obj, field).related_model().js_template_name:
+      template_names.insert(0, f'field/{ getattr(self.obj, field).related_model().js_template_name }.{ format }')
+    # Add date-specific template if field is a DateField or DateTimeField
     if isinstance(self.model.model._meta.get_field(field), models.DateTimeField) or \
         isinstance(self.model.model._meta.get_field(field), models.DateField):
       template_names.append(f'field/date.{ format }')

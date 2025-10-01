@@ -1,6 +1,8 @@
 // Generic delegated data-action handler for cmnsd.
 // Indentation: 2 spaces. Docs in English.
 
+import { update, insert } from './dom.js';
+
 /**
  * @param {Object} deps
  * @param {(method:string, url:string, opts?:any)=>Promise<any>} deps.request
@@ -30,25 +32,26 @@ export function createActionBinder({
 
   function parseParams(val) {
     if (!val) return null;
+
+    // Try JSON first
     if (typeof val === 'string' && val.trim().startsWith('{')) {
       try {
         return JSON.parse(val);
       } catch (err) {
-        console.warn('[cmnsd:params] invalid JSON, falling back', { val, err });
+        console.warn('[cmnsd:params] invalid JSON, falling back', {
+          val,
+          err
+        });
       }
     }
+
+    // Try querystring fallback
     try {
       return Object.fromEntries(new URLSearchParams(val));
     } catch (err) {
       console.warn('[cmnsd:params] invalid querystring', { val, err });
       return null;
     }
-  }
-
-  function htmlToFragment(html) {
-    const tpl = document.createElement('template');
-    tpl.innerHTML = String(html).trim();
-    return tpl.content;
   }
 
   function applyFromExistingPayload(response, map, mode = 'update') {
@@ -60,19 +63,17 @@ export function createActionBinder({
           ? document.querySelector(selector)
           : selector;
       if (!el) return;
-      const frag = htmlToFragment(String(data[key]));
+
       if (mode === 'insert') {
-        el.appendChild(frag);
+        insert(el, data[key]);
       } else {
-        el.replaceChildren();
-        el.appendChild(frag);
+        update(el, data[key]);
       }
     });
   }
 
   async function handleActionTrigger(e, el) {
     e.preventDefault();
-    e.stopPropagation();
 
     const confirmMsg = el.dataset.confirm;
     if (confirmMsg && !window.confirm(confirmMsg)) return;
@@ -120,24 +121,14 @@ export function createActionBinder({
       dbg('action:request', { method, url, params, hasBody: !!body });
       const res = await request(method, url, { params, data: body });
 
-      // ✅ Always render server messages if present
       const msgs = normalizeMessages(res);
       if (msgs.length) {
         dbg('action:messages', { count: msgs.length });
         renderMessages(msgs, getConfig().messages);
       }
 
-      // ✅ Add generic error message if request not ok
-      if (!res.ok) {
-        renderMessages(
-          [{ level: 'danger', text: 'Action failed.' }],
-          getConfig().messages
-        );
-      }
-
-      // Apply payload if available
       const mapStr = el.dataset.map;
-      if (mapStr && res.ok) {
+      if (mapStr) {
         const map = safeJSON(mapStr);
         if (map && typeof map === 'object') {
           const mode = el.dataset.mode === 'insert' ? 'insert' : 'update';
@@ -148,8 +139,7 @@ export function createActionBinder({
         }
       }
 
-      // Refresh if requested
-      if (el.dataset.refreshUrl && res.ok) {
+      if (el.dataset.refreshUrl) {
         const rUrl = el.dataset.refreshUrl;
         const rParams = parseParams(el.dataset.refreshParams);
         const rMap = safeJSON(el.dataset.refreshMap);
@@ -167,9 +157,8 @@ export function createActionBinder({
         }
       }
     } catch (err) {
-      // Network/parse failure
       renderMessages(
-        [{ level: 'danger', text: 'Action failed (network).' }],
+        [{ level: 'danger', text: 'Action failed.' }],
         getConfig().messages
       );
       const cfg = getConfig();
@@ -182,15 +171,18 @@ export function createActionBinder({
   return function bindDelegatedActions(root) {
     const base = root || document;
 
-    // Click handler (ignore forms)
+    // Handle click triggers (ignore forms with data-action)
     base.addEventListener('click', (e) => {
       const t = e.target.closest('[data-action]');
       if (!t || !base.contains(t)) return;
+
+      // ✅ Ignore forms here; let submit listener handle them
       if (t.tagName.toLowerCase() === 'form') return;
+
       handleActionTrigger(e, t);
     });
 
-    // Submit handler (for forms)
+    // Handle form submissions
     base.addEventListener('submit', (e) => {
       const form = e.target.closest('form[data-action]');
       if (!form || !base.contains(form)) return;
