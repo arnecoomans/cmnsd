@@ -6,9 +6,11 @@ from django.apps import apps
 from .json_utils import JsonUtil
 from .json_utils_meta_class import meta_model, meta_field, meta_object
 from .json__crud_read import CrudRead
+from .json__crud_update import CrudUpdate
+
 ''' Meta classes for detection and dispatching
 '''
-class JsonDispatch(JsonUtil, CrudRead):    
+class JsonDispatch(JsonUtil, CrudRead, CrudUpdate):    
     
   def __init__(self):
     super().__init__()
@@ -25,6 +27,8 @@ class JsonDispatch(JsonUtil, CrudRead):
       if mode in [key.lower() for key in self.request.GET.keys()]:
         modes[mode] = True
       elif mode in [key.lower() for key in self.request.POST.keys()]:
+        modes[mode] = True
+      elif self.get_value_from_request(mode, silent=True):
         modes[mode] = True
     # Return the modes dict
     return modes
@@ -63,11 +67,10 @@ class JsonDispatch(JsonUtil, CrudRead):
       if not self.model:
         # Should not occur due to urls.py requirement of model
         return self.return_response({'error 2': _("model is required for object lookup").capitalize()}, status=400)
-        raise ValueError(_("model is required for object lookup").capitalize())
       # Lookup object by ID or slug via meta_object class, allowing for empty ID or slug
       # Pass filtered queryset to meta_object to ensure security-measures are applied
       self.obj = meta_object( self.model.model, 
-                              qs=self.filter(self.model.model.objects.all()),
+                              qs=self.filter(self.model.model.objects.all(), suppress_search=True),
                               id=self.get_value_from_request('object_id', silent=True), 
                               slug=self.get_value_from_request('object_slug', silent=True))
   
@@ -91,7 +94,8 @@ class JsonDispatch(JsonUtil, CrudRead):
         fields = [attribute.strip() for attribute in self.get_value_from_request('field').split(',')]
       for field in fields:
         # Check if field exists as attribute of object
-        if not hasattr(self.obj.obj, field):
+        # if not hasattr(self.obj.obj, field):
+        if not self.model.is_field(field):
           self.messages.add(_("field '{}' is not found in {} '{}'").format(field, self.model.name, self.obj).capitalize())
           continue
         self.obj.fields.append(field)
@@ -108,4 +112,12 @@ class JsonDispatch(JsonUtil, CrudRead):
     return self.return_response(payload=self.crud__read())
   
   def post(self, request, *args, **kwargs):
-    return self.return_response({'info': 'POST method not yet implemented'}, status=501)
+    self.modes = self.__guess_modes()
+    return self.return_response(payload=self.crud__update())
+
+  def patch(self, request, *args, **kwargs):
+    self.modes = self.__guess_modes()
+    return self.return_response(payload=self.crud__update())
+  
+  def delete(self, request, *args, **kwargs):
+    return self.return_response({'info': 'DELETE method not yet implemented'}, status=501)

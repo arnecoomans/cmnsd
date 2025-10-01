@@ -6,6 +6,7 @@ from django.utils.translation import gettext_lazy as _
 from django.template.exceptions import TemplateDoesNotExist
 from django.db.models.query import QuerySet
 from django.db import models
+from django.template import RequestContext
 
 import json
 
@@ -71,6 +72,7 @@ class ResponseUtil:
           "method": self.request.method,
           "handler": self.__class__.__name__,
           "resolver": self.request.resolver_match.url_name,
+          # "request": self.request,
           # "csrf": "present" if self.csrf_token else "missing",
         },
       }
@@ -83,15 +85,28 @@ class ResponseUtil:
       # Add POST parameters to debug info
       for key, value in self.request.POST.items():
         response_data['__meta']['request']['post_' + key] = value
-    return JsonResponse(response_data)
-
+    try:
+      return JsonResponse(response_data, status=self.status)
+    except TypeError as e:
+      self.messages.add(_("error when encoding response to JSON: {}").format(str(e)).capitalize(), "error")
+      self.status = 500
+      response_data["status"] = self.status
+      response_data["messages"].append(self.__render_message(self.messages.get()[-1]))
+      return JsonResponse(str(response_data), safe=False, status=self.status)
+    except Exception as e:
+      self.messages.add(_("unexpected error when encoding response to JSON: {}").format(str(e)).capitalize(), "error")
+      self.status = 500
+      response_data["status"] = self.status
+      response_data["messages"].append(self.__render_message(self.messages.get()[-1]))
+      return JsonResponse(str(response_data), status=self.status)
+    
   def __get_payload_size(self, payload):
     payload_size = 0
     if type(payload) == list:
       payload_size = len(payload)
     elif type(payload) == dict:
       for value in payload.values():
-        payload_size += len(value)
+        payload_size += len(str(value))
     return payload_size
 
   def render(self, field=None, template_names=[], format='html', context={}):
@@ -99,15 +114,12 @@ class ResponseUtil:
     remove_newlines = getattr(settings, 'JSON_RENDER_REMOVE_NEWLINES', False)
     ''' Add request and permissions to context '''
     context = context | {
-      'crud_mode': getattr(self, 'modes', {'editable': False}),
-      'request': self.request,
-      'user': self.request.user,
-      'permissions': self.request.user.get_all_permissions(),
+      'json': getattr(self, 'modes', {'editable': False}),
     }
     ''' Render attribute via template if available '''
     for template in template_names:
       try:
-        rendered_field = render_to_string(template, context)
+        rendered_field = render_to_string(template, context=context, request=self.request)
         if format == 'json':
           rendered_field = json.loads(rendered_field)
         if remove_newlines and isinstance(rendered_field, str):
@@ -118,7 +130,10 @@ class ResponseUtil:
       except TemplateDoesNotExist:
         pass
     ''' No template found, return string value of field '''
-    self.messages.add(_("{} template for '{}:{}' not found in field/ when rendering field").format(format, self.model.name, field).capitalize(), "debug")
+    staff_message = ''
+    if self.request.user.is_staff:
+      staff_message = ' ' + _('searched for templates: {}').format(', '.join(template_names))
+    self.messages.add(_("{} template for '{}{}' not found in field/ when rendering field").format(format, self.model.name, field).capitalize() + staff_message, "debug")
     if not field or not hasattr(self.obj, field):
       return ''
     return str(getattr(self.obj, field).value())

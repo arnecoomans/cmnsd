@@ -76,6 +76,14 @@ class meta_model(JsonUtil):
         _("multiple models with the name '{}' were found. specify 'app_label.modelname' instead.").format(model_name).capitalize()
       )
     return matching_models[0]
+  
+  def is_field(self, field):
+    try:
+      self.model._meta.get_field(field)
+      return True
+    except Exception as e:
+      return False
+    
 
 
 class meta_object():
@@ -131,6 +139,7 @@ class meta_field(JsonUtil):
     self.__value = None
     self.__detect()
     self.__secure()
+    self.name = field_name
 
   def __str__(self):
     return str(self.__field)
@@ -177,4 +186,15 @@ class meta_field(JsonUtil):
           raise ValueError(_("error occurred while calling field '{}': {}".format(self.field_name, e)).capitalize())
       self.__value = value
     return self.__value
-    
+  
+  def is_foreign_key(self):
+    return isinstance(self.__field, models.ForeignKey)
+  def is_related(self):
+    return isinstance(self.__field, (models.ManyToManyField, models.OneToOneField))
+  def is_bool(self):
+    return isinstance(self.__field, models.BooleanField)
+
+  def related_model(self):
+    if self.is_related():
+      return self.__field.related_model
+    return None

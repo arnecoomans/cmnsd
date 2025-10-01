@@ -15,9 +15,6 @@ import traceback
 class RequestUtil:
   def __init__(self):
     super().__init__()
-
-  # def dispatch(self, request, *args, **kwargs):
-  #   return super().dispatch(request, *args, **kwargs)
   
   def setup(self, request, *args, **kwargs):
     # Run setup for SecurityUtil
@@ -77,13 +74,13 @@ class RequestUtil:
       # That means that a value can be submitted by one source only.
       if 'kwargs' in sources and key in self.kwargs:
         value = self.kwargs[key]
-      elif 'POST' in sources and  key in self.request.POST:
+      if 'POST' in sources and  key in self.request.POST:
         value = self.request.POST.get(key, None)
-      elif 'json' in sources and key in jsondata:
+      if 'json' in sources and key in jsondata:
         value = jsondata.get(key)
-      elif 'GET' in sources and key in self.request.GET:
+      if 'GET' in sources and key in self.request.GET:
         value = self.request.GET.get(key, None)
-      elif 'headers' in sources and  self.__get_header_key(key) in self.request.META:
+      if 'headers' in sources and  self.__get_header_key(key) in self.request.META:
         value = self.request.META.get(self.__get_header_key(key), None)
     except Exception as e:
       self.messages.add(_("error when fetching value: {}").format(str(e)).capitalize(), "debug")
@@ -95,26 +92,32 @@ class RequestUtil:
     # Return value as string without leading/trailing whitespace
     return str(value).strip() if value else default
   
-
-  # def get_new_value(self, field=None):
-  #   # Get the value for the request parameters. 
-  #   # The value can be stored in get, post or
-  #   # query parameters, and can be id, slug or value.
-  #   if self.new_value:
-  #     if field in self.new_value.keys():
-  #       return self.new_value[field]
-  #     return self.new_value
-  #   # Loop through the possible keys to get the value
-  #   new_value_keys = getattr(settings, 'json_request_new_value_keys',
-  #                            ['set_id', 'get_id', 'obj_id',
-  #                            'set_slug', 'get_slug', 'obj_slug',
-  #                            'value', 'set_value', 'get_value', 'obj_value']
-  #                            )
-  #   for key in new_value_keys:
-  #     value = self.get_value_from_request(key, False)
-  #     if value:
-  #       for word in ['set', 'get', 'obj']:
-  #         key = key.replace(f"{ word }_" , '')  
-  #       self.new_value = {'key': key, 'value': value,}
-  #       return self.get_new_value(field) # Recursively call the function to get the value if field is specified
-  #   raise ValueError(_("no valid identifier found in new value").capitalize())
+  def get_keys_from_request(self, default=None, sources=None):
+    """ Returns the keys from the request object. 
+        Searches the sources for the keys, sources should be a list of strings.
+    """
+    sources = self.__verify_sources(sources)
+    keys = []
+    if 'kwargs' in sources:
+      keys += list(self.kwargs.keys())
+    if 'POST' in sources:
+      keys += list(self.request.POST.keys())
+    if 'GET' in sources:
+      keys += list(self.request.GET.keys())
+    if 'json' in sources:
+      # Try to fetch json data from the request
+      jsondata = {}
+      try:
+        jsondata = json.loads(self.request.body)
+        if isinstance(jsondata, dict):
+          keys += list(jsondata.keys())
+      except:
+        # Fail silently
+        pass
+    if 'headers' in sources:
+      keys += [key[5:].replace('_', '-').lower() for key in self.request.META.keys() if key.startswith('HTTP_')]
+    # Remove duplicates by converting to a set and back to a list
+    keys = list(set(keys))
+    if len(keys) == 0 and default is not None:
+      return default
+    return keys
