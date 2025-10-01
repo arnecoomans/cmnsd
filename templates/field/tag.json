@@ -1,0 +1,5 @@
+"{{ tag.slug }}": {
+  "slug": "{{ tag.slug }}",
+  "url": "/objects/{{ tag.slug }}/",
+  "name": "{% if tag.parent %}{{ tag.parent.name|title|safe }}: {% endif %}{{ tag.name|title|safe }}"
+}

@@ -1,0 +1,5 @@
+"{{ tag.slug }}": {
+  "slug": "{{ tag.slug }}",
+  "url": "/objects/{{ tag.slug }}/",
+  "name": "{{ tag.name|title|safe }}"
+}
