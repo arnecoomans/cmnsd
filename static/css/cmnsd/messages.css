@@ -1,0 +1,63 @@
+/* Fixed container for cmnsd messages */
+.cmnsd-messages {
+  position: fixed;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80%;
+  max-width: 1000px;
+  z-index: 1080;
+  pointer-events: none;
+}
+
+.cmnsd-messages .alert {
+  margin-bottom: 0.5rem;
+  pointer-events: auto;
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border-radius: 0.75rem;     /* 👈 rounded corners */
+  box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15); /* 👈 soft shadow */
+}
+
+/* Fade + slide animation */
+.cmnsd-messages .alert.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Semi-transparent contextual backgrounds + forced text color for contrast */
+.cmnsd-messages .alert-success {
+  background-color: rgba(25, 135, 84, 0.9);
+  color: #fff;
+}
+.cmnsd-messages .alert-danger {
+  background-color: rgba(220, 53, 69, 0.9);
+  color: #fff;
+}
+.cmnsd-messages .alert-warning {
+  background-color: rgba(255, 193, 7, 0.9);
+  color: #212529;
+}
+.cmnsd-messages .alert-info {
+  background-color: rgba(13, 202, 240, 0.9);
+  color: #212529;
+}
+.cmnsd-messages .alert-secondary {
+  background-color: rgba(108, 117, 125, 0.9);
+  color: #fff;
+}
+.cmnsd-messages .alert-primary {
+  background-color: rgba(13, 110, 253, 0.9);
+  color: #fff;
+}
+.cmnsd-messages .alert-light {
+  background-color: rgba(248, 249, 250, 0.95);
+  color: #212529;
+}
+.cmnsd-messages .alert-dark {
+  background-color: rgba(33, 37, 41, 0.9);
+  color: #fff;
+}
