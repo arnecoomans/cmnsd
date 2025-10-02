@@ -57,17 +57,29 @@ export function createActionBinder({
   function applyFromExistingPayload(response, map, mode = 'update') {
     const data = response && response.payload ? response.payload : {};
     Object.entries(map || {}).forEach(([key, selector]) => {
-      if (!(key in data)) return;
+      if (!(key in data)) {
+        dbg('action:skip (missing key in payload)', { key });
+        return;
+      }
       const el =
         typeof selector === 'string'
           ? document.querySelector(selector)
           : selector;
-      if (!el) return;
+      if (!el) {
+        dbg('action:skip (no container found)', { key, selector });
+        return;
+      }
 
-      if (mode === 'insert') {
-        insert(el, data[key]);
-      } else {
-        update(el, data[key]);
+      try {
+        if (mode === 'insert') {
+          insert(el, data[key]);
+        } else {
+          update(el, data[key]);
+        }
+        dbg('action:applied', { key, selector, mode });
+      } catch (err) {
+        dbg('action:apply:error', { key, selector, err });
+        throw err;
       }
     });
   }
@@ -157,10 +169,12 @@ export function createActionBinder({
         }
       }
     } catch (err) {
+      const context = url || el.getAttribute('action') || '(unknown)';
       renderMessages(
-        [{ level: 'danger', text: 'Action failed.' }],
+        [{ level: 'danger', text: `Action failed for ${context}` }],
         getConfig().messages
       );
+      dbg('action:error', { error: err, element: el, context });
       const cfg = getConfig();
       cfg.onError && cfg.onError(err);
     } finally {

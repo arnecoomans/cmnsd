@@ -4,7 +4,6 @@
 import { api } from './http.js';
 
 function setupInput(host) {
-  // Clean leftover attribute (e.g. from server-rendered HTML)
   if (host.hasAttribute('data-autosuggestActive')) {
     host.removeAttribute('data-autosuggestActive');
   }
@@ -15,15 +14,8 @@ function setupInput(host) {
   }
   host.dataset.autosuggestActive = '1';
 
-  // Ignore stray action-related attributes (remove from autosuggest inputs)
-  const strayAttrs = [
-    'action',
-    'method',
-    'map',
-    'body',
-    'disable',
-    'confirm'
-  ];
+  // Remove stray attributes that would conflict
+  const strayAttrs = ['action', 'method', 'map', 'body', 'disable', 'confirm'];
   strayAttrs.forEach(attr => {
     const key = 'data-' + attr;
     if (host.hasAttribute(key)) {
@@ -31,8 +23,6 @@ function setupInput(host) {
       host.removeAttribute(key);
     }
   });
-
-  // Explicitly remove data-action if present
   if (host.hasAttribute('data-action')) {
     console.debug('[cmnsd:autosuggest] removing stray data-action on', host);
     host.removeAttribute('data-action');
@@ -45,24 +35,25 @@ function setupInput(host) {
   const inputKey = host.dataset.fieldInput || 'name';
   const hiddenKey = host.dataset.fieldHidden || 'slug';
   const containerKey = host.dataset.container || null;
+  const allowCreate = host.dataset.allowCreate !== '0'; // default true
 
   if (!url) {
     console.warn('[cmnsd:autosuggest] missing data-url for', host);
     return;
   }
 
-  // Ensure host has no name (so it won’t submit)
+  // Ensure host has no name
   host.removeAttribute('name');
 
-  // Hidden fields: reuse if present, else create
-  let hiddenSlug = host.parentNode.querySelector(
+  // Hidden fields
+  let hiddenVal = host.parentNode.querySelector(
     `input[type="hidden"][name="${hiddenKey}"]`
   );
-  if (!hiddenSlug) {
-    hiddenSlug = document.createElement('input');
-    hiddenSlug.type = 'hidden';
-    hiddenSlug.name = hiddenKey;
-    host.parentNode.appendChild(hiddenSlug);
+  if (!hiddenVal) {
+    hiddenVal = document.createElement('input');
+    hiddenVal.type = 'hidden';
+    hiddenVal.name = hiddenKey;
+    host.parentNode.appendChild(hiddenVal);
   }
 
   let hiddenName = host.parentNode.querySelector(
@@ -75,7 +66,7 @@ function setupInput(host) {
     host.parentNode.appendChild(hiddenName);
   }
 
-  // Suggestion dropdown container
+  // Suggestion dropdown
   const list = document.createElement('div');
   list.className = 'cmnsd-autosuggest list-group position-absolute w-100';
   list.style.zIndex = 2000;
@@ -95,9 +86,33 @@ function setupInput(host) {
     }
   }
 
+  function updateValidity() {
+    const form = host.closest('form');
+    if (!form) return;
+    const submitBtn = form.querySelector('[type=submit]');
+    if (!submitBtn) return;
+
+    if (!allowCreate) {
+      // enforce valid suggestion only
+      if (hiddenVal.value && host.value.trim() !== '') {
+        submitBtn.disabled = false;
+      } else {
+        submitBtn.disabled = true;
+      }
+    } else {
+      // free text allowed, but not empty
+      if (host.value.trim() !== '') {
+        submitBtn.disabled = false;
+      } else {
+        submitBtn.disabled = true;
+      }
+    }
+  }
+
   async function fetchSuggestions(q) {
     try {
-      const params = { [paramName]: q };
+      const params = {};
+      if (paramName) params[paramName] = q;
 
       if (host.dataset.extraParams) {
         try {
@@ -111,18 +126,17 @@ function setupInput(host) {
       const res = await api.get(url, { params });
       let data = res?.payload || [];
 
-      // Navigate into container key if set
       if (containerKey && data && typeof data === 'object') {
         data = data[containerKey];
       }
-
-      // If object, convert to array
       if (data && !Array.isArray(data) && typeof data === 'object') {
         data = Object.values(data);
       }
 
       if (!Array.isArray(data) || data.length === 0) {
         clearList(true);
+        hiddenVal.value = '';
+        updateValidity();
         return;
       }
 
@@ -130,6 +144,8 @@ function setupInput(host) {
     } catch (err) {
       console.warn('[cmnsd:autosuggest] fetch failed', err);
       clearList(true);
+      hiddenVal.value = '';
+      updateValidity();
     }
   }
 
@@ -149,13 +165,14 @@ function setupInput(host) {
         e.stopPropagation();
         host.value = display;
         if (submitVal) {
-          hiddenSlug.value = submitVal;
+          hiddenVal.value = submitVal;
           hiddenName.value = '';
-        } else {
-          hiddenSlug.value = '';
+        } else if (allowCreate) {
+          hiddenVal.value = '';
           hiddenName.value = display;
         }
         clearList();
+        updateValidity();
       });
 
       list.appendChild(el);
@@ -163,26 +180,43 @@ function setupInput(host) {
     list.style.display = 'block';
   }
 
-  // Debounced input handler
+  // Input handler
   host.addEventListener('input', () => {
     console.debug('[cmnsd:autosuggest] input event', host.value);
     const q = host.value.trim();
-    hiddenSlug.value = '';
-    hiddenName.value = q;
+
+    hiddenVal.value = '';
+    hiddenName.value = allowCreate ? q : '';
+
+    updateValidity();
+
     if (q.length < minChars) {
-      clearList();
+      if (minChars === 0) {
+        fetchSuggestions('');
+      } else {
+        clearList();
+      }
       return;
     }
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => fetchSuggestions(q), debounce);
   });
 
-  // Hide dropdown on blur
+  // Show all options when focused if minChars=0
+  host.addEventListener('focus', () => {
+    if (minChars === 0) {
+      fetchSuggestions('');
+    }
+  });
+
   host.addEventListener('blur', () => {
     setTimeout(() => clearList(), 200);
   });
 
-  console.debug('[cmnsd:autosuggest] bound to input', host);
+  // Initial validity check
+  updateValidity();
+
+  console.debug('[cmnsd:autosuggest] bound to input', host, { minChars, allowCreate });
 }
 
 export function initAutosuggest(root = document) {
@@ -197,13 +231,11 @@ export function initAutosuggest(root = document) {
   });
 }
 
-// Initial scan
 document.addEventListener('DOMContentLoaded', () => {
   console.debug('[cmnsd:autosuggest] DOMContentLoaded fired');
   initAutosuggest();
 });
 
-// Always rescan the full document after content loads
 document.addEventListener('cmnsd:content:applied', e => {
   console.debug(
     '[cmnsd:autosuggest] content applied event fired from',
