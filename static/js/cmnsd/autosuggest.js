@@ -3,6 +3,32 @@
 
 import { api } from './http.js';
 
+function sanitizeHTML(input, allowedTags = ['B', 'STRONG', 'I', 'EM']) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(input, 'text/html');
+  const fragment = document.createDocumentFragment();
+
+  function walk(node, parent) {
+    node.childNodes.forEach(child => {
+      if (child.nodeType === Node.TEXT_NODE) {
+        parent.appendChild(document.createTextNode(child.textContent));
+      } else if (child.nodeType === Node.ELEMENT_NODE) {
+        if (allowedTags.includes(child.tagName)) {
+          const safeEl = document.createElement(child.tagName.toLowerCase());
+          walk(child, safeEl);
+          parent.appendChild(safeEl);
+        } else {
+          // Not allowed → flatten as plain text
+          parent.appendChild(document.createTextNode(child.textContent));
+        }
+      }
+    });
+  }
+
+  walk(doc.body, fragment);
+  return fragment;
+}
+
 function setupInput(host) {
   if (host.hasAttribute('data-autosuggestActive')) {
     host.removeAttribute('data-autosuggestActive');
@@ -158,18 +184,20 @@ function setupInput(host) {
       const el = document.createElement('button');
       el.type = 'button';
       el.className = 'list-group-item list-group-item-action';
-      el.textContent = display;
+
+      // ✅ safe rendering with allowed HTML tags
+      el.appendChild(sanitizeHTML(display));
 
       el.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        host.value = display;
+        host.value = display.replace(/<[^>]*>/g, ''); // plain text version in input
         if (submitVal) {
           hiddenVal.value = submitVal;
           hiddenName.value = '';
         } else if (allowCreate) {
           hiddenVal.value = '';
-          hiddenName.value = display;
+          hiddenName.value = host.value;
         }
         clearList();
         updateValidity();
