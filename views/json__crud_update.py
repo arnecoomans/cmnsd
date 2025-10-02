@@ -71,10 +71,12 @@ class CrudUpdate:
     else:
       raise ValueError(_("field '{}' is not found in {} '{}'".format(field, self.model.name, self.obj)).capitalize())
   
-  def __get_value(self, field, allow_none=False):
+  def __get_value(self, field, identifier=None, allow_none=False):
     value = None
     # Check if value is supplied in request data (POST or JSON) (ex. ?name=Foo)
-    if self.get_value_from_request(field.field_name, silent=True, sources=self.__get_sources()):
+    if identifier and self.get_value_from_request(identifier, silent=True, sources=self.__get_sources()):
+      value = self.get_value_from_request(identifier, sources=self.__get_sources())
+    elif self.get_value_from_request(field.field_name, silent=True, sources=self.__get_sources()):
       value = self.get_value_from_request(field.field_name, sources=self.__get_sources())
     elif self.get_value_from_request('value', silent=True, sources=self.__get_sources()):
       value = self.get_value_from_request('value', sources=self.__get_sources())
@@ -106,6 +108,7 @@ class CrudUpdate:
   ''' Update methods for different field types '''
 
   def __update_foreign_key(self, field):
+    print('UPDATING FOREIGN KEY FIELD:', field.field_name)
     """
     Update a ForeignKey field on the current object.
 
@@ -125,12 +128,21 @@ class CrudUpdate:
                   if multiple objects match the input, or if another
                   error occurs while filtering.
     """
-
-    # Get the value supplied by the request. Do not allow None values.
-    value = self.__get_value(field, allow_none=False)
-
     # Resolve the related model once and reuse
     related_model = field.related_model()
+
+    # Get field identifier from request
+    # Identifier is any field of the related model except the field name itself mentioned in the request
+    # example: /category/?editable&slug=foo - identifier is 'slug' for field 'category' since field "editable" 
+    # does not exist in Category model
+    identifier = None
+    for key in self.get_keys_from_request(sources=self.__get_sources()):
+      if key != field.field_name and key in [f.name for f in related_model._meta.get_fields()]:
+        identifier = key
+        break
+
+    # Get the value supplied by the request. Do not allow None values.
+    value = self.__get_value(field, identifier=identifier, allow_none=False)
 
     try:
       # Start with all objects of the related model
@@ -140,8 +152,8 @@ class CrudUpdate:
       if hasattr(self, 'filter'):
         qs = self.filter(qs, suppress_search=True)
 
-      # Lookup by primary key (case-insensitive)
-      pk_name = related_model._meta.pk.name
+      # Lookup by identifier or primary key (case-insensitive)
+      pk_name = identifier if identifier else related_model._meta.pk.name
       value = qs.get(**{f"{pk_name}__iexact": value})
 
     # Raised if more than one object matches the filter
@@ -375,8 +387,6 @@ class CrudUpdate:
       if key != field.field_name:
         if key in model_fields:
           identifiers[key] = self.get_value_from_request(key, sources=self.__get_sources())
-        # if field.related_model() and field.related_model()._meta.get_field(key):
-        #   identifiers[key] = self.get_value_from_request(key, sources=self.__get_sources())
 
     # Remove identifiers with empty values
     identifiers = {k: v for k, v in identifiers.items() if v not in (None, False, '')}
