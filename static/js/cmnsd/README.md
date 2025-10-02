@@ -56,6 +56,24 @@ message rendering, action delegation, and autosuggest inputs in Django projects.
 - Default behavior (`data-allow-create` missing or not `"0"`) allows free text entry.
 - Submit button is disabled if input is empty.
 
+### Safe inline formatting in suggestions
+Autosuggest suggestions may contain limited inline HTML formatting.  
+Allowed tags are: `<b>`, `<strong>`, `<i>`, `<em>`.  
+
+Example payload:
+```json
+{
+  "payload": {
+    "tags": [
+      { "slug": "pool", "name": "<b>Swimming</b> Pool" },
+      { "slug": "wifi", "name": "<i>Wi-Fi</i> Available" }
+    ]
+  }
+}
+```
+
+This renders with bold and italic, but all other tags are stripped or flattened to plain text.
+
 ## Messages
 - Messages are shown in a floating container (configurable in `init`).
 - Stacked up to a configurable max (default 5).

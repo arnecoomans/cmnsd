@@ -1,6 +1,15 @@
 # Changelog
 
-## v0.7.0 (2025-10-02)
+## v0.7.1 (2025-10-02)
+- **Autosuggest**: Added safe HTML rendering in suggestions.
+  - Allowed tags: `<b>`, `<strong>`, `<i>`, `<em>`.
+  - All other tags are stripped or flattened to plain text.
+- **Autosuggest**: Ensures input box itself always shows plain text (tags removed).
+- **Autosuggest**: Fixed button enabling/disabling logic:
+  - If `data-allow-create="0"` → must select a valid suggestion, cannot be empty.
+  - If `data-allow-create!="0"` → free text allowed, but cannot be empty.
+
+## v0.7.0
 - **Autosuggest**: Added `data-allow-create="0"` to restrict inputs to valid suggestions only.
 - **Autosuggest**: Added `data-min="0"` to fetch suggestions immediately (show all options).
 - **Autosuggest**: Submit button disabling logic:
