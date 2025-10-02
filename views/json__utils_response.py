@@ -120,6 +120,11 @@ class ResponseUtil:
     for template in template_names:
       try:
         rendered_field = render_to_string(template, context=context, request=self.request)
+      except TemplateDoesNotExist:
+        continue
+      except Exception as e:
+        pass
+      try:
         if format == 'json':
           rendered_field = json.loads(rendered_field)
         if remove_newlines and isinstance(rendered_field, str):
@@ -127,12 +132,16 @@ class ResponseUtil:
           while '  ' in rendered_field:
             rendered_field = rendered_field.replace('  ', ' ')
         return rendered_field
-      except TemplateDoesNotExist:
-        pass
+      except json.JSONDecodeError as e:
+        if self.request.user.is_staff:
+          self.messages.add(_("error decoding JSON from rendered template '{}': {}").format(template, str(e)).capitalize(), "error")
+        return ""
+      except ValueError as e:
+        return ""
     ''' No template found, return string value of field '''
     staff_message = ''
     if self.request.user.is_staff:
-      staff_message = ' ' + _('searched for templates: {}').format(', '.join(template_names))
+      staff_message = '. ' + "\n" + _('searched for templates: {}').capitalize().format(', '.join(template_names))
     self.messages.add(_("{} template for '{}{}' not found in field/ when rendering field").format(format, self.model.name, field).capitalize() + staff_message, "debug")
     if not field or not hasattr(self.obj, field):
       return ''
@@ -200,9 +209,19 @@ class ResponseUtil:
     if not model or not model.model:
       return ''
     model_name = model.model._meta.verbose_name_plural
-    ''' Build template names to try to render '''  
+    ''' Build template names to try to render 
+        Check for:
+        - model/<plural model name>/list.format
+        - model/<plural model name>_list.format
+        - model/<plural model name>.format
+        - model/<model name>/list.format
+        - model/<model name>_list.format
+        - model/<model name>.format
+    '''  
     template_names = [
-      # f'model/{ model._meta.verbose_name_plural.lower() }.{ format }',
+      f'model/{ model_name.lower() }/list.{ format }',
+      f'model/{ model_name.lower() }_list.{ format }',
+      f'model/{ model_name.lower() }.{ format }',
       f'model/{ model.name.lower() }/list.{ format }',
       f'model/{ model.name.lower() }_list.{ format }',
       f'model/{ model.name.lower() }.{ format }',
