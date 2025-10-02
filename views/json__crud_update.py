@@ -22,11 +22,9 @@ class CrudUpdate:
         result = self.__update_simple_field(field)
     except Exception as e:
       if getattr(settings, "DEBUG", False):
-        # Log the exception trackback to the console or log when
-        # DEBUG is True in settings.py
-        print('EXCEPTION DURING UPDATE: ', e)
         traceback.print_exc()
-      self.messages.add(str(e), 'error')
+      staff_message = ': ' + str(e) if self.request.user.is_staff else ""
+      self.messages.add(_("error occurred during update") + staff_message, 'error')
       self.status = 400
     return {field.field_name: self.render_field(field.field_name)}
     
@@ -67,7 +65,8 @@ class CrudUpdate:
         value = meta_field(self.obj, field)
         return value
       except Exception as e:
-        raise ValueError(_("field '{}' could not be retrieved from {} '{}': {}".format(field, self.model.name, self.obj, e)).capitalize())
+        staff_message = ': ' + str(e) if self.request.user.is_staff else ""
+        raise ValueError(_("field '{}' could not be retrieved from {} '{}'{}".format(field, self.model.name, self.obj, staff_message)).capitalize())
     else:
       raise ValueError(_("field '{}' is not found in {} '{}'".format(field, self.model.name, self.obj)).capitalize())
   
@@ -96,7 +95,8 @@ class CrudUpdate:
         self.messages.add(_("field '{}' in {} '{}' successfully updated to '{}'".format(field.name, self.model.name, self.obj, value)).capitalize(), 'success')
       return True
     except Exception as e:
-      self.messages.add(_("field '{}' in {} '{}' could not be updated to '{}': {}".format(field.name, self.model.name, self.obj, value, e)).capitalize(), 'error')
+      staff_message = ': ' + str(e) if self.request.user.is_staff else ""
+      self.messages.add(_("field '{}' in {} '{}' could not be updated to '{}'{}".format(field.name, self.model.name, self.obj, value, staff_message)).capitalize(), 'error')
       return False
     
   def __get_sources(self):
@@ -352,15 +352,17 @@ class CrudUpdate:
         )
         return obj
       except Exception as e:
+        staff_message = ': ' + str(e) if self.request.user.is_staff else ""
         raise ValueError(
-          _("the object with argument '{}' does not exist and could not be created: {}")
-            .format(identifiers, e).capitalize()
+          _("the object with argument '{}' does not exist and could not be created{}")
+            .format(identifiers, staff_message).capitalize()
         )
 
     except Exception as e:
+      staff_message = ': ' + str(e) if self.request.user.is_staff else ""
       raise ValueError(
-        _("error occurred while filtering related model '{}' with identifiers {}: {}")
-          .format(related_model, identifiers, e).capitalize()
+        _("error occurred while filtering related model '{}' with identifiers {}{}")
+          .format(related_model, identifiers, staff_message).capitalize()
       )
 
 
@@ -436,9 +438,10 @@ class CrudUpdate:
 
     except Exception as e:
       traceback.print_exc()
+      staff_message = ': ' + str(e) if self.request.user.is_staff else ""
       self.messages.add(
-        _("field '{}' in {} '{}' could not be updated to '{}': {}")
-          .format(field.name, self.model.name, self.obj, value, e).capitalize(),
+        _("field '{}' in {} '{}' could not be updated to '{}'{}")
+          .format(field.name, self.model.name, self.obj, value, staff_message).capitalize(),
         "error"
       )
       return False
