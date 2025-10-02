@@ -174,9 +174,10 @@ class CrudUpdate:
 
     # Any other error (e.g. invalid lookup, DB error, etc.)
     except Exception as e:
+      staff_message = ': ' + str(e) if self.request.user.is_staff else ""
       raise ValueError(
-        _("error occurred while filtering related model '{}' with {}='{}': {}")
-          .format(related_model, pk_name, value, e)
+        _("error occurred while filtering related model '{}' with {}='{}'{}")
+          .format(related_model, pk_name, value, staff_message)
           .capitalize()
       )
 
