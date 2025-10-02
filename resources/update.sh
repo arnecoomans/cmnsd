@@ -9,7 +9,10 @@
 # Version: 1.2.0
 
 # Change to the script's directory
-cd "$(dirname "$0")"
+# cd "$(dirname "$0")"
+# This ensures your script always runs from the repo root and the .gitmodules check will fire correctly.
+cd "$(git rev-parse --show-toplevel)"
+
 
 # Pull latest changes from Git
 echo "Pulling latest changes from Git..."
