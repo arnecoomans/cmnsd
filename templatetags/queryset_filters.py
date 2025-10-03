@@ -3,6 +3,13 @@ register = template.Library()
 
 ''' Apply visibility filters to a queryset based on the user '''
 @register.filter
+def filter_by_user(queryset, user):
+    ''' Add user objects to queryset '''
+    if user.is_authenticated:
+      queryset =  queryset.filter(user=user)
+    return queryset
+
+@register.filter
 def filter_by_visibility(queryset, user):
     ''' Add private objects for current user to queryset '''
     if user.is_authenticated:
