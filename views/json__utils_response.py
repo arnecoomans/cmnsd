@@ -115,6 +115,7 @@ class ResponseUtil:
     ''' Add request and permissions to context '''
     context = context | {
       'ajax': getattr(self, 'modes', {'editable': False}),
+      'query': self.get_value_from_request(getattr(settings, 'SEARCH_QUERY_CHARACTER', 'q'), silent=True),
     }
     ''' Render attribute via template if available '''
     rendered_field = ''
