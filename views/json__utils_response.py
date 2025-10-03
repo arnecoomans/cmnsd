@@ -117,12 +117,16 @@ class ResponseUtil:
       'json': getattr(self, 'modes', {'editable': False}),
     }
     ''' Render attribute via template if available '''
+    rendered_field = ''
     for template in template_names:
       try:
         rendered_field = render_to_string(template, context=context, request=self.request)
       except TemplateDoesNotExist:
         continue
       except Exception as e:
+        if getattr(settings, 'DEBUG', False) and self.request.user.is_staff:
+          print(f"Error rendering template '{template}': {str(e)}")
+          self.messages.add(_("error rendering template '{}': {}").format(template, str(e)).capitalize(), "error")
         pass
       try:
         if format == 'json':
