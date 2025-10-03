@@ -117,6 +117,15 @@ class meta_object():
     if not identifiers:
       identifiers = self.identifiers
     qs = self.qs if self.qs else self.model.objects.all()
+    # Remove identifiers that are not a field of the model
+    for key in list(identifiers.keys()):
+      try:
+        self.model._meta.get_field(key)
+      except Exception as e:
+        identifiers.pop(key)
+    if not identifiers:
+      raise ValueError(_("no valid identifiers were supplied to lookup the object").capitalize())
+    # Try to fetch the object
     try:
       self.obj = qs.get(**identifiers)
     except qs.model.MultipleObjectsReturned:

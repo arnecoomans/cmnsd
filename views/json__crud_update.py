@@ -3,12 +3,14 @@ from django.utils.translation import gettext_lazy as _
 from django.utils.text import slugify
 import traceback
 
+from .jscon__crud__util import CrudUtil
 from .json_utils_meta_class import meta_field
-class CrudUpdate:
+
+class CrudUpdate(CrudUtil):
   def crud__update(self):
-    self.__verify_object()
-    field = self.__get_field(self)
-    field = self.__validate_field(field)
+    self.verify_object()
+    field = self.get_field(self)
+    field = self.validate_field(field)
     result = None
     # Update the field based on the field type
     try:
@@ -28,47 +30,47 @@ class CrudUpdate:
       self.status = 400
     return {field.field_name: self.render_field(field.field_name)}
     
-  def __verify_object(self):
-    if not self.model:
-      raise ValueError(_("no model detected for update").capitalize())
-    elif not self.obj:
-      raise ValueError(_("no object detected for update").capitalize())
-    return True
+  # def __verify_object(self):
+  #   if not self.model:
+  #     raise ValueError(_("no model detected for update").capitalize())
+  #   elif not self.obj:
+  #     raise ValueError(_("no object detected for update").capitalize())
+  #   return True
   
-  def __get_field(self, sources=None):
-    field = False
-    # Check if field is supplied in request URL (kwargs)
-    if self.obj.fields:
-      # Assume first field if multiple fields are supplied
-      field = self.obj.fields[0]
-      if self.obj.fields.__len__() > 1:
-        self.messages.add(_("multiple fields were supplied but only one is supported").capitalize() + ". " + _("using first field '{}'").format(field).capitalize(), 'warning')
-    else:
-      # Check if field is supplied in request data (POST or JSON)
-      fields = self.get_keys_from_request(sources=self.__get_sources())
-      for f in fields:
-        if self.model.is_field(f):
-          field = f
-          # Only use the first valid field found, assume the rest are value identifiers
-          break
-    if not field:
-      raise ValueError(_("no valid field supplied for update").capitalize())
-    return field
+  # def __get_field(self, sources=None):
+  #   field = False
+  #   # Check if field is supplied in request URL (kwargs)
+  #   if self.obj.fields:
+  #     # Assume first field if multiple fields are supplied
+  #     field = self.obj.fields[0]
+  #     if self.obj.fields.__len__() > 1:
+  #       self.messages.add(_("multiple fields were supplied but only one is supported").capitalize() + ". " + _("using first field '{}'").format(field).capitalize(), 'warning')
+  #   else:
+  #     # Check if field is supplied in request data (POST or JSON)
+  #     fields = self.get_keys_from_request(sources=self.__get_sources())
+  #     for f in fields:
+  #       if self.model.is_field(f):
+  #         field = f
+  #         # Only use the first valid field found, assume the rest are value identifiers
+  #         break
+  #   if not field:
+  #     raise ValueError(_("no valid field supplied for update").capitalize())
+  #   return field
   
-  def __validate_field(self, field):
-    if hasattr(self.obj, field):
-      # Field exists as attribute of object and is already loaded
-      return getattr(self.obj, field)
-    elif self.model.is_field(field):
-      # Field exists as attribute of object but is not yet loaded
-      try:
-        value = meta_field(self.obj, field)
-        return value
-      except Exception as e:
-        staff_message = ': ' + str(e) if self.request.user.is_staff else ""
-        raise ValueError(_("field '{}' could not be retrieved from {} '{}'{}".format(field, self.model.name, self.obj, staff_message)).capitalize())
-    else:
-      raise ValueError(_("field '{}' is not found in {} '{}'".format(field, self.model.name, self.obj)).capitalize())
+  # def __validate_field(self, field):
+  #   if hasattr(self.obj, field):
+  #     # Field exists as attribute of object and is already loaded
+  #     return getattr(self.obj, field)
+  #   elif self.model.is_field(field):
+  #     # Field exists as attribute of object but is not yet loaded
+  #     try:
+  #       value = meta_field(self.obj, field)
+  #       return value
+  #     except Exception as e:
+  #       staff_message = ': ' + str(e) if self.request.user.is_staff else ""
+  #       raise ValueError(_("field '{}' could not be retrieved from {} '{}'{}".format(field, self.model.name, self.obj, staff_message)).capitalize())
+  #   else:
+  #     raise ValueError(_("field '{}' is not found in {} '{}'".format(field, self.model.name, self.obj)).capitalize())
   
   def __get_value(self, field, identifier=None, allow_none=False):
     value = None

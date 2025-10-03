@@ -7,10 +7,11 @@ from .json_utils import JsonUtil
 from .json_utils_meta_class import meta_model, meta_field, meta_object
 from .json__crud_read import CrudRead
 from .json__crud_update import CrudUpdate
+from .json__crud_delete import CrudDelete
 
 ''' Meta classes for detection and dispatching
 '''
-class JsonDispatch(JsonUtil, CrudRead, CrudUpdate):    
+class JsonDispatch(JsonUtil, CrudRead, CrudUpdate, CrudDelete):    
     
   def __init__(self):
     super().__init__()
@@ -120,4 +121,6 @@ class JsonDispatch(JsonUtil, CrudRead, CrudUpdate):
     return self.return_response(payload=self.crud__update())
   
   def delete(self, request, *args, **kwargs):
-    return self.return_response({'info': 'DELETE method not yet implemented'}, status=501)
+    self.modes = self.__guess_modes()
+    
+    return self.return_response(payload=self.crud__delete())

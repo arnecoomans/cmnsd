@@ -1,6 +1,14 @@
 from django import template
 register = template.Library()
 
+
+''' Apply status filter to a queryset '''
+@register.filter
+def filter_by_status(queryset):
+    ''' Add status objects to queryset '''
+    queryset = queryset.filter(status='p')
+    return queryset
+
 ''' Apply visibility filters to a queryset based on the user '''
 @register.filter
 def filter_by_user(queryset, user):
