@@ -1,5 +1,5 @@
 "{{ tag.slug }}": {
   "slug": "{{ tag.slug }}",
   "url": "/objects/{{ tag.slug }}/",
-  "name": "{{ tag.name|title|safe }}"
+  "name": "{% if tag.parent %}{{ tag.parent.name|title|highlight:query|safe }}: {% endif %}{{ tag.name|title|highlight:query|safe }}"
 }

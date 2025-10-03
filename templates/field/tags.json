@@ -1,5 +1,0 @@
-{
-  {% for tag in tags %}
-    {% include "field/tag.json" %}{% if not forloop.last %},{% endif %}
-  {% endfor %}
-}
