@@ -27,6 +27,11 @@ CMNS projects decreases.
 
 ### Installation instructions
 @Todo
+To use built in templatetags, add the following builtins to your TEMPLATES - OPTIONS - builtins:
+- 'cmnsd.templatetags.markdown',
+- 'cmnsd.templatetags.query_filters',
+- 'cmnsd.templatetags.queryset_filters',
+- 'cmnsd.templatetags.text_filters',
 
 ### Usage instructions
 @Todo
