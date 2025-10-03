@@ -28,10 +28,13 @@ CMNS projects decreases.
 ### Installation instructions
 @Todo
 To use built in templatetags, add the following builtins to your TEMPLATES - OPTIONS - builtins:
+- 'django.templatetags.i18n',
 - 'cmnsd.templatetags.markdown',
 - 'cmnsd.templatetags.query_filters',
 - 'cmnsd.templatetags.queryset_filters',
 - 'cmnsd.templatetags.text_filters',
+#### Checks
+Use $ python manage.py check to check if all elements are present in the configuration
 
 ### Usage instructions
 @Todo
