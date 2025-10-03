@@ -114,7 +114,7 @@ class ResponseUtil:
     remove_newlines = getattr(settings, 'JSON_RENDER_REMOVE_NEWLINES', False)
     ''' Add request and permissions to context '''
     context = context | {
-      'json': getattr(self, 'modes', {'editable': False}),
+      'ajax': getattr(self, 'modes', {'editable': False}),
     }
     ''' Render attribute via template if available '''
     rendered_field = ''
