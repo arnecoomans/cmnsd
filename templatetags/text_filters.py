@@ -28,7 +28,7 @@ def highlight(value, query):
   regex = re.compile(re.escape(query), re.IGNORECASE)
 
   def replace_match(match):
-    return f"<span class='highlight'>{match.group()}</span>"  # Preserve original case
+    return f"<b>{match.group()}</b>"  # Preserve original case
 
   return regex.sub(replace_match, value)
 
