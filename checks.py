@@ -38,8 +38,17 @@ def check_cmnsd_config(app_configs, **kwargs):
 
     # --- 2. Check required settings ---
     required_settings = [
-        "CMNSD_FEATURE_ENABLED",
-        "CMNSD_API_KEY",
+        "DEFAULT_MODEL_STATUS",
+        "DEFAULT_MODEL_VISIBILITY",
+        "SITE_NAME",
+        "META_DESCRIPTION",
+        "LANGUAGE_CODE",
+        "SEARCH_QUERY_CHARACTER",
+        "SEARCH_EXCLUDE_CHARACTER",
+        "SEARCH_MIN_LENGTH",
+        "AJAX_DEFAULT_DATA_SOURCES",
+        "AJAX_RENDER_REMOVE_NEWLINES",
+
     ]
     for setting in required_settings:
         if not hasattr(settings, setting):

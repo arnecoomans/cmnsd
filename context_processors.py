@@ -24,8 +24,6 @@ def setting_data(request):
     'project_name': getattr(settings, 'SITE_NAME', 'A CMNS Django Project - backed by cmnsd'),
     'meta_description': getattr(settings, 'META_DESCRIPTION', 'A CMNS Django Project'),#
     'language_code': getattr(settings, 'LANGUAGE_CODE', 'en'),
-
-    'json_load_values': getattr(settings, 'JSON_LOAD_VALUES', False),
     
     'search_query_character': getattr(settings, 'SEARCH_QUERY_CHARACTER', 'q'),
     'search_exclude_character': getattr(settings, 'SEARCH_EXCLUDE_CHARACTER', 'exclude'),

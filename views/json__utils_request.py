@@ -27,7 +27,7 @@ class RequestUtil:
   def __verify_sources(self, sources=None):
     ''' Verify sources content and format '''
     if not sources:
-      sources = getattr(settings, 'json_request_default_data_sources', ['kwargs', 'GET', 'POST', 'json', 'headers'])
+      sources = getattr(settings, 'AJAX_DEFAULT_DATA_SOURCES', ['kwargs', 'GET', 'POST', 'json', 'headers'])
     if not isinstance(sources, list):
       sources = [sources]
     return sources
@@ -60,7 +60,7 @@ class RequestUtil:
         Sources should be a list of strings
         Valid sources are: kwargs, GET, POST, json, headers
     '''
-    default_sources = getattr(settings, 'json_request_default_data_sources', ['kwargs', 'GET', 'POST', 'json', 'headers'])
+    default_sources = getattr(settings, 'AJAX_DEFAULT_DATA_SOURCES', ['kwargs', 'GET', 'POST', 'json', 'headers'])
     if not isinstance(sources, list):
       sources = [sources]
     if len(sources) == 0:

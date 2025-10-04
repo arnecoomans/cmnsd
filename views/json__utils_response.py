@@ -111,7 +111,7 @@ class ResponseUtil:
 
   def render(self, field=None, template_names=[], format='html', context={}):
     ''' In-function configuration '''
-    remove_newlines = getattr(settings, 'JSON_RENDER_REMOVE_NEWLINES', False)
+    remove_newlines = getattr(settings, 'AJAX_RENDER_REMOVE_NEWLINES', False)
     ''' Add request and permissions to context '''
     context = context | {
       'ajax': getattr(self, 'modes', {'editable': False}),

@@ -35,7 +35,7 @@ class BaseModel(models.Model):
     ('r', _('revoked').capitalize()),
     ('x', _('deleted').capitalize()),
   )
-  status = models.CharField(max_length=1, choices=status_choices, default='p')
+  status = models.CharField(max_length=1, choices=status_choices, default=getattr(settings, 'DEFAULT_MODEL_STATUS', 'p'))
 
   date_created = models.DateTimeField(auto_now_add=True)
   date_modified = models.DateTimeField(auto_now=True)
@@ -86,6 +86,17 @@ class BaseModel(models.Model):
   def get_model_fields(self):
     return [field.name for field in self._meta.get_fields()]
 
+class VisibilityModel:
+  visibility_choices      = (
+      ('p', _('public')),
+      ('c', _('commmunity')),
+      ('f', _('family')),
+      ('q', _('private')),
+    )
+  visibility = models.CharField(max_length=1, choices=visibility_choices, default=getattr(settings, 'DEFAULT_MODEL_VISIBILITY', 'c'))
+
+  class Meta:
+    abstract = True
 
 # Only allow option for MultiSiteBaseModel if 'django.contrib.sites' is available
 if 'django.contrib.sites' in settings.INSTALLED_APPS:

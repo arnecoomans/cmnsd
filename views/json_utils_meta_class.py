@@ -31,7 +31,7 @@ class meta_model(JsonUtil):
   
   def __secure(self):
     # Security-measure: Check if model is blocked in settings
-    if self.model._meta.app_label in getattr(settings, 'JSON_BLOCKED_MODELS', []):
+    if self.model._meta.app_label in getattr(settings, 'AJAX_BLOCKED_MODELS', []):
       raise PermissionDenied(_("access to model '{}' is blocked".format(self.name)).capitalize())
     return
   
@@ -50,7 +50,7 @@ class meta_model(JsonUtil):
       secure_string = "django.contrib."
       if app_config.name.startswith(secure_string):
         continue
-      elif app_config.name in getattr(settings, "JSON_BLOCKED_MODELS", []):
+      elif app_config.name in getattr(settings, "AJAX_BLOCKED_MODELS", []):
         continue
 
       # First try direct class-name match
@@ -173,7 +173,7 @@ class meta_field(JsonUtil):
     protected_fields = ['id', 'slug', 'status',
                         'password', 'secret_key', 'api_key', 'token', 'access_token', 'refresh_token'
                         'private_key', 'certificate'] + \
-                        getattr(settings, 'JSON_PROTECTED_FIELDS', [])
+                        getattr(settings, 'AJAX_PROTECTED_FIELDS', [])
     if self.field_name in protected_fields:
       # For protected or private fields, return None
       raise PermissionDenied(_("access to field '{}' is blocked in configuration".format(self.field_name)).capitalize())
