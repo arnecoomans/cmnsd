@@ -1,3 +1,29 @@
 .nowrap {
   white-space: nowrap;
 }
+.card {
+  position: relative;
+  border: none;
+  border-radius: 0;
+  background: #fff;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    circle at top left,
+    rgba(0, 0, 0, 0.05) 0%,
+    rgba(0, 0, 0, 0) 60%
+  ),
+  radial-gradient(
+    circle at bottom right,
+    rgba(0, 0, 0, 0.05) 0%,
+    rgba(0, 0, 0, 0) 60%
+  );
+  pointer-events: none;
+}
