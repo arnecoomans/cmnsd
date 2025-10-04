@@ -48,6 +48,8 @@ def check_cmnsd_config(app_configs, **kwargs):
         "SEARCH_MIN_LENGTH",
         "AJAX_DEFAULT_DATA_SOURCES",
         "AJAX_RENDER_REMOVE_NEWLINES",
+        "AJAX_PROTECTED_FIELDS",
+        "AJAX_BLOCKED_MODELS",
 
     ]
     for setting in required_settings:
