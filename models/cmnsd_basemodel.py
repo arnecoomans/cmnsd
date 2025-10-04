@@ -2,16 +2,33 @@ from django.db import models
 from django.contrib.auth import get_user_model
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings
-# Controleer of 'django.contrib.sites' in INSTALLED_APPS staat
+from django.urls import reverse
+
+import string, secrets
 if 'django.contrib.sites' in settings.INSTALLED_APPS:
   from django.contrib.sites.models import Site
   from django.contrib.sites.managers import CurrentSiteManager
+
+
+''' Base functions '''
+def generate_public_id(length=10):
+    """Generate a short, URL-safe public ID (not guessable)."""
+    alphabet = string.ascii_letters + string.digits
+    return ''.join(secrets.choice(alphabet) for _ in range(length))
 
 ''' BaseModel
     Abstract base model with common fields and methods
     for all models in the project.
 '''
 class BaseModel(models.Model):
+  token = models.CharField(
+    max_length=20,
+    unique=True,
+    editable=False,
+    default=generate_public_id,
+    help_text="Short unique ID for public URL use"
+  )
+  
   status_choices = (
     ('c', _('concept').capitalize()),
     ('p', _('published').capitalize()),
@@ -32,14 +49,21 @@ class BaseModel(models.Model):
 
   ''' Easy Access '''
   @property
-  def json_slug(self):
+  def ajax_slug(self):
     """ Return a slug for the object, combining ID and slug if available. """
     parts = [str(self.id)]
     if hasattr(self, 'slug'):
       parts.append(str(self.slug))
+    elif hasattr(self, 'token'):
+      parts.append(str(self.token))
     return '-'.join(parts)
-    
 
+  @property
+  def get_ajax_url(self):
+    """ Return the AJAX URL for the object, if defined. """
+    return reverse('cmnsd:dispatch_object_by_id_and_slug', args=[self.__class__.__name__.lower(), self.id, getattr(self, 'slug', self.token)])
+    return None
+  
   ''' Configuration values 
       Can be overridden or appended in subclasses using:
       def function_name(self):
