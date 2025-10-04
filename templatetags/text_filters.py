@@ -1,5 +1,7 @@
 from django import template
+
 import re
+
 ''' https://stackoverflow.com/questions/21483003/replacing-a-character-in-django-template '''
 register = template.Library()
 
