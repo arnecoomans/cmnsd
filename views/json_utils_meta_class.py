@@ -1,6 +1,6 @@
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings
-from django.core.exceptions import PermissionDenied, ObjectDoesNotExist
+from django.core.exceptions import PermissionDenied, ObjectDoesNotExist, FieldDoesNotExist
 from django.db import models
 from django.db.models.query import QuerySet
 from django.apps import apps
@@ -113,10 +113,20 @@ class meta_object():
   def __call__(self):
     return self.obj
   
+  def __has_field(self, field):
+    try:
+      self.model._meta.get_field(field)
+      return True
+    except Exception as e:
+      return False
+    
   def __detect(self, identifiers=None):
     if not identifiers:
       identifiers = self.identifiers
     qs = self.qs if self.qs else self.model.objects.all()
+    # If the model does not have a slug, add token as identifier if available in the model
+    if not self.__has_field('slug') and self.__has_field('token') and 'token' not in identifiers:
+      identifiers['token'] = identifiers.pop('slug', None)
     # Remove identifiers that are not a field of the model
     for key in list(identifiers.keys()):
       try:
