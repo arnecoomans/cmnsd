@@ -105,7 +105,9 @@ class JsonDispatch(JsonUtil, CrudRead, CrudUpdate, CrudDelete):
         except Exception as e:
           # Field could not be set, so remove from requested fields
           self.obj.fields.remove(field)
-          self.messages.add(_("field '{}' could not be set in {} '{}': {}").format(field, self.model.name, self.obj, e).capitalize(), 'warning')
+          staff_message = ": " + str(e) if getattr(settings, "DEBUG", False) else ""
+          self.messages.add(_("field '{}' could not be set in {} '{}'{}").format(field, self.model.name, self.obj, staff_message).capitalize(), 'warning')
+
         
   ''' CRUD actions '''
   def get(self, request, *args, **kwargs):

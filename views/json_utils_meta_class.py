@@ -188,7 +188,9 @@ class meta_field(JsonUtil):
       # For protected or private fields, return None
       raise PermissionDenied(_("access to field '{}' is blocked in configuration".format(self.field_name)).capitalize())
     elif hasattr(self.obj.model, 'disallow_access_fields'):
-      disallowed_fields = getattr(self.obj.model, 'disallow_access_fields', [])
+      disallowed_fields = getattr(self.obj.obj, 'disallow_access_fields', [])
+      if not isinstance(disallowed_fields, list):
+        disallowed_fields = [disallowed_fields]
       if self.field_name in disallowed_fields:
         raise PermissionDenied(_("access to field '{}' is blocked in model configuration".format(self.field_name)).capitalize())
 
