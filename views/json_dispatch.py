@@ -48,7 +48,8 @@ class JsonDispatch(JsonUtil, CrudRead, CrudUpdate, CrudDelete):
         # Log the exception trackback to the console or log when
         # DEBUG is True in settings.py
         traceback.print_exc()
-      self.messages.add(str(e), 'error')
+      staff_message = ": " + str(e) if getattr(settings, "DEBUG", False) else ""
+      self.messages.add(_("an error occurred during request processing{}").format(staff_message).capitalize(), 'error')
       return self.return_response(status=400)
     return super().dispatch(request, *args, **kwargs)
   
@@ -63,17 +64,35 @@ class JsonDispatch(JsonUtil, CrudRead, CrudUpdate, CrudDelete):
 
   def __detect_object(self):
     # Fetch Object in <str:object_id> or <str:object_slug>
-    if self.get_value_from_request('object_id', silent=True) or \
-        self.get_value_from_request('object_slug', silent=True):
-      if not self.model:
-        # Should not occur due to urls.py requirement of model
-        return self.return_response({'error 2': _("model is required for object lookup").capitalize()}, status=400)
-      # Lookup object by ID or slug via meta_object class, allowing for empty ID or slug
-      # Pass filtered queryset to meta_object to ensure security-measures are applied
-      self.obj = meta_object( self.model.model, 
-                              qs=self.filter(self.model.model.objects.all(), suppress_search=True),
-                              id=self.get_value_from_request('object_id', silent=True), 
-                              slug=self.get_value_from_request('object_slug', silent=True))
+    # Set identifier fields:
+    available_identifiers = {
+      'id': ['object_id', 'obj_id', 'object-id', 'obj-id', 'objectid', 'objid'],
+      'slug': ['object_slug', 'obj_slug', 'object-slug', 'obj-slug', 'objectslug', 'objslug'],
+      'token': ['object_token', 'obj_token', 'object-token', 'obj-token', 'objecttoken', 'objtoken'],
+    }
+    identifiers = {}
+    # Check if two or more identifier types are supplied
+    id_types_supplied = 0
+    for id_type, id_keys in available_identifiers.items():
+      for id_key in id_keys:
+        if self.get_value_from_request(id_key, silent=True):
+          identifiers[id_type] = self.get_value_from_request(id_key, silent=True)
+          id_types_supplied += 1
+          break
+    if id_types_supplied < 2:
+      raise ValueError(_("at least two identifiers are required for object lookup").capitalize())
+    if not self.model:
+      # If an invalid model is passed, this will be caught in __detect_model above
+      raise ValueError(_("model is required for object lookup").capitalize())
+    # Lookup object by two or more identifiers via meta_object class
+    # Pass filtered queryset to meta_object to ensure security-measures are applied
+    base_qs = self.model.model.objects.all()
+    if hasattr(self, 'filter'):
+      base_qs = self.filter(base_qs, suppress_search=True)
+    self.obj = meta_object( self.model.model, 
+                            qs=base_qs,
+                            **identifiers)
+    return self.obj
   
   def __detect_fields(self):
     # Fetch Field in <str:field>
@@ -110,11 +129,12 @@ class JsonDispatch(JsonUtil, CrudRead, CrudUpdate, CrudDelete):
 
         
   ''' CRUD actions '''
-  def get(self, request, *args, **kwargs):
-    self.modes = self.__guess_modes()
-    return self.return_response(payload=self.crud__read())
+  # def get(self, request, *args, **kwargs):
+  #   self.modes = self.__guess_modes()
+  #   return self.return_response(payload=self.crud__read())
   
-  def post(self, request, *args, **kwargs):
+  # def post(self, request, *args, **kwargs):
+  def get(self, request, *args, **kwargs):
     self.modes = self.__guess_modes()
     return self.return_response(payload=self.crud__update())
 
