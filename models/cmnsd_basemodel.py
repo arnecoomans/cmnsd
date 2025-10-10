@@ -114,6 +114,10 @@ class VisibilityModel(models.Model):
 
   class Meta:
     abstract = True
+  
+  @property
+  def get_visibility_choices(self):
+    return dict(self.visibility_choices)
 
 # Only allow option for MultiSiteBaseModel if 'django.contrib.sites' is available
 if 'django.contrib.sites' in settings.INSTALLED_APPS:
