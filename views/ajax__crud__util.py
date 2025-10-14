@@ -49,84 +49,84 @@ class CrudUtil:
       raise ValueError(_("no valid field supplied for update").capitalize())
     return field
   
-  def get_fields(self):
-    # Get all fields mentioned in payload that can be mapped to the object fields
-    fields = []
-    for key in self.get_keys_from_request(sources=self.get_sources()):
-      if self.model.is_field(key):
-        try:
-          fields.append(self.validate_field(key))
-        except Exception as e:
-          # Ignore invalid fields
-          print(e)
-          pass
-    if not fields:
-      raise ValueError(_("no valid fields supplied for update").capitalize())
-    return fields
+  # def get_fields(self):
+  #   # Get all fields mentioned in payload that can be mapped to the object fields
+  #   fields = []
+  #   for key in self.get_keys_from_request(sources=self.get_sources()):
+  #     if self.model.is_field(key):
+  #       try:
+  #         fields.append(self.validate_field(key))
+  #       except Exception as e:
+  #         # Ignore invalid fields
+  #         print(e)
+  #         pass
+  #   if not fields:
+  #     raise ValueError(_("no valid fields supplied for update").capitalize())
+  #   return fields
   
-  def get_field(self, sources=None):
-    """
-    Determine the target model field to be updated or accessed.
+  # def get_field(self, sources=None):
+  #   """
+  #   Determine the target model field to be updated or accessed.
 
-    This method attempts to detect which field of the current model
-    (`self.model`) should be used for an operation, based on the
-    available request context or URL parameters.
+  #   This method attempts to detect which field of the current model
+  #   (`self.model`) should be used for an operation, based on the
+  #   available request context or URL parameters.
 
-    The lookup order is as follows:
-      1. If one or more fields are supplied via the URL (``self.obj.fields``),
-        use the first field in that list. A warning message is added if
-        multiple fields were provided.
-      2. Otherwise, search for the first valid field name found in the request
-        data (e.g. POST, JSON, or GET), using ``get_keys_from_request()``
-        combined with the configured input sources from ``get_sources()``.
+  #   The lookup order is as follows:
+  #     1. If one or more fields are supplied via the URL (``self.obj.fields``),
+  #       use the first field in that list. A warning message is added if
+  #       multiple fields were provided.
+  #     2. Otherwise, search for the first valid field name found in the request
+  #       data (e.g. POST, JSON, or GET), using ``get_keys_from_request()``
+  #       combined with the configured input sources from ``get_sources()``.
 
-    Args:
-      sources (list | None): Optional list of data sources to search for
-        field names. If not provided, defaults to ``self.get_sources()``.
+  #   Args:
+  #     sources (list | None): Optional list of data sources to search for
+  #       field names. If not provided, defaults to ``self.get_sources()``.
 
-    Returns:
-      str: The name of the detected model field.
+  #   Returns:
+  #     str: The name of the detected model field.
 
-    Raises:
-      ValueError: If no valid field name could be determined.
+  #   Raises:
+  #     ValueError: If no valid field name could be determined.
 
-    Side Effects:
-      - Logs a warning message to ``self.messages`` if multiple fields were
-        provided in the request.
-      - Prints debug information about detected fields (useful during
-        development).
+  #   Side Effects:
+  #     - Logs a warning message to ``self.messages`` if multiple fields were
+  #       provided in the request.
+  #     - Prints debug information about detected fields (useful during
+  #       development).
 
-    Example:
-      If a request URL provides ``/json/location/111-slug/name/``, this
-      method will return ``"name"``.
-    """
-    field = False
+  #   Example:
+  #     If a request URL provides ``/json/location/111-slug/name/``, this
+  #     method will return ``"name"``.
+  #   """
+  #   field = False
 
-    # Check if field is supplied in request URL (kwargs)
-    if self.obj.fields:
-      # Assume first field if multiple fields are supplied
-      field = self.obj.fields[0]
-      if len(self.obj.fields) > 1:
-        self.messages.add(
-          _("multiple fields were supplied but only one is supported").capitalize()
-          + ". "
-          + _("using first field '{}'").format(field).capitalize(),
-          "warning"
-        )
+  #   # Check if field is supplied in request URL (kwargs)
+  #   if self.obj.fields:
+  #     # Assume first field if multiple fields are supplied
+  #     field = self.obj.fields[0]
+  #     if len(self.obj.fields) > 1:
+  #       self.messages.add(
+  #         _("multiple fields were supplied but only one is supported").capitalize()
+  #         + ". "
+  #         + _("using first field '{}'").format(field).capitalize(),
+  #         "warning"
+  #       )
 
-    else:
-      # Check if field is supplied in request data (POST or JSON)
-      fields = self.get_keys_from_request(sources=self.get_sources())
-      for f in fields:
-        if self.model.is_field(f):
-          field = f
-          # Only use the first valid field found, assume the rest are value identifiers
-          break
+  #   else:
+  #     # Check if field is supplied in request data (POST or JSON)
+  #     fields = self.get_keys_from_request(sources=self.get_sources())
+  #     for f in fields:
+  #       if self.model.is_field(f):
+  #         field = f
+  #         # Only use the first valid field found, assume the rest are value identifiers
+  #         break
 
-    if not field:
-      raise ValueError(_("no valid field supplied for update").capitalize())
+  #   if not field:
+  #     raise ValueError(_("no valid field supplied for update").capitalize())
 
-    return field
+  #   return field
 
   
   def get_sources(self):
