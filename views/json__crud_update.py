@@ -19,8 +19,6 @@ class CrudUpdate(CrudUtil):
     # Get the object referenced by the request
     obj = self.__get_obj()
     actions = self.__get_actions(obj, payload)
-    print("Payload: ", payload)
-    print("Actions: ", actions)
     # Update fields in a safe order: simple, bool, foreign_key, related
     try:
       self.__update_simple_fields(obj, actions)
