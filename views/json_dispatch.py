@@ -4,7 +4,9 @@ from django.conf import settings
 from django.apps import apps
 
 from .json_utils import JsonUtil
-from .json_utils_meta_class import meta_model, meta_field, meta_object
+from .json_utils_meta_model import meta_model
+from .json_utils_meta_object import meta_object
+from .json_utils_meta_field import meta_field
 from .json__crud_read import CrudRead
 from .json__crud_update import CrudUpdate
 from .json__crud_delete import CrudDelete
@@ -20,7 +22,7 @@ class JsonDispatch(JsonUtil, CrudRead, CrudUpdate, CrudDelete):
     self.fields = {}
     self.modes = {'editable': False}
     
-  def __guess_modes(self):
+  def guess_modes(self):
     for mode in ['editable']:
       # Ensure mode is set to False by default
       modes = {mode: False}
@@ -48,7 +50,7 @@ class JsonDispatch(JsonUtil, CrudRead, CrudUpdate, CrudDelete):
         # Log the exception trackback to the console or log when
         # DEBUG is True in settings.py
         traceback.print_exc()
-      staff_message = ": " + str(e) if getattr(settings, "DEBUG", False) else ""
+      staff_message = ': ' + str(e) if getattr(settings, 'DEBUG', False) or self.request.user.is_superuser else ''
       self.messages.add(_("an error occurred during request processing{}").format(staff_message).capitalize(), 'error')
       return self.return_response(status=400)
     return super().dispatch(request, *args, **kwargs)
@@ -57,7 +59,7 @@ class JsonDispatch(JsonUtil, CrudRead, CrudUpdate, CrudDelete):
   def __detect_model(self):
     if self.get_value_from_request('model', silent=True):
       try:
-        self.model = meta_model(self.get_value_from_request('model'))
+        self.model = meta_model(model_name=self.get_value_from_request('model'), request=self.request)
       except Exception as e:
         self.messages.add(str(e), 'error')
         return self.return_response({'error 1': str(e)}, status=400)
@@ -79,7 +81,7 @@ class JsonDispatch(JsonUtil, CrudRead, CrudUpdate, CrudDelete):
           identifiers[id_type] = self.get_value_from_request(id_key, silent=True)
           id_types_supplied += 1
           break
-    if id_types_supplied < 2:
+    if id_types_supplied > 0 and id_types_supplied < 2:
       raise ValueError(_("at least two identifiers are required for object lookup").capitalize())
     if not self.model:
       # If an invalid model is passed, this will be caught in __detect_model above
@@ -89,9 +91,10 @@ class JsonDispatch(JsonUtil, CrudRead, CrudUpdate, CrudDelete):
     base_qs = self.model.model.objects.all()
     if hasattr(self, 'filter'):
       base_qs = self.filter(base_qs, suppress_search=True)
-    self.obj = meta_object( self.model.model, 
+    self.obj = meta_object( self.model, 
                             qs=base_qs,
-                            **identifiers)
+                            **identifiers,
+                            none=True)
     return self.obj
   
   def __detect_fields(self):
@@ -115,7 +118,7 @@ class JsonDispatch(JsonUtil, CrudRead, CrudUpdate, CrudDelete):
       for field in fields:
         # Check if field exists as attribute of object
         # if not hasattr(self.obj.obj, field):
-        if not self.model.is_field(field):
+        if not self.model.has_field(field):
           self.messages.add(_("field '{}' is not found in {} '{}'").format(field, self.model.name, self.obj).capitalize())
           continue
         self.obj.fields.append(field)
@@ -124,25 +127,25 @@ class JsonDispatch(JsonUtil, CrudRead, CrudUpdate, CrudDelete):
         except Exception as e:
           # Field could not be set, so remove from requested fields
           self.obj.fields.remove(field)
-          staff_message = ": " + str(e) if getattr(settings, "DEBUG", False) else ""
+          staff_message = ': ' + str(e) if getattr(settings, 'DEBUG', False) or self.request.user.is_superuser else ''
           self.messages.add(_("field '{}' could not be set in {} '{}'{}").format(field, self.model.name, self.obj, staff_message).capitalize(), 'warning')
 
         
   ''' CRUD actions '''
-  # def get(self, request, *args, **kwargs):
-  #   self.modes = self.__guess_modes()
-  #   return self.return_response(payload=self.crud__read())
-  
-  # def post(self, request, *args, **kwargs):
   def get(self, request, *args, **kwargs):
-    self.modes = self.__guess_modes()
+    self.modes = self.guess_modes()
+    return self.return_response(payload=self.crud__read())
+  
+  def post(self, request, *args, **kwargs):
+    self.modes = self.guess_modes()
     return self.return_response(payload=self.crud__update())
 
   def patch(self, request, *args, **kwargs):
-    self.modes = self.__guess_modes()
+    print('PATCH request received')
+    self.modes = self.guess_modes()
     return self.return_response(payload=self.crud__update())
   
   def delete(self, request, *args, **kwargs):
-    self.modes = self.__guess_modes()
+    self.modes = self.guess_modes()
     
     return self.return_response(payload=self.crud__delete())

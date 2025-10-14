@@ -18,7 +18,6 @@ function sanitizeHTML(input, allowedTags = ['B', 'STRONG', 'I', 'EM']) {
           walk(child, safeEl);
           parent.appendChild(safeEl);
         } else {
-          // Not allowed → flatten as plain text
           parent.appendChild(document.createTextNode(child.textContent));
         }
       }
@@ -30,29 +29,15 @@ function sanitizeHTML(input, allowedTags = ['B', 'STRONG', 'I', 'EM']) {
 }
 
 function setupInput(host) {
-  if (host.hasAttribute('data-autosuggestActive')) {
-    host.removeAttribute('data-autosuggestActive');
-  }
-
-  if (host.dataset.autosuggestActive) {
-    console.debug('[cmnsd:autosuggest] skip already active', host);
-    return;
-  }
+  if (host.dataset.autosuggestActive) return;
   host.dataset.autosuggestActive = '1';
 
-  // Remove stray attributes that would conflict
-  const strayAttrs = ['action', 'method', 'map', 'body', 'disable', 'confirm'];
+  // Clean up conflicting attributes
+  const strayAttrs = ['action', 'method', 'map', 'body', 'disable', 'confirm', 'action'];
   strayAttrs.forEach(attr => {
     const key = 'data-' + attr;
-    if (host.hasAttribute(key)) {
-      console.debug('[cmnsd:autosuggest] removing stray', key, 'on', host);
-      host.removeAttribute(key);
-    }
+    if (host.hasAttribute(key)) host.removeAttribute(key);
   });
-  if (host.hasAttribute('data-action')) {
-    console.debug('[cmnsd:autosuggest] removing stray data-action on', host);
-    host.removeAttribute('data-action');
-  }
 
   const url = host.dataset.url;
   const minChars = parseInt(host.dataset.min || '2', 10);
@@ -61,38 +46,36 @@ function setupInput(host) {
   const inputKey = host.dataset.fieldInput || 'name';
   const hiddenKey = host.dataset.fieldHidden || 'slug';
   const containerKey = host.dataset.container || null;
-  const allowCreate = host.dataset.allowCreate !== '0'; // default true
+  const allowCreate = host.dataset.allowCreate !== '0';
+  const prefix = host.dataset.fieldPrefix || '';
 
   if (!url) {
     console.warn('[cmnsd:autosuggest] missing data-url for', host);
     return;
   }
 
-  // Ensure host has no name
-  host.removeAttribute('name');
-
   // Hidden fields
   let hiddenVal = host.parentNode.querySelector(
-    `input[type="hidden"][name="${hiddenKey}"]`
+    `input[type="hidden"][name="${prefix}${hiddenKey}"]`
   );
   if (!hiddenVal) {
     hiddenVal = document.createElement('input');
     hiddenVal.type = 'hidden';
-    hiddenVal.name = hiddenKey;
+    hiddenVal.name = prefix + hiddenKey;
     host.parentNode.appendChild(hiddenVal);
   }
 
   let hiddenName = host.parentNode.querySelector(
-    `input[type="hidden"][name="${inputKey}"]`
+    `input[type="hidden"][name="${prefix}${inputKey}"]`
   );
   if (!hiddenName) {
     hiddenName = document.createElement('input');
     hiddenName.type = 'hidden';
-    hiddenName.name = inputKey;
+    hiddenName.name = prefix + inputKey;
     host.parentNode.appendChild(hiddenName);
   }
 
-  // Suggestion dropdown
+  // Suggestion list
   const list = document.createElement('div');
   list.className = 'cmnsd-autosuggest list-group position-absolute w-100';
   list.style.zIndex = 2000;
@@ -103,13 +86,8 @@ function setupInput(host) {
 
   function clearList(empty = false) {
     list.innerHTML = '';
-    if (empty) {
-      list.classList.add('empty');
-      list.style.display = 'block';
-    } else {
-      list.classList.remove('empty');
-      list.style.display = 'none';
-    }
+    list.style.display = empty ? 'block' : 'none';
+    list.classList.toggle('empty', empty);
   }
 
   function updateValidity() {
@@ -118,20 +96,31 @@ function setupInput(host) {
     const submitBtn = form.querySelector('[type=submit]');
     if (!submitBtn) return;
 
+    const hasHidden = hiddenVal.value && host.value.trim() !== '';
+    const hasText = host.value.trim() !== '';
+
     if (!allowCreate) {
-      // enforce valid suggestion only
-      if (hiddenVal.value && host.value.trim() !== '') {
-        submitBtn.disabled = false;
-      } else {
-        submitBtn.disabled = true;
-      }
+      submitBtn.disabled = !hasHidden;
     } else {
-      // free text allowed, but not empty
-      if (host.value.trim() !== '') {
-        submitBtn.disabled = false;
-      } else {
-        submitBtn.disabled = true;
-      }
+      submitBtn.disabled = !hasText;
+    }
+  }
+
+  // Ensure only one field submits:
+  function syncFieldNames() {
+    if (hiddenVal.value) {
+      // A suggestion is chosen → disable visible field
+      host.removeAttribute('name');
+      hiddenVal.name = prefix + hiddenKey;
+      hiddenName.removeAttribute('name');
+    } else if (host.value.trim() !== '') {
+      // Free text typed → disable hidden field
+      host.name = prefix + inputKey;
+      hiddenVal.removeAttribute('name');
+    } else {
+      // Nothing entered → disable both
+      host.removeAttribute('name');
+      hiddenVal.removeAttribute('name');
     }
   }
 
@@ -142,8 +131,7 @@ function setupInput(host) {
 
       if (host.dataset.extraParams) {
         try {
-          const extra = JSON.parse(host.dataset.extraParams);
-          Object.assign(params, extra);
+          Object.assign(params, JSON.parse(host.dataset.extraParams));
         } catch (err) {
           console.warn('[cmnsd:autosuggest] invalid data-extra-params JSON', err);
         }
@@ -159,7 +147,7 @@ function setupInput(host) {
         data = Object.values(data);
       }
 
-      if (!Array.isArray(data) || data.length === 0) {
+      if (!Array.isArray(data) || !data.length) {
         clearList(true);
         hiddenVal.value = '';
         updateValidity();
@@ -184,21 +172,24 @@ function setupInput(host) {
       const el = document.createElement('button');
       el.type = 'button';
       el.className = 'list-group-item list-group-item-action';
-
-      // ✅ safe rendering with allowed HTML tags
       el.appendChild(sanitizeHTML(display));
 
-      el.addEventListener('click', (e) => {
+      el.addEventListener('click', e => {
         e.preventDefault();
         e.stopPropagation();
-        host.value = display.replace(/<[^>]*>/g, ''); // plain text version in input
+
+        host.value = display.replace(/<[^>]*>/g, '');
         if (submitVal) {
+          // Suggestion chosen → keep only hidden
           hiddenVal.value = submitVal;
           hiddenName.value = '';
         } else if (allowCreate) {
+          // New text → keep only visible
           hiddenVal.value = '';
           hiddenName.value = host.value;
         }
+
+        syncFieldNames();
         clearList();
         updateValidity();
       });
@@ -208,43 +199,40 @@ function setupInput(host) {
     list.style.display = 'block';
   }
 
-  // Input handler
   host.addEventListener('input', () => {
-    console.debug('[cmnsd:autosuggest] input event', host.value);
     const q = host.value.trim();
-
     hiddenVal.value = '';
     hiddenName.value = allowCreate ? q : '';
-
+    syncFieldNames();
     updateValidity();
 
     if (q.length < minChars) {
-      if (minChars === 0) {
-        fetchSuggestions('');
-      } else {
-        clearList();
-      }
+      if (minChars === 0) fetchSuggestions('');
+      else clearList();
       return;
     }
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => fetchSuggestions(q), debounce);
   });
 
-  // Show all options when focused if minChars=0
   host.addEventListener('focus', () => {
-    if (minChars === 0) {
-      fetchSuggestions('');
-    }
+    if (minChars === 0) fetchSuggestions('');
   });
 
   host.addEventListener('blur', () => {
     setTimeout(() => clearList(), 200);
   });
 
-  // Initial validity check
-  updateValidity();
+  // Ensure consistency before submit
+  const form = host.closest('form');
+  if (form) {
+    form.addEventListener('submit', () => syncFieldNames());
+  }
 
-  console.debug('[cmnsd:autosuggest] bound to input', host, { minChars, allowCreate });
+  updateValidity();
+  syncFieldNames();
+
+  console.debug('[cmnsd:autosuggest] bound to input', host, { minChars, allowCreate, prefix });
 }
 
 export function initAutosuggest(root = document) {
@@ -265,9 +253,6 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 document.addEventListener('cmnsd:content:applied', e => {
-  console.debug(
-    '[cmnsd:autosuggest] content applied event fired from',
-    e.detail?.container || e.target
-  );
+  console.debug('[cmnsd:autosuggest] content applied event fired from', e.detail?.container || e.target);
   initAutosuggest(document);
 });

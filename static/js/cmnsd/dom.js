@@ -17,10 +17,6 @@ export function htmlToFragment(html) {
   return tpl.content;
 }
 
-/**
- * Convert arbitrary payload into an array of Nodes,
- * preserving document order per input.
- */
 export function toNodes(payload) {
   if (payload == null) return [];
   if (payload instanceof DocumentFragment) return Array.from(payload.childNodes);
@@ -33,7 +29,6 @@ export function toNodes(payload) {
     });
     return nodes;
   }
-  // string or other → treat as HTML
   return Array.from(htmlToFragment(String(payload)).childNodes);
 }
 
@@ -43,20 +38,12 @@ export function normalizePayload(payload) {
   return frag;
 }
 
-/**
- * Append content to a container (append mode).
- * @deprecated Prefer insert(container, payload, { position: 'bottom'|'top' })
- */
 export function inject(container, payload) {
   const el = resolveContainer(container);
   el.appendChild(normalizePayload(payload));
   return el;
 }
 
-/**
- * Replace the content of a container.
- * Fires cmnsd:content:applied on both the container and the document.
- */
 export function update(container, payload) {
   const el = resolveContainer(container);
   el.replaceChildren();
@@ -66,25 +53,11 @@ export function update(container, payload) {
     bubbles: true,
     detail: { container: el }
   });
-  console.debug('[cmnsd:dom] dispatching cmnsd:content:applied', el);
-
-  // Dispatch on container
   el.dispatchEvent(ev);
-  // Also dispatch on document for global listeners
-  document.dispatchEvent(new CustomEvent('cmnsd:content:applied', {
-    bubbles: true,
-    detail: { container: el }
-  }));
 
   return el;
 }
 
-/**
- * Insert nodes at the top or bottom of the container.
- * If any inserted element has an id that already exists
- * within the container, the existing element is replaced in place.
- * Fires cmnsd:content:applied on both the container and the document.
- */
 export function insert(container, payload, options = {}) {
   const el = resolveContainer(container);
   const position = options.position === 'top' ? 'top' : 'bottom';
@@ -94,7 +67,7 @@ export function insert(container, payload, options = {}) {
 
   iterable.forEach(node => {
     if (node.nodeType === Node.ELEMENT_NODE) {
-      const id = /** @type {HTMLElement} */ (node).id;
+      const id = node.id;
       if (id) {
         const existing = el.querySelector(`#${CSS.escape(id)}`);
         if (existing && el.contains(existing)) {
@@ -103,7 +76,6 @@ export function insert(container, payload, options = {}) {
         }
       }
     }
-
     if (position === 'top') el.insertBefore(node, el.firstChild);
     else el.appendChild(node);
   });
@@ -112,22 +84,11 @@ export function insert(container, payload, options = {}) {
     bubbles: true,
     detail: { container: el }
   });
-  console.debug('[cmnsd:dom] dispatching cmnsd:content:applied', el);
-
-  // Dispatch on container
   el.dispatchEvent(ev);
-  // Also dispatch on document for global listeners
-  document.dispatchEvent(new CustomEvent('cmnsd:content:applied', {
-    bubbles: true,
-    detail: { container: el }
-  }));
 
   return el;
 }
 
-/**
- * Delegated event binding.
- */
 export function on(root, type, selector, handler, options) {
   const base = typeof root === 'string' ? document.querySelector(root) : root;
   if (!base) throw new Error('Root element not found for delegation.');
@@ -138,4 +99,45 @@ export function on(root, type, selector, handler, options) {
   base.addEventListener(type, wrapped, options);
   return () => base.removeEventListener(type, wrapped, options);
 }
-// End of dom.js
+
+/* ---------------------------------------------------------
+   Auto-resize for textareas
+   Expands height dynamically based on content.
+   Triggered on input and when content is injected.
+--------------------------------------------------------- */
+
+function autoResizeTextarea(el) {
+  if (!el) return;
+  el.style.height = 'auto';
+  const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || 20;
+  el.style.height = (el.scrollHeight + lineHeight) + 'px';
+}
+
+export function initAutoResizeTextareas(root = document) {
+  const textareas = root.querySelectorAll('textarea[data-autoresize], textarea.auto-resize');
+  textareas.forEach(el => {
+    // Skip if already initialized
+    if (el.dataset.autoresizeActive) return;
+    el.dataset.autoresizeActive = '1';
+
+    el.style.overflow = 'hidden';
+    el.style.resize = 'none';
+    el.style.transition = 'height 0.15s ease';
+
+    // Resize on input
+    el.addEventListener('input', () => autoResizeTextarea(el));
+
+    // Initial resize on load
+    autoResizeTextarea(el);
+  });
+}
+
+// Initialize on DOM ready
+document.addEventListener('DOMContentLoaded', () => {
+  initAutoResizeTextareas();
+});
+
+// Reinitialize on cmnsd content injection
+document.addEventListener('cmnsd:content:applied', e => {
+  initAutoResizeTextareas(e.detail?.container || document);
+});

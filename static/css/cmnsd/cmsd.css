@@ -27,3 +27,12 @@
   );
   pointer-events: none;
 }
+
+/** Auto-resize textareas **/
+textarea.autoresize,
+textarea[data-autoresize] {
+  overflow: hidden;
+  resize: none;
+  min-height: 100px;
+  transition: height 0.15s ease;
+}

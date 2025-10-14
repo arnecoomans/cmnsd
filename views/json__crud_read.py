@@ -12,7 +12,7 @@ class CrudRead:
         # If fields are detected, add the rendered fields to the payload
         for field in self.obj.fields:
           payload[field] = self.render_field(field, format=format)
-      elif self.obj:
+      elif self.obj.is_found():
         # If only object is detected, add the rendered object to the payload
         payload[self.model.name] = self.render_obj(self.obj, format=format)
       elif self.model:

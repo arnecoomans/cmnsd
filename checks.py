@@ -50,7 +50,9 @@ def check_cmnsd_config(app_configs, **kwargs):
         "AJAX_RENDER_REMOVE_NEWLINES",
         "AJAX_PROTECTED_FIELDS",
         "AJAX_BLOCKED_MODELS",
-
+        "AJAX_ALLOW_FK_CREATION_MODELS",
+        "AJAX_ALLOW_RELATED_CREATION_MODELS",
+        "AJAX_MAX_DEPTH_RECURSION",
     ]
     for setting in required_settings:
         if not hasattr(settings, setting):

@@ -8,6 +8,7 @@ from django.db.models.query import QuerySet
 from django.db import models
 from django.template import RequestContext
 
+import traceback
 import json
 
 
@@ -56,10 +57,9 @@ class ResponseUtil:
     if self.request.user.is_staff:
       response_data["__meta"] = {
         "model": str(self.model.name if self.model else None),
-        "object": str(self.obj if self.obj else None),
-        "fields": str(self.obj.fields) if self.obj else None,
+        "object": str(self.obj) if self.obj and self.obj.is_found() else None,
+        "fields": str(self.obj.fields) if self.obj and self.obj.is_found() else None,
         "mode": str(self.modes) if hasattr(self, 'modes') else False,
-        "payload_size": str(self.__get_payload_size(payload)),
         "debug": settings.DEBUG,
         "request_user": {
           "id": self.request.user.id,
@@ -88,7 +88,10 @@ class ResponseUtil:
     try:
       return JsonResponse(response_data, status=self.status)
     except TypeError as e:
-      self.messages.add(_("error when encoding response to JSON: {}").format(str(e)).capitalize(), "error")
+      if getattr(settings, "DEBUG", False):
+        traceback.print_exc()
+      staff_message = ': ' + str(e) if getattr(settings, 'DEBUG', False) or self.request.user.is_superuser else ''
+      self.messages.add(_("error when encoding response to JSON{}").format(staff_message).capitalize(), "error")
       self.status = 500
       response_data["status"] = self.status
       response_data["messages"].append(self.__render_message(self.messages.get()[-1]))
@@ -100,15 +103,6 @@ class ResponseUtil:
       response_data["messages"].append(self.__render_message(self.messages.get()[-1]))
       return JsonResponse(str(response_data), status=self.status)
     
-  def __get_payload_size(self, payload):
-    payload_size = 0
-    if type(payload) == list:
-      payload_size = len(payload)
-    elif type(payload) == dict:
-      for value in payload.values():
-        payload_size += len(str(value))
-    return payload_size
-
   def render(self, field=None, template_names=[], format='html', context={}):
     ''' In-function configuration '''
     remove_newlines = getattr(settings, 'AJAX_RENDER_REMOVE_NEWLINES', False)
@@ -126,7 +120,6 @@ class ResponseUtil:
         continue
       except Exception as e:
         if getattr(settings, 'DEBUG', False) and self.request.user.is_staff:
-          print(f"Error rendering template '{template}': {str(e)}")
           self.messages.add(_("error rendering template '{}': {}").format(template, str(e)).capitalize(), "error")
         pass
       try:
@@ -147,13 +140,27 @@ class ResponseUtil:
     staff_message = ''
     if self.request.user.is_staff:
       staff_message = '. ' + "\n" + _('searched for templates: {}').capitalize().format(', '.join(template_names))
-    self.messages.add(_("{} template for '{}{}' not found in field/ when rendering field").format(format, self.model.name, field).capitalize() + staff_message, "debug")
+    self.messages.add(_("{} template for '{}:{}' not found in field/ when rendering field").format(format, self.model.name, field).capitalize() + staff_message, "debug")
     if not field or not hasattr(self.obj, field):
       return ''
     return str(getattr(self.obj, field).value())
 
   def render_field(self, field, format='html', context={}):
-    value = getattr(self.obj, field, None).value()
+    # Try to get field value from object or obj attribute
+    try:
+      value = getattr(self.obj, field, None)
+    except AttributeError:
+      try:
+        value = getattr(self.obj.obj, field, None)
+      except AttributeError:
+        raise ValueError(_("field '{}' is not found in {} '{}'".format(field, self.model.name, self.obj)).capitalize())
+      except Exception as e:
+        raise ValueError(_("unexpected error retrieving field '{}' from {} '{}': {}".format(field, self.model.name, self.obj, str(e))).capitalize())
+    except Exception as e:
+      raise ValueError(_("unexpected error retrieving field '{}' from {} '{}': {}".format(field, self.model.name, self.obj, str(e))).capitalize())
+
+    if hasattr(value, 'value') and callable(value.value):
+      value = value.value()
     ''' Ignore empty field or empty queryset '''
     if  value is None or \
         value is False or \
@@ -208,6 +215,10 @@ class ResponseUtil:
       self.model.name: obj.obj,
     }
     return self.render(field=None, template_names=template_names, format=format, context=context)
+  def render_object(self, obj, format='html', context={}):
+    ''' Alias for render_obj '''
+    return self.render_obj(obj, format=format, context=context)
+  
 
   def render_model(self, model, format='html', context={}):
     ''' Ignore empty model '''

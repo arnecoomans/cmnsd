@@ -3,7 +3,7 @@ from django.utils.translation import gettext_lazy as _
 from django.utils.text import slugify
 import traceback
 
-from .jscon__crud__util import CrudUtil
+from .json__crud__util import CrudUtil
 from .json_utils_meta_class import meta_field
 
 class CrudDelete(CrudUtil):
