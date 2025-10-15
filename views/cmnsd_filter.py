@@ -17,6 +17,8 @@ class FilterClass:
       suppress_search = True
     
     try:
+      ''' Apply model specific access restrictions '''
+      queryset = self.__filter_by_restrict_access(queryset)
       ''' Conditionally filter queryset based on field availablity '''
       if 'status' in [field.name for field in model._meta.get_fields()]:
         queryset = self.filter_status(queryset)
@@ -50,6 +52,25 @@ class FilterClass:
         self.messages.add(_("field '{}' is not allowed for searching due to security reasons.").format(field_name).capitalize(), "error")
         return False
     return True
+  
+  ''' Restrict Access to objects based on model RESTRICT_READ_ACCESS attribute '''
+  def __filter_by_restrict_access(self, queryset):
+    model = queryset.model
+    print("A")
+    if hasattr(model, 'RESTRICT_READ_ACCESS'):
+      print("B")
+      if model.RESTRICT_READ_ACCESS == 'user':
+        print("C")
+        if self.request.user.is_authenticated:
+          print("D")
+          queryset = queryset.filter(user=self.request.user)
+        else:
+          print("E")
+          self.messages.add(_("you must be logged in to view these items").capitalize(), 'error')
+          self.status = 403
+          return QuerySet(model=model).none()
+    return queryset
+  
   ''' Get Searchable Fields from request kwargs 
       Loop through request GET and POST parameters and check if they are fields in the model.
       If they are a field, add them to the list of search fields.
