@@ -134,6 +134,9 @@ class ResponseUtil:
             rendered_field = rendered_field.replace('  ', ' ')
         return rendered_field
       except json.JSONDecodeError as e:
+        if getattr(settings, 'DEBUG', False) and self.request.user.is_staff:
+          print(rendered_field)
+          print(traceback.format_exc())
         if self.request.user.is_staff:
           self.messages.add(_("error decoding JSON from rendered template '{}': {}").format(template, str(e)).capitalize(), "error")
         return ""
