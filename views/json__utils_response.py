@@ -116,6 +116,9 @@ class ResponseUtil:
     for template in template_names:
       try:
         rendered_field = render_to_string(template, context=context, request=self.request)
+        # if getattr(settings, 'DEBUG', False) and self.request.user.is_staff:
+          # print(context)
+          # print(f"Rendered template: {template}")
       except TemplateDoesNotExist:
         continue
       except Exception as e:

@@ -667,8 +667,8 @@ class meta_field:
     except Exception as e:
         staff_message = f": {e}" if getattr(settings, "DEBUG", False) or self.request.user.is_superuser else ""
         raise ValueError(
-            _("error fetching related object for the given arguments: {}{}")
-              .format(resolved_identifiers, staff_message)
+            _("error fetching related {} object for the given arguments: {}{}")
+              .format(target_model.__name__, resolved_identifiers, staff_message)
               .capitalize()
         )
 
