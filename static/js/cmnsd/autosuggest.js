@@ -47,6 +47,7 @@ function setupInput(host) {
   const hiddenKey = host.dataset.fieldHidden || 'slug';
   const containerKey = host.dataset.container || null;
   const allowCreate = host.dataset.allowCreate !== '0';
+  const isSearchMode = host.dataset.searchMode === 'true';
   const prefix = host.dataset.fieldPrefix || '';
 
   if (!url) {
@@ -109,16 +110,21 @@ function setupInput(host) {
   // Ensure only one field submits:
   function syncFieldNames() {
     if (hiddenVal.value) {
-      // A suggestion is chosen → disable visible field
-      host.removeAttribute('name');
+      // A suggestion was chosen → only submit the hidden field
+      if (!isSearchMode) host.removeAttribute('name');
       hiddenVal.name = prefix + hiddenKey;
       hiddenName.removeAttribute('name');
     } else if (host.value.trim() !== '') {
-      // Free text typed → disable hidden field
-      host.name = prefix + inputKey;
+      // Free text typed → only submit the input field
+      if (isSearchMode) {
+        // Keep name='q' for search
+        host.name = 'q';
+      } else {
+        host.name = prefix + inputKey;
+      }
       hiddenVal.removeAttribute('name');
     } else {
-      // Nothing entered → disable both
+      // Nothing entered → disable all
       host.removeAttribute('name');
       hiddenVal.removeAttribute('name');
     }
