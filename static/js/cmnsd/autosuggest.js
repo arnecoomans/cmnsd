@@ -184,13 +184,19 @@ function setupInput(host) {
         e.preventDefault();
         e.stopPropagation();
 
+        // 1. Check for URL redirect first
+        if (item.url) {
+          console.debug('[cmnsd:autosuggest] redirecting to', item.url);
+          window.location.href = item.url;
+          return;
+        }
+
+        // 2. Fallback: regular insert/update logic
         host.value = display.replace(/<[^>]*>/g, '');
         if (submitVal) {
-          // Suggestion chosen → keep only hidden
           hiddenVal.value = submitVal;
           hiddenName.value = '';
         } else if (allowCreate) {
-          // New text → keep only visible
           hiddenVal.value = '';
           hiddenName.value = host.value;
         }
