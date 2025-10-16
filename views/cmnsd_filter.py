@@ -1,9 +1,13 @@
-from django.db.models import Q, QuerySet
+from django.db.models import Q, QuerySet, Model
 from django.db.models.fields import CharField, TextField
-from django.db import models
+# from django.db import models
 from django.db.models.fields.related import ManyToManyField
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings
+from django.db.models.constants import LOOKUP_SEP
+
+import logging
+from typing import Iterable
 
 class FilterClass:
   def filter(self, queryset, suppress_search=False):
@@ -101,20 +105,55 @@ class FilterClass:
   def filter_status(self, queryset):
     return queryset.filter(status='p')
   
-  ''' Filter by object visibility '''
+  
   def filter_visibility(self, queryset):
-    ''' Add private objects for current user to queryset '''
-    if self.request.user.is_authenticated:
-      ''' Show public and community, family if family is configured, and private if owner '''
-      queryset =  queryset.filter(visibility='p') |\
-                  queryset.filter(visibility='c') |\
-                  queryset.filter(visibility='f', user=self.request.user) |\
-                  queryset.filter(visibility='f', user__profile__family=self.request.user) |\
-                  queryset.filter(visibility='q', user=self.request.user)
-    else:
-      ''' Only public objects for anonymous users '''
-      queryset =  queryset.filter(visibility='p')
-    return queryset
+    """
+    Filter objects based on the current user's visibility level.
+
+    Visibility codes:
+      'p' = public
+      'c' = community (all authenticated users)
+      'f' = family (same-family or owner)
+      'q' = private (owner only)
+    """
+    user = getattr(self.request, "user", None)
+
+    if not user or not user.is_authenticated:
+      return queryset.filter(visibility="p")
+
+    # Base visibility: public, community, private(owner)
+    filters = (
+      Q(visibility="p") |
+      Q(visibility="c") |
+      Q(visibility="q", user=user)
+    )
+
+    # Family visibility (f)
+    user_family = None
+    try:
+      profile = getattr(user, "profile", None)
+      if profile:
+        family_attr = getattr(profile, "family", None)
+
+        # Case 1: family is a ManyToManyField
+        if hasattr(family_attr, "all") and callable(family_attr.all):
+          family_ids = list(family_attr.all().values_list("id", flat=True))
+          if family_ids:
+            filters |= Q(visibility="f", user__profile__family__in=family_ids)
+
+        # Case 2: family is a ForeignKey
+        else:
+          user_family = family_attr
+          if user_family:
+            filters |= Q(visibility="f", user__profile__family=user_family)
+
+    except Exception:
+      pass  # safely ignore if profile/family unavailable
+
+    # Also allow user’s own family posts (fallback)
+    filters |= Q(visibility="f", user=user)
+
+    return queryset.filter(filters)
   
   ''' Free text search filter '''
   def filter_freetextsearch(self, queryset, query=None):
@@ -207,54 +246,127 @@ class FilterClass:
     return q_obj if found_valid_group else Q(pk__in=[])
   
 
-  def search_results(self, queryset, search_fields):
-    """ Search results based on specific fields.
-        If no search fields are provided, it returns the original queryset.
+  def search_results(self, queryset: QuerySet, search_fields: Iterable[str]) -> QuerySet:
+    """Search the queryset dynamically based on request parameters and field paths.
+
+    Args:
+      queryset: The base queryset to filter.
+      search_fields: Iterable of field lookups (e.g. ['name', 'country__slug']).
+
+    Returns:
+      Filtered queryset with all matching results combined via AND logic.
     """
     for field in search_fields:
       value = self.get_value_from_request(field, default=None, silent=True)
       if value:
         queryset = self.__search_queryset(queryset.model, queryset, field, value)
-    return queryset.order_by().distinct()
-  
+    return queryset.distinct()
+
+
   def __search_queryset(self, model, queryset, field_name, value):
-    # Extract last field in relation path
+    """Internal helper that filters queryset for a single field path and value."""
+    from django.conf import settings
+    from django.core.exceptions import FieldDoesNotExist
+
+    # Secure field check
     last_field_name = field_name.split("__")[-1]
     if not self.__field_is_secure(last_field_name):
       return queryset.none()
-    # Traverse relations to find the base field model
-    base_field = model
-    for part in field_name.split("__")[:-1]:
-      base_field = base_field._meta.get_field(part).related_model
-    field = base_field._meta.get_field(last_field_name) if hasattr(base_field, "_meta") else None
-    # Pick lookup operator
-    if isinstance(field, (models.CharField, models.TextField)):
-      lookup = f"{field_name}__icontains"
-      parent_lookup = f"parent__{last_field_name}__icontains"
-    else:
-      lookup = f"{field_name}__exact"
-      parent_lookup = f"parent__{last_field_name}__exact"
-    # Always build the base filter
-    filters = Q(**{lookup: value})
 
-    # If the model has a self-referential 'parent', include parent filter
-    if hasattr(base_field, "_meta") and "parent" in [f.name for f in base_field._meta.get_fields()]:
-      filters |= Q(**{parent_lookup: value})
+    # Resolve base related model in chain
+    base_field = model
+    try:
+      for part in field_name.split("__")[:-1]:
+        f = base_field._meta.get_field(part)
+        base_field = getattr(f, "related_model", None)
+        if not base_field:
+          return queryset.none()
+    except (FieldDoesNotExist, AttributeError):
+      return queryset.none()
+
+    try:
+      field = base_field._meta.get_field(last_field_name)
+    except FieldDoesNotExist:
+      return queryset.none()
+
+    # Pick lookup
+    lookup_type = "icontains" if field.get_lookup("icontains") else "exact"
+    lookup = f"{field_name}__{lookup_type}"
+    filters = Q()
+
+    # Split comma-separated values into OR conditions
+    for v in [x.strip() for x in str(value).split(",") if x.strip()]:
+      filters |= Q(**{lookup: v})
+
+    # Include parent lookup if applicable
+    if any(f.name.lower() == "parent" for f in base_field._meta.get_fields()):
+      parent_lookup = f"parent__{last_field_name}__{lookup_type}"
+      for v in [x.strip() for x in str(value).split(",") if x.strip()]:
+        filters |= Q(**{parent_lookup: v})
+
     return queryset.filter(filters)
 
-  
   def exclude_results(self, queryset, exclude_character=None, **kwargs):
-    """ Exclude results based on settings.
-        If the model has an 'exclude' field, it will exclude objects where exclude=True.
-        example: ?exclude=field1:value1,field2:value2
-        example: ?exclude=location__slug:home
+    """Exclude queryset entries dynamically via ?exclude=field:value.
+
+    Supports multiple ?exclude= params and comma/semicolon separated lists.
+
+    Examples:
+      ?exclude=status:archived
+      ?exclude=status:archived,is_active:false
+      ?exclude=location__slug:huttopia-camping-divonne
+      ?exclude=foo:bar&exclude=baz:qux,active:false
     """
-    if not exclude_character:
-      exclude_character = getattr(settings, 'SEARCH_EXCLUDE_CHARACTER', 'exclude')
-    exclude_fields = self.get_value_from_request(exclude_character, default='', silent=True).split(',')
-    if exclude_fields:
-      exclude_fields = [field.strip() for field in exclude_fields if field.strip()]
-      for exclusion in exclude_fields:
-        key,value = exclusion.split(':') if ':' in exclusion else (exclusion, 'true')
-        queryset = queryset.exclude(**{f"{key}__icontains": value})
+    logger = logging.getLogger(__name__)
+
+    exclude_character = exclude_character or getattr(settings, "SEARCH_EXCLUDE_CHARACTER", "exclude")
+
+    # Gather all values from multiple ?exclude=... occurrences
+    raw_values = self.request.GET.getlist(exclude_character)
+    if not raw_values:
+      return queryset
+
+    # Merge all exclude strings and allow both comma and semicolon separators
+    combined = ",".join(raw_values).replace(";", ",")
+    exclude_fields = [f.strip() for f in combined.split(",") if f.strip()]
+
+    for exclusion in exclude_fields:
+      # Split only on the first colon
+      if ":" in exclusion:
+        key, value = exclusion.split(":", 1)
+      else:
+        key, value = exclusion, "true"
+
+      key, value = key.strip(), value.strip()
+      if not key:
+        continue
+
+      # Convert common boolean strings
+      val_lower = value.lower()
+      if val_lower in {"true", "1", "yes", "on"}:
+        value = True
+      elif val_lower in {"false", "0", "no", "off"}:
+        value = False
+
+      # Validate field structure
+      try:
+        base_field = key.split(LOOKUP_SEP)[0]
+        if not hasattr(queryset.model, base_field):
+          logger.debug(f"exclude_results: unknown field '{key}' on {queryset.model.__name__}")
+          continue
+      except Exception as ex:
+        logger.warning(f"exclude_results: invalid exclude key '{key}': {ex}")
+        continue
+
+      # Apply exclusion safely
+      try:
+        queryset = queryset.exclude(**{key: value})
+      except Exception as ex:
+        # Fallback: attempt __icontains if possible
+        try:
+          queryset = queryset.exclude(**{f"{key}__icontains": value})
+        except Exception as inner_ex:
+          logger.debug(f"exclude_results: skipping invalid exclusion '{key}:{value}' ({inner_ex})")
+          continue
+
     return queryset
