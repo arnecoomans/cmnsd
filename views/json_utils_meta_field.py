@@ -579,7 +579,7 @@ class meta_field:
           'field': self.name, 
           'old_value': str(current_value),
           'new_value': str(related_obj),
-          'description': _('removed {} {} from {} {}').capitalize().format(str(related_obj._meta.verbose_name), str(related_obj), str(self.obj.model._meta.verbose_name), str(self.obj.obj)),
+          'description': _("removed '{}' '{}' from {} {}").capitalize().format(str(related_obj._meta.verbose_name), str(related_obj), str(self.obj.model._meta.verbose_name), str(self.obj.obj)),
         })
       except Exception as e:
         staff_message = ': ' + str(e) if getattr(settings, 'DEBUG', False) or self.request.user.is_superuser else ''
@@ -593,7 +593,7 @@ class meta_field:
           'field': self.name, 
           'old_value': str(current_value),
           'new_value': str(related_obj),
-          'description': _('added {} {} to {} {}').capitalize().format(str(related_obj._meta.verbose_name), str(related_obj), str(self.obj.model._meta.verbose_name), str(self.obj.obj)),
+          'description': _("added '{}' '{}' to '{}' '{}'").capitalize().format(str(related_obj._meta.verbose_name), str(related_obj), str(self.obj.model._meta.verbose_name), str(self.obj.obj)),
         })
       except Exception as e:
         staff_message = ': ' + str(e) if getattr(settings, 'DEBUG', False) or self.request.user.is_superuser else ''
@@ -752,7 +752,7 @@ class meta_field:
             "field": self.name,
             "old_value": None,
             "new_value": str(related_obj),
-            "description": _("created new {} {}").capitalize().format(
+            "description": _("created new '{}' '{}'").capitalize().format(
                 str(related_obj._meta.verbose_name), str(related_obj)
             ),
         })
