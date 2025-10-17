@@ -50,3 +50,22 @@ def objreplace(value, what, to):
     {% objreplace app.url_format "{address}" location.address %}
   """
   return str(value).replace(str(what), str(to))
+
+@register.filter(name="whatsapp_number")
+def whatsapp_number(value):
+    """
+    Format a phone number for WhatsApp usage:
+    - Replace leading '+' with '00'
+    - Remove all spaces, parentheses, and non-numeric characters
+    - Return only digits and allowed prefix
+    """
+    if not value:
+        return ""
+
+    # 1. Replace '+' with '00' at the start
+    formatted = re.sub(r'^\+', '00', str(value))
+
+    # 2. Remove all characters except digits
+    formatted = re.sub(r'[^0-9]', '', formatted)
+
+    return formatted
