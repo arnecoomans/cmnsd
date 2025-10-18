@@ -1,1 +1,1 @@
-from .json_dispatch import JsonDispatch
+from .ajax_dispatch import JsonDispatch
