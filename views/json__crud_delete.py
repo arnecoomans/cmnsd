@@ -4,7 +4,6 @@ from django.utils.text import slugify
 import traceback
 
 from .ajax__crud__util import CrudUtil
-from .json_utils_meta_class import meta_field
 
 class CrudDelete(CrudUtil):
   def crud__delete(self):
