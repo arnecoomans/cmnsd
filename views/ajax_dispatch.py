@@ -7,9 +7,9 @@ from .ajax_utils import JsonUtil
 from .json_utils_meta_model import meta_model
 from .json_utils_meta_object import meta_object
 from .json_utils_meta_field import meta_field
-from .json__crud_read import CrudRead
-from .json__crud_update import CrudUpdate
-from .json__crud_delete import CrudDelete
+from .ajax__crud_read import CrudRead
+from .ajax__crud_update import CrudUpdate
+from .ajax__crud_delete import CrudDelete
 
 ''' Meta classes for detection and dispatching
 '''
