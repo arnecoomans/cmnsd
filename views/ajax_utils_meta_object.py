@@ -5,7 +5,7 @@ from django.db import models
 from django.db.models.query import QuerySet
 
 from .ajax_utils import JsonUtil
-from .json_utils_meta_model import meta_model
+from .ajax_utils_meta_model import meta_model
 
 from .cmnsd_filter import FilterClass
 

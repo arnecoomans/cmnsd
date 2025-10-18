@@ -4,9 +4,9 @@ from django.utils.text import slugify
 import traceback
 
 from .ajax__crud__util import CrudUtil
-# from .json_utils_meta_model import meta_model
-from .json_utils_meta_object import meta_object
-from .json_utils_meta_field import meta_field
+# from .ajax_utils_meta_model import meta_model
+from .ajax_utils_meta_object import meta_object
+from .ajax_utils_meta_field import meta_field
 
 class CrudUpdate(CrudUtil):
 

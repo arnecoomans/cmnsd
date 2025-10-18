@@ -4,9 +4,9 @@ from django.conf import settings
 from django.apps import apps
 
 from .ajax_utils import JsonUtil
-from .json_utils_meta_model import meta_model
-from .json_utils_meta_object import meta_object
-from .json_utils_meta_field import meta_field
+from .ajax_utils_meta_model import meta_model
+from .ajax_utils_meta_object import meta_object
+from .ajax_utils_meta_field import meta_field
 from .ajax__crud_read import CrudRead
 from .ajax__crud_update import CrudUpdate
 from .ajax__crud_delete import CrudDelete
