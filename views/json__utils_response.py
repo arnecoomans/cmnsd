@@ -117,8 +117,7 @@ class ResponseUtil:
       try:
         rendered_field = render_to_string(template, context=context, request=self.request)
         # if getattr(settings, 'DEBUG', False) and self.request.user.is_staff:
-          # print(context)
-          # print(f"Rendered template: {template}")
+        #   print(f"Rendered template: {template}")
       except TemplateDoesNotExist:
         continue
       except Exception as e:
@@ -164,15 +163,8 @@ class ResponseUtil:
         raise ValueError(_("unexpected error retrieving field '{}' from {} '{}': {}".format(field, self.model.name, self.obj, str(e))).capitalize())
     except Exception as e:
       raise ValueError(_("unexpected error retrieving field '{}' from {} '{}': {}".format(field, self.model.name, self.obj, str(e))).capitalize())
-
     if hasattr(value, 'value') and callable(value.value):
       value = value.value()
-    ''' Ignore empty field or empty queryset '''
-    if  value is None or \
-        value is False or \
-        len(str(value).strip()) == 0: # or \
-        # (isinstance(value, QuerySet) and value.count() == 0):
-      return ''
     ''' Build template names to try to render '''
     template_names = [
       f'object/{ self.model.name.lower() }_{ field }.{ format }',

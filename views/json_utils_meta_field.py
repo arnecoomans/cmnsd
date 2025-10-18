@@ -566,6 +566,24 @@ class meta_field:
       raise ValueError(_("cannot update {}'s related field '{}' with value '{}' because related model could not be determined").capitalize().format(self.obj().name, self.field_name, str(related_identifiers)))
     # Find related object based on related_identifiers
     related_obj = self.__get_related_object(related_identifiers)
+    # Check if related object has field changes
+    changes_made = False
+    for field in related_identifiers:
+      if hasattr(related_obj, field):
+        new_value = related_identifiers[field]
+        current_value = getattr(related_obj, field, None)
+        if str(new_value) != str(current_value):
+          setattr(related_obj, field, new_value)
+          self.obj.report_change({
+            'field': f"{self.field_name}.{field}", 
+            'old_value': str(current_value),
+            'new_value': str(new_value),
+          })
+          changes_made = True
+          related_obj.save()
+    if changes_made:
+      # Assume related object was just created/updated, so skip adding/removing it
+      return True
     current_value = self.value()
     if not related_obj:
       related_obj = self.__create_related_object(related_identifiers)
@@ -603,74 +621,113 @@ class meta_field:
   ''' Foreign Key / Related Object Handling '''
   def __get_related_object(self, identifiers, search_method='iexact', model=None, depth=0):
     """
-    Fetch a related object based on provided identifiers.
+    Fetch an existing related object by priority identifiers (id, slug, token).
 
-    Automatically resolves nested related objects (dict values) before lookup.
-    If a related object cannot be found, this function returns None rather than raising.
+    This function first tries to resolve a related object using canonical
+    unique identifiers (id, slug, token) if they exist on the model.
+    If none are present, it falls back to a combined field-based filter.
 
     Args:
-      identifiers (dict): A dictionary of field lookups (e.g. {'id': 3, 'slug': 'foo'}).
+      identifiers (dict): A dict of field lookups (e.g. {'id': 3, 'slug': 'foo'}).
       search_method (str): Comparison operator, defaults to 'iexact'.
       model (Model): Optional explicit model to search in.
-      depth (int): Current recursion depth (for nested relations).
+      depth (int): Current recursion depth.
 
     Returns:
-      Optional[Model]: The related object if found, or None if not found.
-
-    Raises:
-      ValueError: For invalid identifier formats or multiple matches.
-      RecursionError: If recursion exceeds AJAX_MAX_DEPTH_RECURSION.
+      Optional[Model]: Found related object, or None if not found.
     """
+    from django.conf import settings
+    from django.db.models import Q
+
     target_model = model or self.related_model()
     max_depth = getattr(settings, "AJAX_MAX_DEPTH_RECURSION", 3)
 
     if not isinstance(identifiers, dict):
-        raise ValueError(
-            _("invalid identifier format for related object lookup: {}").format(str(identifiers)).capitalize()
-        )
+      raise ValueError(
+        _("Invalid identifier format for related object lookup: {}").format(str(identifiers))
+      )
 
     if depth >= max_depth:
-        raise RecursionError(
-            _("maximum recursion depth ({}) exceeded while resolving related objects for model '{}'").format(
-                max_depth, target_model.__name__
-            ).capitalize()
+      raise RecursionError(
+        _("Maximum recursion depth ({}) exceeded resolving related objects for '{}'.").format(
+          max_depth, target_model.__name__
         )
+      )
 
-    # --- Resolve nested relations first ---
+    # --- Step 1: Resolve nested relations first ---
     resolved_identifiers = {}
     for key, value in identifiers.items():
-        if isinstance(value, dict):
-            try:
-                related_field = target_model._meta.get_field(key)
-                if getattr(related_field, "is_relation", False):
-                    nested_model = related_field.related_model
-                    nested_obj = (
-                        self.__get_related_object(value, model=nested_model, depth=depth + 1)
-                        or self.__create_related_object(value, model=nested_model, depth=depth + 1)
-                    )
-                    resolved_identifiers[key] = nested_obj
-                    continue
-            except Exception as e:
-                if getattr(settings, "DEBUG", False):
-                    print(f"[DEBUG] Failed to resolve nested relation '{key}' on {target_model}: {e}")
-        resolved_identifiers[key] = value
+      if isinstance(value, dict):
+        try:
+          field = target_model._meta.get_field(key)
+          if getattr(field, "is_relation", False):
+            nested_model = field.related_model
+            nested_obj = (
+              self.__get_related_object(value, model=nested_model, depth=depth + 1)
+              or self.__create_related_object(value, model=nested_model, depth=depth + 1)
+            )
+            resolved_identifiers[key] = nested_obj
+            continue
+        except Exception as e:
+          if getattr(settings, "DEBUG", False):
+            print(f"[DEBUG] Failed to resolve nested relation '{key}' on {target_model}: {e}")
+      resolved_identifiers[key] = value
 
-    # --- Perform actual lookup ---
+    # --- Step 2: Identify by unique fields (id, slug, token) ---
+    lookup_fields = ["id", "slug", "token"]
+    for field_name in lookup_fields:
+      if field_name in resolved_identifiers:
+        # Ensure the field exists on the model
+        if target_model._meta.get_fields(include_parents=True, include_hidden=False):
+          try:
+            field = target_model._meta.get_field(field_name)
+          except Exception:
+            continue  # Skip if field doesn’t exist
+
+        value = resolved_identifiers[field_name]
+        try:
+          return target_model._default_manager.get(**{field_name: value})
+        except target_model.DoesNotExist:
+          return None
+        except target_model.MultipleObjectsReturned:
+          # Fall back to most recent or None
+          return target_model._default_manager.filter(**{field_name: value}).order_by("-pk").first()
+
+    # --- Step 3: Fallback multi-field lookup ---
+    q_obj = Q()
+    for key, value in resolved_identifiers.items():
+      if value in (None, ""):
+        continue
+      # only match valid model fields
+      if not hasattr(target_model, key):
+        continue
+      try:
+        field = target_model._meta.get_field(key)
+      except Exception:
+        continue
+
+      # Use "exact" for relations or non-text fields
+      if field.is_relation or not hasattr(field, "get_internal_type"):
+        lookup = key  # e.g. user=user_instance
+      else:
+        internal_type = field.get_internal_type()
+        if internal_type in {"CharField", "TextField", "EmailField", "SlugField"}:
+          lookup = f"{key}__{search_method}"
+        else:
+          lookup = f"{key}__exact"
+
+      q_obj &= Q(**{lookup: value})
+
+    if not q_obj.children:
+      return None
+
     try:
-        return target_model.objects.get(**resolved_identifiers)
+      return target_model._default_manager.get(q_obj)
     except target_model.DoesNotExist:
-        return None
+      return None
     except target_model.MultipleObjectsReturned:
-        raise ValueError(
-            _("multiple related objects were found for the given arguments: {}").format(resolved_identifiers).capitalize()
-        )
-    except Exception as e:
-        staff_message = f": {e}" if getattr(settings, "DEBUG", False) or self.request.user.is_superuser else ""
-        raise ValueError(
-            _("error fetching related {} object for the given arguments: {}{}")
-              .format(target_model.__name__, resolved_identifiers, staff_message)
-              .capitalize()
-        )
+      # If ambiguous, pick first — you may want to add logging
+      return target_model._default_manager.filter(q_obj).first()
 
 
   def __create_related_object(self, identifiers, model=None, depth=0):

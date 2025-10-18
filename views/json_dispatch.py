@@ -23,9 +23,10 @@ class JsonDispatch(JsonUtil, CrudRead, CrudUpdate, CrudDelete):
     self.modes = {'editable': False}
     
   def guess_modes(self):
-    for mode in ['editable']:
+    modes = {}
+    for mode in ['editable', 'add']:
       # Ensure mode is set to False by default
-      modes = {mode: False}
+      modes[mode] = False
       # Look for mode in GET or POST request data and set to True if found
       if mode in [key.lower() for key in self.request.GET.keys()]:
         modes[mode] = True
