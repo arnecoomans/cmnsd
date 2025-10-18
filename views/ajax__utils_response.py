@@ -113,11 +113,13 @@ class ResponseUtil:
     }
     ''' Render attribute via template if available '''
     rendered_field = ''
+    if getattr(settings, 'DEBUG', False) and self.request.user.is_staff:
+      print(template_names)
     for template in template_names:
       try:
         rendered_field = render_to_string(template, context=context, request=self.request)
-        # if getattr(settings, 'DEBUG', False) and self.request.user.is_staff:
-        #   print(f"Rendered template: {template}")
+        if getattr(settings, 'DEBUG', False) and self.request.user.is_staff:
+          print(f"Rendered template: {template}")
       except TemplateDoesNotExist:
         continue
       except Exception as e:
@@ -168,11 +170,16 @@ class ResponseUtil:
     ''' Build template names to try to render '''
     template_names = [
       f'object/{ self.model.name.lower() }_{ field }.{ format }',
+      f'field/{ self.model.name.lower() }/{ field }.{ format }',
+      f'field/{ self.model.name.lower() }_{ field }.{ format }',
       f'field/{ field }.{ format }',
     ]
     # Prepend template list with model-specific field template if available
-    if hasattr(getattr(self.obj, field).related_model(), 'js_template_name') and getattr(self.obj, field).related_model().js_template_name:
-      template_names.insert(0, f'field/{ getattr(self.obj, field).related_model().js_template_name }.{ format }')
+    try:
+      if hasattr(getattr(self.obj, field).related_model(), 'js_template_name') and getattr(self.obj, field).related_model().js_template_name:
+        template_names.insert(0, f'field/{ getattr(self.obj, field).related_model().js_template_name }.{ format }')
+    except Exception:
+      pass
     # Add date-specific template if field is a DateField or DateTimeField
     if isinstance(self.model.model._meta.get_field(field), models.DateTimeField) or \
         isinstance(self.model.model._meta.get_field(field), models.DateField):

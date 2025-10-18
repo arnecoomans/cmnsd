@@ -539,6 +539,29 @@ class meta_field:
     current_value = self.value()
     if not related_obj:
       related_obj = self.__create_related_object(related_identifiers)
+    # Check if related object has field changes
+    changes_made = False
+    for field in related_identifiers:
+      if hasattr(related_obj, field):
+        new_value = related_identifiers[field]
+        current_value = getattr(related_obj, field, None)
+        if str(new_value) != str(current_value):
+          # Save change to related object
+          setattr(related_obj, field, new_value)
+          self.obj.report_change({
+            'field': f"{self.field_name}.{field}", 
+            'old_value': str(current_value),
+            'new_value': str(new_value),
+          })
+          changes_made = True
+          related_obj.save()
+          # Save changes to the meta class
+          setattr(self.obj, self.field_name, related_obj)
+          setattr(self.obj.obj, self.field_name, related_obj)
+
+    if changes_made:
+      # Assume related object was just created/updated, so skip adding/removing it
+      return True
     # If related object is already set, remove it
     if self.value() == related_obj:
       pass
@@ -574,6 +597,7 @@ class meta_field:
         current_value = getattr(related_obj, field, None)
         if str(new_value) != str(current_value):
           setattr(related_obj, field, new_value)
+          setattr(self.obj, field, related_obj)
           self.obj.report_change({
             'field': f"{self.field_name}.{field}", 
             'old_value': str(current_value),
