@@ -3,7 +3,7 @@ import traceback
 from django.conf import settings
 from django.apps import apps
 
-from .json_utils import JsonUtil
+from .ajax_utils import JsonUtil
 from .json_utils_meta_model import meta_model
 from .json_utils_meta_object import meta_object
 from .json_utils_meta_field import meta_field

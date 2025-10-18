@@ -5,7 +5,7 @@ from django.db import models
 from django.db.models.query import QuerySet
 from django.apps import apps
 
-from .json_utils import JsonUtil
+from .ajax_utils import JsonUtil
 
 from .cmnsd_filter import FilterClass
 

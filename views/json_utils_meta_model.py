@@ -6,7 +6,7 @@ from django.db import models
 from django.db.models.base import ModelBase
 
 
-from .json_utils import JsonUtil
+from .ajax_utils import JsonUtil
 from .cmnsd_filter import FilterClass
 
 class meta_model:
