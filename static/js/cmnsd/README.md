@@ -1,101 +1,107 @@
+
 # cmnsd JavaScript Framework
 
-This is a lightweight JavaScript framework built to handle AJAX-based content loading,
-message rendering, action delegation, and autosuggest inputs in Django projects.
+The **cmnsd** framework provides dynamic JSON-based content loading, form actions, and autosuggest functionality for Django-based applications.  
 
-## Features
+---
 
-- **Core**: Central init and configuration handling.
-- **HTTP**: Fetch wrapper with automatic CSRF handling.
-- **DOM**: Helpers for injecting, updating, and inserting content. Dispatches `cmnsd:content:applied` events.
-- **Actions**: Delegated event handling for `[data-action]` elements and forms.
-- **Loader**: Generic JSON loader for mapping payload fragments into containers.
-- **Messages**: Bootstrap-styled message rendering with auto-dismiss and stacking.
-- **Autosuggest**: Adds autosuggest/searchable dropdown functionality for inputs with `[data-autosuggest]`.
+## 🚀 Autosuggest Component
 
-## Autosuggest usage
+The `autosuggest.js` script adds smart suggestions to any input field using declarative `data-*` attributes.
 
-### Free text + suggestions
+### ✅ Features
+- Dynamic AJAX fetching (`api.get`)
+- Multi-field display in suggestions (`data-display-fields`)
+- Configurable click-follow behavior (`data-onclick-follow`)
+- Intelligent field submission logic (hidden vs visible fields)
+- Keyboard navigation (↑ ↓ Enter Esc)
+- Automatic re-initialization on `cmnsd:content:applied`
+- Configurable debounce, minimum characters, and custom parameters
+- Optional `data-field-prefix` for related/nested fields
+
+---
+
+## ⚙️ Data Attributes Reference
+
+| Attribute | Default | Description |
+|------------|----------|-------------|
+| `data-autosuggest` | *(required)* | Enables autosuggest on the input. |
+| `data-url` | *(required)* | JSON endpoint for fetching suggestions. |
+| `data-param` | `q` | Query parameter name for search term. |
+| `data-min` | `2` | Minimum characters before search triggers. |
+| `data-debounce` | `300` | Debounce delay (ms) between keystrokes and API calls. |
+| `data-container` | *(none)* | If the payload has nested data, specify the container key. |
+| `data-field-input` | `name` | Field name for visible input value. |
+| `data-field-hidden` | `slug` | Field name for hidden field (ID or slug). |
+| `data-field-prefix` | *(none)* | Prefix added to both field names for related/nested fields (e.g., `link__`). |
+| `data-display-fields` | `name` | Comma-separated fields shown in the suggestion list (first = main, rest = secondary). |
+| `data-display-secondary-size` | `0.8` | Font-size multiplier for secondary fields. |
+| `data-onclick-follow` | *(none)* | When set to `url`, follows the suggestion’s URL instead of inserting value. |
+| `data-allow-create` | `1` | When `0`, only allows selecting valid suggestions (disables free text). |
+| `data-extra-params` | *(none)* | JSON string of additional query parameters to include in requests. |
+| `data-search-mode` | `false` | If true, retains `name='q'` for standard search forms. |
+
+---
+
+## 💡 Example Usages
+
+### 🔹 Default
 ```html
 <input
-  type="text"
-  class="form-control"
-  placeholder="Enter or select a tag..."
   data-autosuggest
   data-url="/json/tags/"
-  data-container="tags"
   data-field-input="name"
-  data-field-hidden="slug"
-/>
+  data-field-hidden="id">
 ```
 
-- Free text allowed.
-- Hidden field `slug` is submitted if suggestion chosen; otherwise the typed value.
-
-### Searchable dropdown (no free text allowed)
+### 🔹 Display multiple fields
 ```html
 <input
-  type="text"
-  class="form-control"
-  placeholder="Select a size..."
   data-autosuggest
-  data-url="/json/sizes/"
-  data-container="sizes"
+  data-url="/json/links/"
   data-field-input="name"
   data-field-hidden="id"
-  data-min="0"
-  data-allow-create="0"
-/>
+  data-display-fields="name,url"
+  data-display-secondary-size="0.8">
 ```
 
-- Starts with all options (`data-min="0"` fetches empty query).
-- Only valid suggestions allowed (`data-allow-create="0"`).
-- Submit button is disabled until a valid option is chosen.
+### 🔹 Follow URL on click
+```html
+<input
+  data-autosuggest
+  data-url="/json/locations/"
+  data-field-input="name"
+  data-field-hidden="id"
+  data-onclick-follow="url">
+```
 
-### Free text allowed, but not empty
-- Default behavior (`data-allow-create` missing or not `"0"`) allows free text entry.
-- Submit button is disabled if input is empty.
+### 🔹 Nested prefix
+```html
+<input
+  data-autosuggest
+  data-url="/json/links/"
+  data-field-input="name"
+  data-field-hidden="id"
+  data-field-prefix="link__">
+```
 
-### Safe inline formatting in suggestions
-Autosuggest suggestions may contain limited inline HTML formatting.  
-Allowed tags are: `<b>`, `<strong>`, `<i>`, `<em>`.  
+---
 
-Example payload:
-```json
-{
-  "payload": {
-    "tags": [
-      { "slug": "pool", "name": "<b>Swimming</b> Pool" },
-      { "slug": "wifi", "name": "<i>Wi-Fi</i> Available" }
-    ]
-  }
+## 💅 Optional CSS
+```css
+.cmnsd-autosuggest .autosuggest-main {
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.cmnsd-autosuggest .autosuggest-secondary {
+  color: #666;
+  line-height: 1.1;
+  font-size: 0.8em;
+}
+
+.cmnsd-autosuggest .list-group-item.active {
+  background-color: var(--bs-primary);
+  color: white;
 }
 ```
-
-This renders with bold and italic, but all other tags are stripped or flattened to plain text.
-
-## Messages
-- Messages are shown in a floating container (configurable in `init`).
-- Stacked up to a configurable max (default 5).
-- Automatically dismissed after type-dependent timeout.
-
-## Example Init
-
-```js
-cmnsd.init({
-  baseURL: '',
-  debug: true,
-  messages: { container: '#messages', dismissible: true, clearBefore: false, max: 5 },
-  actions: { autoBind: true },
-  onError: (err) => console.error('cmnsd global error handler', err)
-});
-
-// Initialize autosuggest
-import { initAutosuggest } from "/static/js/cmnsd/autosuggest.js";
-initAutosuggest();
-```
-
-## Notes
-- Requires Bootstrap 5 for styling of messages and autosuggest dropdowns.
-- Designed for Django with CSRF support out of the box.
-- All framework code was created using ChatGPT collaboration.

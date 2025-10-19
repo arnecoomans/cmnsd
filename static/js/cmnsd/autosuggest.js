@@ -47,8 +47,12 @@ function setupInput(host) {
   const hiddenKey = host.dataset.fieldHidden || 'slug';
   const containerKey = host.dataset.container || null;
   const allowCreate = host.dataset.allowCreate !== '0';
-  const isSearchMode = host.dataset.searchMode === 'true';
   const prefix = host.dataset.fieldPrefix || '';
+  const followMode = host.dataset.onclickFollow === 'url'; // ✅ new
+  const displayFields = (host.dataset.displayFields || inputKey)
+    .split(',')
+    .map(s => s.trim());
+  const secondaryScale = parseFloat(host.dataset.displaySecondarySize || '0.8');
 
   if (!url) {
     console.warn('[cmnsd:autosuggest] missing data-url for', host);
@@ -84,11 +88,15 @@ function setupInput(host) {
   host.parentNode.appendChild(list);
 
   let timer = null;
+  let activeIndex = -1; // ✅ keyboard navigation state
+  let itemsRef = []; // ✅ keep references to suggestion buttons
 
   function clearList(empty = false) {
     list.innerHTML = '';
     list.style.display = empty ? 'block' : 'none';
     list.classList.toggle('empty', empty);
+    activeIndex = -1;
+    itemsRef = [];
   }
 
   function updateValidity() {
@@ -107,24 +115,16 @@ function setupInput(host) {
     }
   }
 
-  // Ensure only one field submits:
+  // Ensure only one field submits
   function syncFieldNames() {
     if (hiddenVal.value) {
-      // A suggestion was chosen → only submit the hidden field
-      if (!isSearchMode) host.removeAttribute('name');
+      host.removeAttribute('name');
       hiddenVal.name = prefix + hiddenKey;
       hiddenName.removeAttribute('name');
     } else if (host.value.trim() !== '') {
-      // Free text typed → only submit the input field
-      if (isSearchMode) {
-        // Keep name='q' for search
-        host.name = 'q';
-      } else {
-        host.name = prefix + inputKey;
-      }
+      host.name = prefix + inputKey;
       hiddenVal.removeAttribute('name');
     } else {
-      // Nothing entered → disable all
       host.removeAttribute('name');
       hiddenVal.removeAttribute('name');
     }
@@ -169,30 +169,55 @@ function setupInput(host) {
     }
   }
 
+  // ✅ Enhanced suggestion rendering
   function renderSuggestions(items) {
     clearList();
-    items.forEach(item => {
-      const display = item[inputKey] ?? '';
-      const submitVal = item[hiddenKey] ?? null;
+    itemsRef = [];
+
+    items.forEach((item, index) => {
+      const mainField = displayFields[0];
+      const secondaryFields = displayFields.slice(1);
 
       const el = document.createElement('button');
       el.type = 'button';
-      el.className = 'list-group-item list-group-item-action';
-      el.appendChild(sanitizeHTML(display));
+      el.className = 'list-group-item list-group-item-action text-start';
 
+      // --- Main line ---
+      const mainValue = item[mainField] ?? '';
+      const mainSpan = document.createElement('div');
+      mainSpan.className = 'autosuggest-main';
+      mainSpan.appendChild(sanitizeHTML(mainValue));
+      el.appendChild(mainSpan);
+
+      // --- Secondary lines ---
+      secondaryFields.forEach(fld => {
+        const val = item[fld];
+        if (val) {
+          const subSpan = document.createElement('div');
+          subSpan.className = 'autosuggest-secondary';
+          subSpan.style.fontSize = `${secondaryScale * 100}%`;
+          subSpan.style.opacity = '0.8';
+          subSpan.appendChild(sanitizeHTML(val));
+          el.appendChild(subSpan);
+        }
+      });
+
+      const submitVal = item[hiddenKey] ?? null;
+
+      // --- click behavior ---
       el.addEventListener('click', e => {
         e.preventDefault();
         e.stopPropagation();
 
-        // 1. Check for URL redirect first
-        if (item.url) {
-          console.debug('[cmnsd:autosuggest] redirecting to', item.url);
+        // Follow mode
+        if (followMode && item.url) {
+          console.debug('[cmnsd:autosuggest] follow mode → navigating to', item.url);
           window.location.href = item.url;
           return;
         }
 
-        // 2. Fallback: regular insert/update logic
-        host.value = display.replace(/<[^>]*>/g, '');
+        // Normal insert/update
+        host.value = mainValue.replace(/<[^>]*>/g, '');
         if (submitVal) {
           hiddenVal.value = submitVal;
           hiddenName.value = '';
@@ -207,10 +232,46 @@ function setupInput(host) {
       });
 
       list.appendChild(el);
+      itemsRef.push(el);
     });
+
     list.style.display = 'block';
   }
 
+  // ✅ Keyboard navigation
+  host.addEventListener('keydown', e => {
+    if (!itemsRef.length) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      activeIndex = (activeIndex + 1) % itemsRef.length;
+      updateActiveItem();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      activeIndex = (activeIndex - 1 + itemsRef.length) % itemsRef.length;
+      updateActiveItem();
+    } else if (e.key === 'Enter') {
+      if (activeIndex >= 0 && itemsRef[activeIndex]) {
+        e.preventDefault();
+        itemsRef[activeIndex].click();
+      }
+    } else if (e.key === 'Escape') {
+      clearList();
+    }
+  });
+
+  function updateActiveItem() {
+    itemsRef.forEach((el, i) => {
+      if (i === activeIndex) el.classList.add('active');
+      else el.classList.remove('active');
+    });
+    const activeEl = itemsRef[activeIndex];
+    if (activeEl) {
+      activeEl.scrollIntoView({ block: 'nearest' });
+    }
+  }
+
+  // Input handler
   host.addEventListener('input', () => {
     const q = host.value.trim();
     hiddenVal.value = '';
@@ -235,7 +296,6 @@ function setupInput(host) {
     setTimeout(() => clearList(), 200);
   });
 
-  // Ensure consistency before submit
   const form = host.closest('form');
   if (form) {
     form.addEventListener('submit', () => syncFieldNames());
