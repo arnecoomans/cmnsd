@@ -10,8 +10,11 @@ import logging
 from typing import Iterable
 import traceback
 
-class FilterClass:
+from .utils__request import RequestMixin
+
+class FilterMixin:
   def filter(self, queryset, suppress_search=False):
+    print('filter initiated')
     model = queryset.model
     search_query_char = getattr(settings, 'SEARCH_QUERY_CHARACTER', 'q')
     search_exclude_char = getattr(settings, 'SEARCH_EXCLUDE_CHARACTER', 'exclude')

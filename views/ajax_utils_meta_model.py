@@ -6,8 +6,8 @@ from django.db import models
 from django.db.models.base import ModelBase
 
 
-from .ajax_utils import JsonUtil
-from .cmnsd_filter import FilterClass
+# from .ajax_utils import JsonUtil
+# from .cmnsd_filter import FilterMixin
 
 class meta_model:
   def __init__(self, model_name=None, request=None):

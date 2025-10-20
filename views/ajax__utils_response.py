@@ -6,13 +6,13 @@ from django.utils.translation import gettext_lazy as _
 from django.template.exceptions import TemplateDoesNotExist
 from django.db.models.query import QuerySet
 from django.db import models
-from django.template import RequestContext
+# from django.template import RequestContext
 
 import traceback
 import json
 
 
-class ResponseUtil:
+class ResponseMixin:
   def __init__(self):
     self.status = 200
     super().__init__()

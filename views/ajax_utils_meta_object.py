@@ -1,14 +1,11 @@
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings
-from django.core.exceptions import PermissionDenied, ObjectDoesNotExist, FieldDoesNotExist
-from django.db import models
+from django.core.exceptions import PermissionDenied # , ObjectDoesNotExist, FieldDoesNotExist
+# from django.db import models
 from django.db.models.query import QuerySet
 
-from .ajax_utils import JsonUtil
+# from .ajax_utils import JsonUtil
 from .ajax_utils_meta_model import meta_model
-
-from .cmnsd_filter import FilterClass
-
 
 class meta_object():
   def __init__(self, model, qs=None, obj=None, none=True, search_mode='exact', *args, **kwargs):
@@ -16,7 +13,7 @@ class meta_object():
     self.model = model if model and isinstance(model, meta_model) else None
     self.qs = qs if isinstance(qs, QuerySet) else None
     self.identifiers = self.__get_identifiers_from_kwargs(kwargs)
-    self.search_mode = search_mode if search_mode in ['exact', 'iexact', 'contains', 'icontains', 'startswith', 'istartswith'] else 'exact'
+    self.search_mode = str(search_mode).lower() if str(search_mode).lower() in ['exact', 'iexact', 'contains', 'icontains', 'startswith', 'istartswith'] else 'exact'
     self.none = True if none is True else False
     self.fields = []
     self.__changes = []

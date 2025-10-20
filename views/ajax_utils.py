@@ -7,14 +7,14 @@ from markdown import markdown
 
 
 ''' Import Utilities '''
-from .ajax__utils_messages import MessageUtil
-from .ajax__utils_request import RequestUtil
-from .ajax__utils_response import ResponseUtil
+from .ajax__utils_messages import MessageMixin
+from .utils__request import RequestMixin
+from .ajax__utils_response import ResponseMixin
 
-from .cmnsd_filter import FilterClass
+from .cmnsd_filter import FilterMixin
 
-class JsonUtil(MessageUtil, RequestUtil, ResponseUtil, FilterClass, View):
-  
+class JsonUtil(RequestMixin, FilterMixin, ResponseMixin, MessageMixin, View):
+
   def __init__(self):
     super().__init__()
 

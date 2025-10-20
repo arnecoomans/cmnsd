@@ -68,14 +68,11 @@ class Messages:
   def __str__(self):
     return self.get()
   
-class MessageUtil:
+class MessageMixin:
   def __init__(self):
     self.messages = Messages()
     super().__init__()
 
-  def dispatch(self, request, *args, **kwargs):
-    return super().dispatch(request, *args, **kwargs)
-  
   def setup(self, request, *args, **kwargs):
     # Set the is_staff attribute based on the request user
     if hasattr(request, 'user'):
