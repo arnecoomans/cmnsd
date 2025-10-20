@@ -121,7 +121,7 @@ def modify_env_for_venv():
 
 def main():
     # Zorg dat het script in zijn eigen directory draait
-    script_dir = Path(__file__).resolve().parent
+    script_dir = Path(sys.argv[0]).parent.resolve()
     os.chdir(script_dir)
     print(f"Changed directory to {script_dir}")
 
