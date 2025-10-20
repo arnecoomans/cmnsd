@@ -77,7 +77,7 @@ class meta_object():
         raise ValueError(_("multiple objects were found for the given arguments: {}".format(identifiers)).capitalize())
       except qs.model.DoesNotExist:
         if self.model.model.objects.all().filter(**identifiers).exists():
-          raise PermissionDenied(_("you do not have permission to access the requested object with given arguments {}".capitalize().format(", ".join(f"{k}: {v}" for k, v in identifiers.items()))))
+          raise PermissionDenied(_("you do not have permission to access the requested {} with given arguments {}".capitalize().format(self.model._meta.verbose_name, ", ".join(f"{k}: {v}" for k, v in identifiers.items()))))
         raise ValueError(_("no object could be found in this querysetfor the given arguments: {}".format(", ".capitalize().join(f"{k}: {v}" for k, v in identifiers.items()))))
     # except Exception as e:
     #   staff_message = ": " + str(e) if settings.DEBUG else ""

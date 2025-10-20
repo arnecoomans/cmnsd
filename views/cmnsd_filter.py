@@ -8,6 +8,7 @@ from django.db.models.constants import LOOKUP_SEP
 
 import logging
 from typing import Iterable
+import traceback
 
 class FilterClass:
   def filter(self, queryset, suppress_search=False):
@@ -40,7 +41,9 @@ class FilterClass:
         if self.get_value_from_request(search_exclude_char, default=False, silent=True):
           queryset = self.exclude_results(queryset)
     except Exception as e:
-      self.messages.add(str(e), 'error')
+      traceback.print_exc()
+      staff_message = ': ' + str(e) if getattr(settings, 'DEBUG', False) or self.request.user.is_superuser else ''
+      self.messages.add(_("an error occurred while filtering{}").capitalize().format(staff_message), 'error')
       self.status = 400
       return QuerySet(model=model).none()
     ''' Return filtered queryset '''
@@ -299,10 +302,33 @@ class FilterClass:
       filters |= Q(**{lookup: v})
 
     # Include parent lookup if applicable
-    if any(f.name.lower() == "parent" for f in base_field._meta.get_fields()):
-      parent_lookup = f"parent__{last_field_name}__{lookup_type}"
-      for v in [x.strip() for x in str(value).split(",") if x.strip()]:
-        filters |= Q(**{parent_lookup: v})
+    try:
+      if any(f.name.lower() == "parent" for f in base_field._meta.get_fields()):
+        # Extract prefix (e.g., "descriptions__" from "descriptions__name")
+        parts = field_name.split("__")
+        prefix = "__".join(parts[:-1])
+        if prefix:
+          parent_lookup = f"{prefix}__parent__{last_field_name}__{lookup_type}"
+        else:
+          parent_lookup = f"parent__{last_field_name}__{lookup_type}"
+
+        if getattr(settings, "DEBUG", False):
+          print("PARENT_LOOKUP:", parent_lookup)
+
+        for v in [x.strip() for x in str(value).split(",") if x.strip()]:
+          filters |= Q(**{parent_lookup: v})
+
+    except Exception as e:
+      traceback.print_exc()
+      staff_message = (
+        ": " + str(e)
+        if getattr(settings, "DEBUG", False) or getattr(self.request, "user", None) and self.request.user.is_superuser
+        else ""
+      )
+      self.messages.add(
+        _("an error occurred while searching{}").capitalize().format(staff_message),
+        "error",
+      )
 
     return queryset.filter(filters)
 
