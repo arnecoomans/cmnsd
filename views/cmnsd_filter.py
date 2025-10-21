@@ -15,7 +15,6 @@ from .utils__messages import MessageMixin
 
 class FilterMixin(RequestMixin, MessageMixin):
   def filter(self, queryset, suppress_search=False):
-    print('filter initiated')
     model = queryset.model
     search_query_char = getattr(settings, 'SEARCH_QUERY_CHARACTER', 'q')
     search_exclude_char = getattr(settings, 'SEARCH_EXCLUDE_CHARACTER', 'exclude')
@@ -51,7 +50,7 @@ class FilterMixin(RequestMixin, MessageMixin):
       self.status = 400
       return QuerySet(model=model).none()
     ''' Return filtered queryset '''
-    return queryset
+    return queryset.distinct()
   
   ''' Security Measure '''
   def __field_is_secure(self, field_name):
