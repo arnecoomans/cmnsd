@@ -44,4 +44,4 @@ def filter_by_visibility(queryset, user):
             queryset = queryset.exclude(location__tags__in=user.profile.ignored_tags.all()).exclude(location__tags__parent__in=user.profile.ignored_tags.all())
     else:
       queryset =  queryset.filter(visibility='p')
-    return queryset
+    return queryset.distinct()

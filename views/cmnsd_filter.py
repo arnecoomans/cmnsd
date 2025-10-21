@@ -13,14 +13,14 @@ import traceback
 from .utils__request import RequestMixin
 from .utils__messages import MessageMixin
 
-class FilterMixin(RequestMixin, MessageMixin):
+class FilterMixin:
   def filter(self, queryset, suppress_search=False):
     model = queryset.model
     search_query_char = getattr(settings, 'SEARCH_QUERY_CHARACTER', 'q')
     search_exclude_char = getattr(settings, 'SEARCH_EXCLUDE_CHARACTER', 'exclude')
     search_fields = self.__get_search_fields(model)
 
-    if len(search_fields) > 0 and self.get_value_from_request(search_query_char, default=False, silent=True) and self.get_value_from_request(search_exclude_char, default=False, silent=True):
+    if len(search_fields) > 0 and self._get_value_from_request(search_query_char, default=False, silent=True) and self._get_value_from_request(search_exclude_char, default=False, silent=True):
       # Only apply search filters if there are searchable fields or a search query is provided
       suppress_search = True
     
@@ -38,15 +38,15 @@ class FilterMixin(RequestMixin, MessageMixin):
         if len(search_fields) > 0:
           queryset = self.search_results(queryset, search_fields)
         ''' Free text search '''
-        if self.get_value_from_request(search_query_char, default=False, silent=True):
+        if self._get_value_from_request(search_query_char, default=False, silent=True):
           queryset = self.filter_freetextsearch(queryset)
         ''' Exclude results based on settings '''
-        if self.get_value_from_request(search_exclude_char, default=False, silent=True):
+        if self._get_value_from_request(search_exclude_char, default=False, silent=True):
           queryset = self.exclude_results(queryset)
     except Exception as e:
       traceback.print_exc()
       staff_message = ': ' + str(e) if getattr(settings, 'DEBUG', False) or self.request.user.is_superuser else ''
-      self.messages.add(_("an error occurred while filtering{}").capitalize().format(staff_message), 'error')
+      self._add_message(_("an error occurred while filtering{}").capitalize().format(staff_message), 'error')
       self.status = 400
       return QuerySet(model=model).none()
     ''' Return filtered queryset '''
@@ -56,10 +56,10 @@ class FilterMixin(RequestMixin, MessageMixin):
   def __field_is_secure(self, field_name):
     blocked_fields = ['password'] + getattr(settings, 'SEARCH_BLOCKED_FIELDS', [])
     if field_name in blocked_fields:
-        self.messages.add(_("field '{}' is not allowed for searching due to security reasons.").format(field_name).capitalize(), "error")
+        self._add_message(_("field '{}' is not allowed for searching due to security reasons.").format(field_name).capitalize(), "error")
         return False
     if field_name.startswith('_'):
-        self.messages.add(_("field '{}' is not allowed for searching due to security reasons.").format(field_name).capitalize(), "error")
+        self._add_message(_("field '{}' is not allowed for searching due to security reasons.").format(field_name).capitalize(), "error")
         return False
     return True
   
@@ -71,10 +71,10 @@ class FilterMixin(RequestMixin, MessageMixin):
         if self.request.user.is_authenticated:
           queryset = queryset.filter(user=self.request.user)
         else:
-          self.messages.add(_("you must be logged in to view these items").capitalize(), 'error')
+          self._add_message(_("you must be logged in to view these items").capitalize(), 'error')
           self.status = 403
           return QuerySet(model=model).none()
-    return queryset
+    return queryset.distinct()
   
   ''' Get Searchable Fields from request kwargs 
       Loop through request GET and POST parameters and check if they are fields in the model.
@@ -104,13 +104,13 @@ class FilterMixin(RequestMixin, MessageMixin):
       if field in search_fields:
         search_fields.remove(field)
     for field in search_fields:
-      if self.get_value_from_request(field, silent=True) in [None, '']:
+      if self._get_value_from_request(field, silent=True) in [None, '']:
         search_fields.remove(field)
     return search_fields
   
   ''' Filter by object status '''
   def filter_status(self, queryset):
-    return queryset.filter(status='p')
+    return queryset.filter(status='p').distinct()
   
   
   def filter_visibility(self, queryset):
@@ -126,7 +126,7 @@ class FilterMixin(RequestMixin, MessageMixin):
     user = getattr(self.request, "user", None)
 
     if not user or not user.is_authenticated:
-      return queryset.filter(visibility="p")
+      return queryset.filter(visibility="p").distinct()
 
     # Base visibility: public, community, private(owner)
     filters = (
@@ -171,14 +171,14 @@ class FilterMixin(RequestMixin, MessageMixin):
         If no query is found, it returns the original queryset
     """
     if not query:
-      query = self.get_value_from_request(getattr(settings, 'SEARCH_QUERY_CHARACTER', 'q'), default=False, silent=True)
+      query = self._get_value_from_request(getattr(settings, 'SEARCH_QUERY_CHARACTER', 'q'), default=False, silent=True)
     if query:
       # Build a Q object for the search query using the provided query string
       q_obj = self.__build_search_query(query, queryset.model)
       # Apply the Q object filter to the queryset
       queryset = queryset.filter(q_obj).distinct()
     # Return the queryset, which is either filtered or the original queryset
-    return queryset
+    return queryset.distinct()
 
   def __get_searchable_fields(self, model):
     """
@@ -264,9 +264,9 @@ class FilterMixin(RequestMixin, MessageMixin):
       Filtered queryset with all matching results combined via AND logic.
     """
     for field in search_fields:
-      value = self.get_value_from_request(field, default=None, silent=True)
+      value = self._get_value_from_request(field, default=None, silent=True)
       if not value and '__' in field:
-        value = self.get_value_from_request(field.replace('__', '.'), default=None, silent=True)
+        value = self._get_value_from_request(field.replace('__', '.'), default=None, silent=True)
       if value:
         queryset = self.__search_queryset(queryset.model, queryset, field, value)
     return queryset.distinct()
@@ -328,7 +328,7 @@ class FilterMixin(RequestMixin, MessageMixin):
         if getattr(settings, "DEBUG", False) or getattr(self.request, "user", None) and self.request.user.is_superuser
         else ""
       )
-      self.messages.add(
+      self._add_message(
         _("an error occurred while searching{}").capitalize().format(staff_message),
         "error",
       )
@@ -353,12 +353,11 @@ class FilterMixin(RequestMixin, MessageMixin):
     # Gather all values from multiple ?exclude=... occurrences
     raw_values = self.request.GET.getlist(exclude_character)
     if not raw_values:
-      return queryset
+      return queryset.distinct()
 
     # Merge all exclude strings and allow both comma and semicolon separators
     combined = ",".join(raw_values).replace(";", ",")
     exclude_fields = [f.strip() for f in combined.split(",") if f.strip()]
-
     for exclusion in exclude_fields:
       # Split only on the first colon
       if ":" in exclusion:
@@ -398,4 +397,17 @@ class FilterMixin(RequestMixin, MessageMixin):
           logger.debug(f"exclude_results: skipping invalid exclusion '{key}:{value}' ({inner_ex})")
           continue
 
-    return queryset
+    return queryset.distinct()
+  
+  def _add_message(self, message = '', level='info'):
+    if not hasattr(self, 'messages'):
+      if getattr(settings, 'DEBUG', False):
+        print("Messages object not found in FilterMixin when trying to add message: {}".format(message))
+      return
+    self.messages.add(message, level)
+  def _get_value_from_request(self, key, default=None, sources=None, silent=False):
+    if not hasattr(self, 'get_value_from_request'):
+      if getattr(settings, 'DEBUG', False):
+        print("get_value_from_request method not found in FilterMixin when trying to get key: {}".format(key))
+      return default
+    return self.get_value_from_request(key, default=default, sources=sources, silent=silent)

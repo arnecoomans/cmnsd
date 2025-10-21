@@ -14,10 +14,11 @@ from .ajax_utils_meta_field import meta_field
 from .ajax__crud_read import CrudRead
 from .ajax__crud_update import CrudUpdate
 from .ajax__crud_delete import CrudDelete
+from .cmnsd_filter import FilterMixin
 
 ''' Meta classes for detection and dispatching
 '''
-class JsonDispatch(MessageMixin, RequestMixin, ResponseMixin, CrudRead, CrudUpdate, CrudDelete, View):    
+class JsonDispatch(MessageMixin, RequestMixin, FilterMixin, ResponseMixin, CrudRead, CrudUpdate, CrudDelete, View):    
     
   def __init__(self):
     super().__init__()
@@ -48,7 +49,7 @@ class JsonDispatch(MessageMixin, RequestMixin, ResponseMixin, CrudRead, CrudUpda
       # Detect object based on request data if model is detected
       self.__detect_object()
       # Detect fields based on request data if object is detected
-      self.__detect_fields()
+      self.__detect_fields()    
     except Exception as e:
       # Exception Handling
       if getattr(settings, "DEBUG", False):
