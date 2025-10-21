@@ -2,8 +2,12 @@ from django.utils.translation import gettext_lazy as _
 import traceback
 from django.conf import settings
 from django.apps import apps
+from django.views import View
 
-from .ajax_utils import JsonUtil
+# from .ajax_utils import JsonUtil
+from .utils__messages import MessageMixin
+from .utils__request import RequestMixin
+from .ajax__utils_response import ResponseMixin
 from .ajax_utils_meta_model import meta_model
 from .ajax_utils_meta_object import meta_object
 from .ajax_utils_meta_field import meta_field
@@ -13,7 +17,7 @@ from .ajax__crud_delete import CrudDelete
 
 ''' Meta classes for detection and dispatching
 '''
-class JsonDispatch(JsonUtil, CrudRead, CrudUpdate, CrudDelete):    
+class JsonDispatch(MessageMixin, RequestMixin, ResponseMixin, CrudRead, CrudUpdate, CrudDelete, View):    
     
   def __init__(self):
     super().__init__()

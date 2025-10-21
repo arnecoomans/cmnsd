@@ -11,8 +11,9 @@ from typing import Iterable
 import traceback
 
 from .utils__request import RequestMixin
+from .utils__messages import MessageMixin
 
-class FilterMixin:
+class FilterMixin(RequestMixin, MessageMixin):
   def filter(self, queryset, suppress_search=False):
     print('filter initiated')
     model = queryset.model
