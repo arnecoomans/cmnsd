@@ -19,7 +19,7 @@ class FilterMixin(RequestMixin, MessageMixin):
     search_query_char = getattr(settings, 'SEARCH_QUERY_CHARACTER', 'q')
     search_exclude_char = getattr(settings, 'SEARCH_EXCLUDE_CHARACTER', 'exclude')
     search_fields = self.__get_search_fields(model)
-    
+
     if len(search_fields) > 0 and self.get_value_from_request(search_query_char, default=False, silent=True) and self.get_value_from_request(search_exclude_char, default=False, silent=True):
       # Only apply search filters if there are searchable fields or a search query is provided
       suppress_search = True
@@ -85,6 +85,7 @@ class FilterMixin(RequestMixin, MessageMixin):
     model_fields = [field.name for field in model._meta.get_fields()]
     query_fields = []
     for field in request_fields:
+      field = field.replace('.', '__')
       if field.split('__')[0] in model_fields:
         query_fields.append(field)
     return query_fields
@@ -264,6 +265,8 @@ class FilterMixin(RequestMixin, MessageMixin):
     """
     for field in search_fields:
       value = self.get_value_from_request(field, default=None, silent=True)
+      if not value and '__' in field:
+        value = self.get_value_from_request(field.replace('__', '.'), default=None, silent=True)
       if value:
         queryset = self.__search_queryset(queryset.model, queryset, field, value)
     return queryset.distinct()
@@ -314,9 +317,6 @@ class FilterMixin(RequestMixin, MessageMixin):
           parent_lookup = f"{prefix}__parent__{last_field_name}__{lookup_type}"
         else:
           parent_lookup = f"parent__{last_field_name}__{lookup_type}"
-
-        if getattr(settings, "DEBUG", False):
-          print("PARENT_LOOKUP:", parent_lookup)
 
         for v in [x.strip() for x in str(value).split(",") if x.strip()]:
           filters |= Q(**{parent_lookup: v})
