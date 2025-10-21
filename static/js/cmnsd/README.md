@@ -1,107 +1,105 @@
-
 # cmnsd JavaScript Framework
 
-The **cmnsd** framework provides dynamic JSON-based content loading, form actions, and autosuggest functionality for Django-based applications.  
+## Overview
+`cmnsd` is a lightweight, extensible JavaScript framework for AJAX-driven Django applications.
+It provides a modular system for dynamic content loading, messaging, autosuggest inputs, and action handling.
 
 ---
 
-## 🚀 Autosuggest Component
+## Autosuggest
 
-The `autosuggest.js` script adds smart suggestions to any input field using declarative `data-*` attributes.
+The `autosuggest.js` module enables smart text inputs that can fetch or filter suggestions dynamically.
+It supports both **remote AJAX requests** and **local data sources**, keyboard navigation, and overlay rendering.
 
-### ✅ Features
-- Dynamic AJAX fetching (`api.get`)
-- Multi-field display in suggestions (`data-display-fields`)
-- Configurable click-follow behavior (`data-onclick-follow`)
-- Intelligent field submission logic (hidden vs visible fields)
-- Keyboard navigation (↑ ↓ Enter Esc)
-- Automatic re-initialization on `cmnsd:content:applied`
-- Configurable debounce, minimum characters, and custom parameters
-- Optional `data-field-prefix` for related/nested fields
+### Features
+- Overlay-based dropdown (`#cmnsd-overlays`) — avoids clipping in modals/cards
+- Remote JSON fetching via `data-url`
+- Local in-memory suggestions via `data-local-source`
+- Multi-field display with different font sizes
+- Substring search (“al” → “Alice”, “Albert”)
+- Follow URL on click (`data-onclick-follow="url"`)
+- Create new entries if allowed (`data-allow-create`)
+- Auto-disable submit button for invalid values
+- Rebinds automatically after AJAX updates (`cmnsd:content:applied`)
+- Extension hooks via custom events
 
 ---
 
-## ⚙️ Data Attributes Reference
+## Data Attributes
 
 | Attribute | Default | Description |
 |------------|----------|-------------|
-| `data-autosuggest` | *(required)* | Enables autosuggest on the input. |
-| `data-url` | *(required)* | JSON endpoint for fetching suggestions. |
-| `data-param` | `q` | Query parameter name for search term. |
-| `data-min` | `2` | Minimum characters before search triggers. |
-| `data-debounce` | `300` | Debounce delay (ms) between keystrokes and API calls. |
-| `data-container` | *(none)* | If the payload has nested data, specify the container key. |
-| `data-field-input` | `name` | Field name for visible input value. |
-| `data-field-hidden` | `slug` | Field name for hidden field (ID or slug). |
-| `data-field-prefix` | *(none)* | Prefix added to both field names for related/nested fields (e.g., `link__`). |
-| `data-display-fields` | `name` | Comma-separated fields shown in the suggestion list (first = main, rest = secondary). |
-| `data-display-secondary-size` | `0.8` | Font-size multiplier for secondary fields. |
-| `data-onclick-follow` | *(none)* | When set to `url`, follows the suggestion’s URL instead of inserting value. |
-| `data-allow-create` | `1` | When `0`, only allows selecting valid suggestions (disables free text). |
-| `data-extra-params` | *(none)* | JSON string of additional query parameters to include in requests. |
-| `data-search-mode` | `false` | If true, retains `name='q'` for standard search forms. |
+| `data-url` | — | Remote URL for AJAX suggestions. Ignored if `data-local-source` is defined. |
+| `data-local-source` | — | JSON list or array of local items for private/local filtering. |
+| `data-min` | `2` | Minimum number of characters before search starts. |
+| `data-debounce` | `300` | Delay (ms) before triggering fetch after typing. |
+| `data-param` | `q` | Query parameter name for remote requests. |
+| `data-field-input` | `name` | Field used for display and plain text submission. |
+| `data-field-hidden` | `slug` | Field name for hidden input (used for IDs or tokens). |
+| `data-container` | — | Key within JSON payload to extract list of items. |
+| `data-allow-create` | `1` | Allow free text entry. Set to `0` to require valid suggestions. |
+| `data-onclick-follow` | — | When set to `"url"`, clicking a suggestion follows its URL. |
+| `data-display-fields` | `name` | Comma-separated list of fields to display (e.g. `"name,url"`). |
+| `data-display-secondary-size` | `0.8` | Font size factor for secondary fields. |
+| `data-field-prefix` | — | Prefix added to hidden and visible field names. |
+| `data-search-mode` | `false` | Keeps `?q=` parameter style for general search bars. |
+| `data-extra-params` | — | JSON object of additional query params for remote fetches. |
 
 ---
 
-## 💡 Example Usages
+## Example Usage
 
-### 🔹 Default
+### Remote source
 ```html
 <input
+  type="text"
+  class="form-control"
+  placeholder="Search tags..."
   data-autosuggest
   data-url="/json/tags/"
+  data-param="q"
+  data-container="tags"
   data-field-input="name"
-  data-field-hidden="id">
+  data-field-hidden="slug"
+/>
 ```
 
-### 🔹 Display multiple fields
+### Local source
 ```html
 <input
+  type="text"
+  class="form-control"
+  placeholder="Select user..."
   data-autosuggest
-  data-url="/json/links/"
+  data-local-source='[{"id":1,"name":"Alice"},{"id":2,"name":"Bob"}]'
   data-field-input="name"
   data-field-hidden="id"
-  data-display-fields="name,url"
-  data-display-secondary-size="0.8">
-```
-
-### 🔹 Follow URL on click
-```html
-<input
-  data-autosuggest
-  data-url="/json/locations/"
-  data-field-input="name"
-  data-field-hidden="id"
-  data-onclick-follow="url">
-```
-
-### 🔹 Nested prefix
-```html
-<input
-  data-autosuggest
-  data-url="/json/links/"
-  data-field-input="name"
-  data-field-hidden="id"
-  data-field-prefix="link__">
+  data-min="0"
+/>
 ```
 
 ---
 
-## 💅 Optional CSS
-```css
-.cmnsd-autosuggest .autosuggest-main {
-  font-weight: 500;
-  line-height: 1.2;
-}
+## Events
 
-.cmnsd-autosuggest .autosuggest-secondary {
-  color: #666;
-  line-height: 1.1;
-  font-size: 0.8em;
-}
+| Event | Detail |
+|--------|---------|
+| `cmnsd:autosuggest:shown` | `{ host }` — dropdown rendered |
+| `cmnsd:autosuggest:hidden` | `{ host }` — dropdown hidden |
+| `cmnsd:autosuggest:selected` | `{ host, item }` — item clicked or chosen |
+| `cmnsd:autosuggest:positioned` | `{ host }` — dropdown repositioned |
 
-.cmnsd-autosuggest .list-group-item.active {
-  background-color: var(--bs-primary);
-  color: white;
-}
+---
+
+## Styling
+
+Use `autosuggest.css` to style dropdowns, shadows, and hover behavior.
+
+```html
+<link rel="stylesheet" href="{% static 'css/autosuggest.css' %}">
 ```
+
+---
+
+## License
+© 2025 Arne Coomans — Released under the MIT License.

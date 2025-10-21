@@ -1,27 +1,27 @@
+# Changelog
 
-# cmnsd Framework Changelog
+## v1.8.0 — October 2025
+**Enhancements**
+- Added support for `data-local-source` for in-memory local autosuggest lists.
+- Local search uses case-insensitive substring matching (“al” → “alice”, “albert”).
+- Unified fetch logic to simplify both remote and local handling.
+- Overlay rendering improved (`#cmnsd-overlays` portal auto-created).
+- Optimized event dispatch system for extension compatibility.
+- Cleaner internal state management and keyboard navigation improvements.
 
-## Version 1.6 — Autosuggest Enhancements
-**Date:** 2025-10-04
+**Fixed**
+- Dropdown clipping inside Bootstrap cards/modals (overlay portal).
+- Submissions with both hidden and visible fields could duplicate payloads — now synchronized.
 
-### ✨ New Features
-- **Keyboard navigation:** Navigate suggestions with ↑ ↓, confirm with Enter, close with Esc.
-- **Multi-field suggestions:** Show multiple fields using `data-display-fields="name,url"`.
-- **Custom secondary line scaling:** `data-display-secondary-size` (default 0.8).
-- **URL follow mode:** Click suggestions to open their URL via `data-onclick-follow="url"`.
-- **Field prefix support:** Added `data-field-prefix` to prefix related field names (e.g. `link__id`).
-- **Smart field submission:** Only submits one field — hidden (selected) or visible (typed).
-- **Search mode:** New `data-search-mode="true"` keeps `q` parameter for search forms.
-- **Cleaner logging:** Simplified debug messages and error handling.
-- **Automatic reinit:** Rebinds autosuggest after `cmnsd:content:applied` events.
+---
+## v1.7.1
+- Added safe HTML rendering (`<b>`, `<i>`, `<strong>`, `<em>`).
 
-### 🐞 Fixes
-- Fixed bug where both visible and hidden fields submitted simultaneously.
-- Fixed potential double-binding issue when reloading dynamic content.
-- Fixed empty payload overwriting values (`None` problem).
-- Improved list cleanup and visual transitions.
+## v1.7.0
+- Added multi-field display (`data-display-fields`).
+- Added `data-onclick-follow="url"` behavior.
+- Added semantic linker extension hooks.
 
-### 🧩 Notes
-- Backwards compatible with previous cmnsd autosuggest versions.
-- CSS styling improved for readability and keyboard navigation.
-- Recommended Bootstrap integration: `.list-group-item.active`.
+## v1.6.0
+- Introduced overlay rendering portal system.
+- Added keyboard navigation (↑ ↓ Enter Esc).
