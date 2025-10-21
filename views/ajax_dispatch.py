@@ -147,7 +147,6 @@ class JsonDispatch(MessageMixin, FilterMixin, RequestMixin, ResponseMixin, CrudR
     return self.return_response(payload=self.crud__update())
 
   def patch(self, request, *args, **kwargs):
-    print('PATCH request received')
     self.modes = self.guess_modes()
     return self.return_response(payload=self.crud__update())
   
