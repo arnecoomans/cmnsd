@@ -6,13 +6,13 @@
 # Restarts the application with supervisorctl
 # based on the directory name (first part before the first dot)
 # Author: Arne Coomans
-# Version: 1.2.0
+# Version: 1.2.1
 
-# Change to the script's directory
-# cd "$(dirname "$0")"
-# This ensures your script always runs from the repo root and the .gitmodules check will fire correctly.
-cd "$(git rev-parse --show-toplevel)"
-
+# Change to the repository root
+cd "$(git rev-parse --show-toplevel)" || {
+  echo "Error: could not determine repository root."
+  exit 1
+}
 
 # Pull latest changes from Git
 echo "Pulling latest changes from Git..."
@@ -34,12 +34,29 @@ else
   echo "Changes detected in the main repository."
 fi
 
-# Check for submodules
+# Quick check for local cmnsd submodule (manual pull safeguard)
+if [ -d "cmnsd/.git" ]; then
+  echo "Detected local submodule 'cmnsd'. Pulling latest changes..."
+  (
+    cd cmnsd || exit
+    git_output_cmnsd=$(git pull 2>&1)
+    if [ $? -ne 0 ]; then
+      echo "Error during git pull in cmnsd:"
+      echo "$git_output_cmnsd"
+      exit 1
+    fi
+    echo "cmnsd submodule updated successfully."
+  )
+else
+  echo "No local cmnsd submodule found. Skipping direct cmnsd update."
+fi
+
+# Check for submodules defined in .gitmodules
 if [ -f .gitmodules ]; then
   echo "Checking for submodule updates..."
   git submodule update --init --recursive
 
-  # Ensure submodules track a branch instead of being in a detached HEAD state
+  # Ensure submodules track their configured branch (default to main)
   git submodule foreach --recursive 'git checkout $(git config -f $toplevel/.gitmodules submodule.$name.branch || echo main)'
 
   # Update submodules to the latest commit on their tracked branch
@@ -48,13 +65,16 @@ if [ -f .gitmodules ]; then
   # Detect changes in submodules
   submodule_changes=$(git diff --submodule=log)
 
-  # If there are changes in submodules, update again to ensure consistency
+  # Reinitialize to ensure consistency
   git submodule update --init --recursive
+
   if [ -z "$submodule_changes" ]; then
     echo "No updates detected in submodules."
   else
     echo "Submodule updates detected."
   fi
+else
+  echo "No .gitmodules file found. Skipping submodule updates."
 fi
 
 # Combine changes from main repo and submodules
@@ -63,11 +83,16 @@ $submodule_changes"
 
 # Check if any relevant files have changed (migrations, static files, or requirements.txt)
 if echo "$all_changes" | grep -q -e 'migration' -e 'static' -e 'requirements.txt'; then
-  echo "Changes detected in requirements, migrations, static files, or submodules. Activating virtual environment..."
-  
+  echo "Changes detected in requirements, migrations, static files, or submodules."
+  echo "Activating virtual environment..."
+
   # Activate virtual environment in .venv directory in the current directory
-  source .venv/bin/activate
-  echo "Virtual environment activated."
+  if [ -d ".venv/bin" ]; then
+    source .venv/bin/activate
+    echo "Virtual environment activated."
+  else
+    echo "Warning: .venv not found — skipping environment activation."
+  fi
 
   # Install any new requirements
   if echo "$all_changes" | grep -q 'requirements.txt'; then
@@ -87,7 +112,7 @@ if echo "$all_changes" | grep -q -e 'migration' -e 'static' -e 'requirements.txt
   else
     echo "No changes in migrations detected. Skipping migration."
   fi
-  
+
   # Collect static files if needed
   if echo "$all_changes" | grep -q 'static'; then
     echo "Collecting static files..."
