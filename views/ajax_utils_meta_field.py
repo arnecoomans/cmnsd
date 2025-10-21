@@ -211,7 +211,7 @@ class meta_field:
   def is_foreign_key(self):
     return isinstance(self.__field, models.ForeignKey)
   def is_related(self):
-    return isinstance(self.__field, (models.ManyToManyField, models.OneToOneField, models.ManyToOneRel))
+    return isinstance(self.__field, (models.ManyToManyField, models.ManyToManyRel, models.OneToOneField, models.ManyToOneRel))
   def is_bool(self):
     return isinstance(self.__field, models.BooleanField)
   def is_simple(self):
