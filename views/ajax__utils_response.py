@@ -32,7 +32,7 @@ class ResponseMixin:
     ''' Get model name, object name and attributes '''
     response_data = {
       "status": self.status,
-      "messages": [self.__render_message(message) for message in self.messages.get()],
+      "messages": [self.__render_message(message) for message in self._get_messages()],
     }
     ''' Add payload to response if present '''
     if payload:
@@ -91,16 +91,16 @@ class ResponseMixin:
       if getattr(settings, "DEBUG", False):
         traceback.print_exc()
       staff_message = ': ' + str(e) if getattr(settings, 'DEBUG', False) or self.request.user.is_superuser else ''
-      self.messages.add(_("error when encoding response to JSON{}").format(staff_message).capitalize(), "error")
+      self._add_message(_("error when encoding response to JSON{}").format(staff_message).capitalize(), "error")
       self.status = 500
       response_data["status"] = self.status
-      response_data["messages"].append(self.__render_message(self.messages.get()[-1]))
+      response_data["messages"].append(self.__render_message(self._get_messages()[-1]))
       return JsonResponse(str(response_data), safe=False, status=self.status)
     except Exception as e:
-      self.messages.add(_("unexpected error when encoding response to JSON: {}").format(str(e)).capitalize(), "error")
+      self._add_message(_("unexpected error when encoding response to JSON: {}").format(str(e)).capitalize(), "error")
       self.status = 500
       response_data["status"] = self.status
-      response_data["messages"].append(self.__render_message(self.messages.get()[-1]))
+      response_data["messages"].append(self.__render_message(self._get_messages()[-1]))
       return JsonResponse(str(response_data), status=self.status)
     
   def render(self, field=None, template_names=[], format='html', context={}):
@@ -124,7 +124,7 @@ class ResponseMixin:
         continue
       except Exception as e:
         if getattr(settings, 'DEBUG', False) and self.request.user.is_staff:
-          self.messages.add(_("error rendering template '{}': {}").format(template, str(e)).capitalize(), "error")
+          self._add_message(_("error rendering template '{}': {}").format(template, str(e)).capitalize(), "error")
         pass
       try:
         if format == 'json':
@@ -139,7 +139,7 @@ class ResponseMixin:
           print(rendered_field)
           print(traceback.format_exc())
         if self.request.user.is_staff:
-          self.messages.add(_("error decoding JSON from rendered template '{}': {}").format(template, str(e)).capitalize(), "error")
+          self._add_message(_("error decoding JSON from rendered template '{}': {}").format(template, str(e)).capitalize(), "error")
         return ""
       except ValueError as e:
         return ""
@@ -147,7 +147,7 @@ class ResponseMixin:
     staff_message = ''
     if self.request.user.is_staff:
       staff_message = '. ' + "\n" + _('searched for templates: {}').capitalize().format(', '.join(template_names))
-    self.messages.add(_("{} template for '{}:{}' not found in field/ when rendering field").format(format, self.model.name, field).capitalize() + staff_message, "debug")
+    self._add_message(_("{} template for '{}:{}' not found in field/ when rendering field").format(format, self.model.name, field).capitalize() + staff_message, "debug")
     if not field or not hasattr(self.obj, field):
       return ''
     return str(getattr(self.obj, field).value())
@@ -271,5 +271,18 @@ class ResponseMixin:
     except TemplateDoesNotExist:
       pass
     ''' No template found, return string value of message '''
-    self.messages.add(_("Message template not found when rendering message").capitalize(), "debug")
+    self._add_message(_("Message template not found when rendering message").capitalize(), "debug")
     return str(message)
+  
+  def _add_message(self, message = '', level='info'):
+    if not hasattr(self, 'messages'):
+      if getattr(settings, 'DEBUG', False):
+        print("Messages object not found in FilterMixin when trying to add message: {}".format(message))
+      return
+    self._add_message(message, level)
+  def _get_messages(self):
+    if not hasattr(self, 'messages'):
+      if getattr(settings, 'DEBUG', False):
+        print("Messages object not found in FilterMixin when trying to get messages")
+      return []
+    return self.messages.get()
