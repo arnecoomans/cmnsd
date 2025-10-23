@@ -19,7 +19,7 @@ class CrudUpdate(CrudUtil):
     obj = self.__get_obj()
     actions = self.__get_actions(obj, payload)
     if getattr(settings, 'DEBUG', False):
-      print("OBJECT:", self.obj)
+      print("OBJECT:", self.obj, "of model", self.model)
       print("PAYLOAD:", payload)
       print("ACTIONS:", actions)
     # Update fields in a safe order: simple, bool, foreign_key, related
@@ -236,6 +236,9 @@ class CrudUpdate(CrudUtil):
         if self.__get_update_type(field) not in actions:
           actions[self.__get_update_type(field)] = {}
         actions[self.__get_update_type(field)][field] = payload[field]
+      else:
+        if getattr(settings, 'DEBUG', False):
+          print("[DEBUG] Field '{}' not in payload keys {}.".format(field, list(payload.keys())))
     return actions
     
   def __get_update_type(self, field):
