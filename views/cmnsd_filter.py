@@ -20,9 +20,9 @@ class FilterMixin:
     search_exclude_char = getattr(settings, 'SEARCH_EXCLUDE_CHARACTER', 'exclude')
     search_fields = self.__get_search_fields(model)
 
-    if len(search_fields) > 0 and self._get_value_from_request(search_query_char, default=False, silent=True) and self._get_value_from_request(search_exclude_char, default=False, silent=True):
-      # Only apply search filters if there are searchable fields or a search query is provided
-      suppress_search = True
+    # if len(search_fields) > 0 and self._get_value_from_request(search_query_char, default=False, silent=True) and self._get_value_from_request(search_exclude_char, default=False, silent=True):
+    #   # Only apply search filters if there are searchable fields or a search query is provided
+    #   suppress_search = True
     
     try:
       ''' Apply model specific access restrictions '''
