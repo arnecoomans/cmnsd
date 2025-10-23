@@ -228,7 +228,7 @@ class CrudUpdate(CrudUtil):
         if self.model.has_field(key):
           # Field is a field of the model/object, so add it to the object meta class
           obj.fields.append(key)
-          setattr(obj, key, meta_field(obj, key))
+          setattr(obj, key, meta_field(obj, key, self.request))
     # Map request fields to payload values
     for field in obj.fields:
       if field in payload.keys():

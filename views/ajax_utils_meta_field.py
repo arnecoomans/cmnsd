@@ -9,7 +9,8 @@ import traceback
 import json
 
 class meta_field:
-  def __init__(self, obj, field_name):
+  def __init__(self, obj, field_name, request=None):
+    self.request = getattr(obj, 'request', request)
     self.obj = obj
     self.field_name = field_name
     self.__field = None
@@ -17,7 +18,6 @@ class meta_field:
     self.__detect()
     self.__secure()
     self.name = field_name
-    self.request = getattr(obj, 'request', None)
     return None
     
   ''' Meta methods for field information '''
@@ -102,18 +102,31 @@ class meta_field:
     conf_protected = getattr(settings, 'AJAX_PROTECTED_FIELDS', [])
     if not isinstance(conf_protected, (list, tuple, set)):
       conf_protected = [conf_protected]
+    conf_restricted = getattr(settings, 'AJAX_RESTRICTED_FIELDS', [])
+    if not isinstance(conf_restricted, (list, tuple, set)):
+      conf_restricted = [conf_restricted]
+
     protected_fields = [
-      'id', 'slug', 'status',
+      'id', 
       'password', 'secret_key', 'api_key', 'token',
       'access_token', 'refresh_token', 'private_key', 'certificate',
     ] + conf_protected
-
+    restricted_fields = [
+      'slug', 'status',
+    ] + conf_restricted
     # Global protection check
     if self.field_name in protected_fields:
       raise PermissionDenied(
         _("access to field '{}' is blocked in configuration")
           .format(self.field_name).capitalize()
       )
+    if self.field_name:
+      request = getattr(self, 'request', False)
+      if not request or not request.user.is_staff:
+        raise PermissionDenied(
+          _("access to field '{}' is restricted to staff users")
+            .format(self.field_name).capitalize()
+        )
 
     # Model-specific protection check
     if hasattr(self.obj.model, 'disallow_access_fields'):

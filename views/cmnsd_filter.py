@@ -14,7 +14,7 @@ from .utils__request import RequestMixin
 from .utils__messages import MessageMixin
 
 class FilterMixin:
-  def filter(self, queryset, suppress_search=False):
+  def filter(self, queryset, suppress_search=False, allow_staff=False):
     model = queryset.model
     search_query_char = getattr(settings, 'SEARCH_QUERY_CHARACTER', 'q')
     search_exclude_char = getattr(settings, 'SEARCH_EXCLUDE_CHARACTER', 'exclude')
@@ -29,9 +29,9 @@ class FilterMixin:
       queryset = self.__filter_by_restrict_access(queryset)
       ''' Conditionally filter queryset based on field availablity '''
       if 'status' in [field.name for field in model._meta.get_fields()]:
-        queryset = self.filter_status(queryset)
+        queryset = self.filter_status(queryset, allow_staff=allow_staff)
       if 'visibility' in [field.name for field in model._meta.get_fields()]:
-        queryset = self.filter_visibility(queryset)
+        queryset = self.filter_visibility(queryset, allow_staff=allow_staff)
       ''' Check if search should be applied or suppressed '''
       if not suppress_search:
         ''' Field specific filtering '''
@@ -109,11 +109,12 @@ class FilterMixin:
     return search_fields
   
   ''' Filter by object status '''
-  def filter_status(self, queryset):
+  def filter_status(self, queryset, allow_staff=False):
+    if allow_staff or getattr(self.request, "user", None) or self.request.user.is_staff:
+      return queryset.distinct()
     return queryset.filter(status='p').distinct()
   
-  
-  def filter_visibility(self, queryset):
+  def filter_visibility(self, queryset, allow_staff=False):
     """
     Filter objects based on the current user's visibility level.
 

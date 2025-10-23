@@ -49,6 +49,7 @@ def check_cmnsd_config(app_configs, **kwargs):
         "AJAX_DEFAULT_DATA_SOURCES",
         "AJAX_RENDER_REMOVE_NEWLINES",
         "AJAX_PROTECTED_FIELDS",
+        "AJAX_RESTRICTED_FIELDS",
         "AJAX_BLOCKED_MODELS",
         "AJAX_ALLOW_FK_CREATION_MODELS",
         "AJAX_ALLOW_RELATED_CREATION_MODELS",

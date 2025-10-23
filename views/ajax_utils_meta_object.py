@@ -8,7 +8,8 @@ from django.db.models.query import QuerySet
 from .ajax_utils_meta_model import meta_model
 
 class meta_object():
-  def __init__(self, model, qs=None, obj=None, none=True, search_mode='exact', *args, **kwargs):
+  def __init__(self, model, qs=None, obj=None, none=True, search_mode='exact', request=None, *args, **kwargs):
+    self.request = getattr(model, 'request', request)
     self.obj = obj if obj and isinstance(obj, model.model) else None
     self.model = model if model and isinstance(model, meta_model) else None
     self.qs = qs if isinstance(qs, QuerySet) else None
@@ -20,7 +21,6 @@ class meta_object():
     self.debug_messages = []
     self.__validate()
     self.__detect()
-    self.request = getattr(model, 'request', None)
     return None
   
   def __str__(self):
