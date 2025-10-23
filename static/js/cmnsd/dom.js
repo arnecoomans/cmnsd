@@ -46,14 +46,32 @@ export function inject(container, payload) {
 
 export function update(container, payload) {
   const el = resolveContainer(container);
+
+  // Step 1: Dispose Bootstrap tooltips in this container
+  if (window.bootstrap && bootstrap.Tooltip) {
+    const tooltipEls = el.querySelectorAll('[data-bs-toggle="tooltip"]');
+    tooltipEls.forEach(t => {
+      const instance = bootstrap.Tooltip.getInstance(t);
+      if (instance) instance.dispose();
+    });
+  }
+
+  // Step 2: Replace content
   el.replaceChildren();
   el.appendChild(normalizePayload(payload));
 
+  // Step 3: Trigger event for other features
   const ev = new CustomEvent('cmnsd:content:applied', {
     bubbles: true,
     detail: { container: el }
   });
   el.dispatchEvent(ev);
+
+  // Step 4: Re-initialize Bootstrap tooltips (for new content)
+  if (window.bootstrap && bootstrap.Tooltip) {
+    const newTooltips = el.querySelectorAll('[data-bs-toggle="tooltip"]');
+    newTooltips.forEach(t => new bootstrap.Tooltip(t));
+  }
 
   return el;
 }
