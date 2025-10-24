@@ -1,27 +1,16 @@
 # Changelog
 
-## v1.8.0 — October 2025
-**Enhancements**
-- Added support for `data-local-source` for in-memory local autosuggest lists.
-- Local search uses case-insensitive substring matching (“al” → “alice”, “albert”).
-- Unified fetch logic to simplify both remote and local handling.
-- Overlay rendering improved (`#cmnsd-overlays` portal auto-created).
-- Optimized event dispatch system for extension compatibility.
-- Cleaner internal state management and keyboard navigation improvements.
+## v1.9.0 — October 2025
 
-**Fixed**
-- Dropdown clipping inside Bootstrap cards/modals (overlay portal).
-- Submissions with both hidden and visible fields could duplicate payloads — now synchronized.
+### Added
+- Clipboard copy feature using `data-action="copy"` and `data-clipboard-target`.
+- Extended documentation for all three framework pillars (Actions, Autosuggest, Utilities).
 
----
-## v1.7.1
-- Added safe HTML rendering (`<b>`, `<i>`, `<strong>`, `<em>`).
+### Improved
+- Local autosuggest logic now supports case-insensitive substring search.
+- Overlay portal (`#cmnsd-overlays`) ensures dropdowns escape card and modal overflow.
+- Bootstrap tooltip cleanup in `dom.js` before updates.
 
-## v1.7.0
-- Added multi-field display (`data-display-fields`).
-- Added `data-onclick-follow="url"` behavior.
-- Added semantic linker extension hooks.
-
-## v1.6.0
-- Introduced overlay rendering portal system.
-- Added keyboard navigation (↑ ↓ Enter Esc).
+### Fixed
+- Residual tooltip elements after AJAX updates.
+- Synchronization of hidden/visible fields in autosuggest forms.
