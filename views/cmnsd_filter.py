@@ -34,6 +34,23 @@ class FilterMixin:
         queryset = self.filter_visibility(queryset, allow_staff=allow_staff)
       ''' Check if search should be applied or suppressed '''
       if not suppress_search:
+        queryset = self.search(queryset, suppress_search=suppress_search, allow_staff=allow_staff)
+    except Exception as e:
+      traceback.print_exc()
+      staff_message = ': ' + str(e) if getattr(settings, 'DEBUG', False) or self.request.user.is_superuser else ''
+      self._add_message(_("an error occurred while filtering{}").capitalize().format(staff_message), 'error')
+      self.status = 400
+      return QuerySet(model=model).none()
+    ''' Return filtered queryset '''
+    return queryset.distinct()
+  
+  def search(self, queryset, suppress_search=False, allow_staff=False):
+    model = queryset.model
+    search_query_char = getattr(settings, 'SEARCH_QUERY_CHARACTER', 'q')
+    search_exclude_char = getattr(settings, 'SEARCH_EXCLUDE_CHARACTER', 'exclude')
+    search_fields = self.__get_search_fields(model)
+    try:
+      if not suppress_search:
         ''' Field specific filtering '''
         if len(search_fields) > 0:
           queryset = self.search_results(queryset, search_fields)
@@ -46,12 +63,12 @@ class FilterMixin:
     except Exception as e:
       traceback.print_exc()
       staff_message = ': ' + str(e) if getattr(settings, 'DEBUG', False) or self.request.user.is_superuser else ''
-      self._add_message(_("an error occurred while filtering{}").capitalize().format(staff_message), 'error')
+      self._add_message(_("an error occurred while searching{}").capitalize().format(staff_message), 'error')
       self.status = 400
       return QuerySet(model=model).none()
     ''' Return filtered queryset '''
     return queryset.distinct()
-  
+
   ''' Security Measure '''
   def __field_is_secure(self, field_name):
     blocked_fields = ['password'] + getattr(settings, 'SEARCH_BLOCKED_FIELDS', [])
@@ -110,7 +127,9 @@ class FilterMixin:
   
   ''' Filter by object status '''
   def filter_status(self, queryset, allow_staff=False):
-    if allow_staff or getattr(self.request, "user", None) or self.request.user.is_staff:
+    print("Filtering by status, allow_staff={}".format(allow_staff))
+    if allow_staff and self.request.user.is_staff:
+      print("User is staff, returning all statuses")
       return queryset.distinct()
     return queryset.filter(status='p').distinct()
   
