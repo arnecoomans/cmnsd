@@ -1,8 +1,6 @@
 // Generic delegated data-action handler for cmnsd.
 // Indentation: 2 spaces. Docs in English.
 
-import { update, insert } from './dom.js';
-
 /**
  * @param {Object} deps
  * @param {(method:string, url:string, opts?:any)=>Promise<any>} deps.request
@@ -32,20 +30,13 @@ export function createActionBinder({
 
   function parseParams(val) {
     if (!val) return null;
-
-    // Try JSON first
     if (typeof val === 'string' && val.trim().startsWith('{')) {
       try {
         return JSON.parse(val);
       } catch (err) {
-        console.warn('[cmnsd:params] invalid JSON, falling back', {
-          val,
-          err
-        });
+        console.warn('[cmnsd:params] invalid JSON, falling back', { val, err });
       }
     }
-
-    // Try querystring fallback
     try {
       return Object.fromEntries(new URLSearchParams(val));
     } catch (err) {
@@ -54,32 +45,27 @@ export function createActionBinder({
     }
   }
 
+  function htmlToFragment(html) {
+    const tpl = document.createElement('template');
+    tpl.innerHTML = String(html).trim();
+    return tpl.content;
+  }
+
   function applyFromExistingPayload(response, map, mode = 'update') {
     const data = response && response.payload ? response.payload : {};
     Object.entries(map || {}).forEach(([key, selector]) => {
-      if (!(key in data)) {
-        dbg('action:skip (missing key in payload)', { key });
-        return;
-      }
+      if (!(key in data)) return;
       const el =
         typeof selector === 'string'
           ? document.querySelector(selector)
           : selector;
-      if (!el) {
-        dbg('action:skip (no container found)', { key, selector });
-        return;
-      }
-
-      try {
-        if (mode === 'insert') {
-          insert(el, data[key]);
-        } else {
-          update(el, data[key]);
-        }
-        dbg('action:applied', { key, selector, mode });
-      } catch (err) {
-        dbg('action:apply:error', { key, selector, err });
-        throw err;
+      if (!el) return;
+      const frag = htmlToFragment(String(data[key]));
+      if (mode === 'insert') {
+        el.appendChild(frag);
+      } else {
+        el.replaceChildren();
+        el.appendChild(frag);
       }
     });
   }
@@ -90,6 +76,49 @@ export function createActionBinder({
     const confirmMsg = el.dataset.confirm;
     if (confirmMsg && !window.confirm(confirmMsg)) return;
 
+    // 🧩 COPY TO CLIPBOARD HANDLER
+    if (el.dataset.action === 'copy') {
+      const text =
+        el.dataset.text ||
+        (el.dataset.clipboardTarget
+          ? document.querySelector(el.dataset.clipboardTarget)?.innerText || ''
+          : '');
+      if (!text) {
+        renderMessages(
+          [{ level: 'warning', text: 'Nothing to copy.' }],
+          getConfig().messages
+        );
+        return;
+      }
+
+      if (!navigator.clipboard) {
+        renderMessages(
+          [{ level: 'danger', text: 'Clipboard not supported in this browser.' }],
+          getConfig().messages
+        );
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(text);
+        const msg =
+          el.dataset.message ||
+          'Copied to clipboard.';
+        renderMessages(
+          [{ level: 'success', text: msg }],
+          getConfig().messages
+        );
+      } catch (err) {
+        renderMessages(
+          [{ level: 'danger', text: 'Failed to copy text.' }],
+          getConfig().messages
+        );
+        console.error('[cmnsd:copy] failed', err);
+      }
+      return;
+    }
+
+    // 🧩 STANDARD AJAX ACTION HANDLER
     let url =
       el.dataset.url ||
       el.getAttribute('href') ||
@@ -169,12 +198,10 @@ export function createActionBinder({
         }
       }
     } catch (err) {
-      const context = url || el.getAttribute('action') || '(unknown)';
       renderMessages(
-        [{ level: 'danger', text: `Action failed for ${context}` }],
+        [{ level: 'danger', text: 'Action failed.' }],
         getConfig().messages
       );
-      dbg('action:error', { error: err, element: el, context });
       const cfg = getConfig();
       cfg.onError && cfg.onError(err);
     } finally {
@@ -185,18 +212,12 @@ export function createActionBinder({
   return function bindDelegatedActions(root) {
     const base = root || document;
 
-    // Handle click triggers (ignore forms with data-action)
     base.addEventListener('click', (e) => {
       const t = e.target.closest('[data-action]');
       if (!t || !base.contains(t)) return;
-
-      // ✅ Ignore forms here; let submit listener handle them
-      if (t.tagName.toLowerCase() === 'form') return;
-
       handleActionTrigger(e, t);
     });
 
-    // Handle form submissions
     base.addEventListener('submit', (e) => {
       const form = e.target.closest('form[data-action]');
       if (!form || !base.contains(form)) return;
