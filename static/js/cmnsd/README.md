@@ -1,4 +1,5 @@
 # cmnsd JavaScript Framework
+![cmnsd.js](https://raw.githubusercontent.com/arnecoomans/cmnsd/refs/heads/main/static/img/cmnsd/cmnsd_js.png "cmnsd.js logo")
 
 ## Overview
 **cmnsd** is a lightweight modular JavaScript framework for Django-based projects.  
