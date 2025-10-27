@@ -1,5 +1,8 @@
 # CMNSD
 
+![cmnsd logo](https://raw.githubusercontent.com/arnecoomans/cmnsd/refs/heads/main/static/img/cmnsd/cmnsd.png "cmnsd logo")
+
+
 This repository contains apps, data and scripts that support running 
 CMNS' django projects.
 
