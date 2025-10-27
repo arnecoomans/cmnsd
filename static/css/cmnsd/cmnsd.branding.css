@@ -1,0 +1,53 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+
+  footer {
+    text-align: center;
+    font-size: 0.9em;
+    color: #666;
+    margin: 2em 0 1em 0;
+    padding-bottom: 3em;
+  }
+  
+  .cmnsd {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: #2c8c57;
+  }
+
+  .cmnsd::before {
+    content: "{";
+    color: #666;
+    margin-right: 0.1em;
+  }
+
+  .cmnsd::after {
+    content: "}";
+    color: #666;
+    margin-left: 0.1em;
+  }
+
+  .cmnsd-square {
+    display: inline-block;
+    width: 0.55em;
+    height: 0.55em;
+    background-color: #2c8c57;
+    transform: rotate(45deg);
+    vertical-align: middle;
+    margin: 0 0.25em;
+  }
+
+
+.cmnsd.js .cmnsd-square     { background-color: #007bff; } /* Blue */
+.cmnsd.ajax .cmnsd-square   { background-color: #ff9800; } /* Orange */
+.cmnsd.model .cmnsd-square  { background-color: #9c27b0; } /* Purple */
+.cmnsd.ui .cmnsd-square     { background-color: #607d8b; } /* Gray */
+.cmnsd                      { color: #2c8c57; }            /* Default green */
+
+/** Example Markup 
+  <span class="cmnsd"><span class="cmnsd-square"></span> cmnsd</span>
+  <span class="cmnsd js"><span class="cmnsd-square"></span> cmnsd.js</span>
+  <span class="cmnsd ajax"><span class="cmnsd-square"></span> cmnsd.ajax</span>
+  <span class="cmnsd model"><span class="cmnsd-square"></span> cmnsd.model</span>
+  <span class="cmnsd ui"><span class="cmnsd-square"></span> cmnsd.ui</span>
+*/
