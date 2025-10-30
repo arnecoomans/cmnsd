@@ -101,24 +101,28 @@ class meta_function:
     # Case 2: Callable property (method or computed attribute)
     elif callable(value):
       try:
-        sig = inspect.signature(value)
-        # Only call if the function takes no required arguments
-        if all(
-          p.default != inspect.Parameter.empty or p.kind in (
-            inspect.Parameter.VAR_POSITIONAL,
-            inspect.Parameter.VAR_KEYWORD
-          )
-          for p in sig.parameters.values()
-        ):
-          value = value()
-        else:
-          # Return the callable itself if it requires arguments
-          return value
+        # Attempt to call with `request` if function supports it
+        try:
+          print("A")
+          value = value(request=self.request)
+        except TypeError as e:
+          # Retry without request if it’s not accepted
+          if "unexpected keyword argument 'request'" in str(e):
+            print("B")
+            value = value()
+          else:
+            print("C")
+            raise e
       except Exception as e:
-        staff_message = ': ' + str(e) if getattr(settings, 'DEBUG', False) or self.request.user.is_superuser else ''
+        staff_message = (
+          ": " + str(e)
+          if getattr(settings, "DEBUG", False) or getattr(self.request.user, "is_superuser", False)
+          else ""
+        )
         raise ValueError(
           _("error occurred while calling function '{}'{}")
-            .format(self.function_name, staff_message).capitalize()
+            .format(self.field_name, staff_message)
+            .capitalize()
         )
 
     # Cache the resolved value

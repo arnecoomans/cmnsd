@@ -1,24 +1,25 @@
-from django.db.models import Q, QuerySet, Model
+from django.db.models import Q, QuerySet
 from django.db.models.fields import CharField, TextField
-# from django.db import models
 from django.db.models.fields.related import ManyToManyField
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings
 from django.db.models.constants import LOOKUP_SEP
+from django.core.exceptions import FieldDoesNotExist
 
 import logging
 from typing import Iterable
 import traceback
 
-from .utils__request import RequestMixin
-from .utils__messages import MessageMixin
-
 class FilterMixin:
-  def filter(self, queryset, suppress_search=False, allow_staff=False):
+  def filter(self, queryset, request=None, suppress_search=False, allow_staff=False):
+    self.request = getattr(self, 'request', None)
+    if not self.request and request:
+      self.request = request
     model = queryset.model
     search_query_char = getattr(settings, 'SEARCH_QUERY_CHARACTER', 'q')
     search_exclude_char = getattr(settings, 'SEARCH_EXCLUDE_CHARACTER', 'exclude')
     search_fields = self.__get_search_fields(model)
+    print("REQUEST:", request, self.request)
 
     # if len(search_fields) > 0 and self._get_value_from_request(search_query_char, default=False, silent=True) and self._get_value_from_request(search_exclude_char, default=False, silent=True):
     #   # Only apply search filters if there are searchable fields or a search query is provided
@@ -111,6 +112,8 @@ class FilterMixin:
       Return a list of all fields in the request GET and POST parameters."""
   def __get_searched_fields_from_request(self):
     search_fields = []
+    if not hasattr(self, 'request') or not self.request:
+      return search_fields
     for key in self.request.GET.keys():
       if key:
         search_fields.append(key)
@@ -294,9 +297,6 @@ class FilterMixin:
 
   def __search_queryset(self, model, queryset, field_name, value):
     """Internal helper that filters queryset for a single field path and value."""
-    from django.conf import settings
-    from django.core.exceptions import FieldDoesNotExist
-
     # Secure field check
     last_field_name = field_name.split("__")[-1]
     if not self.__field_is_secure(last_field_name):

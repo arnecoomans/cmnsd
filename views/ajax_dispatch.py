@@ -133,6 +133,8 @@ class JsonDispatch(MessageMixin, FilterMixin, RequestMixin, ResponseMixin, CrudR
             self.obj.fields.remove(field)
             staff_message = ': ' + str(e) if getattr(settings, 'DEBUG', False) or self.request.user.is_superuser else ''
             self.messages.add(_("field '{}' could not be set in {} '{}'{}").format(field, self.model.name, self.obj, staff_message).capitalize(), 'warning')
+            if getattr(settings, 'DEBUG', False):
+              traceback.print_exc()
         elif self.model.has_function(field):
           self.obj.functions.append(field)
           try:
@@ -142,6 +144,8 @@ class JsonDispatch(MessageMixin, FilterMixin, RequestMixin, ResponseMixin, CrudR
             self.obj.functions.remove(field)
             staff_message = ': ' + str(e) if getattr(settings, 'DEBUG', False) or self.request.user.is_superuser else ''
             self.messages.add(_("function '{}' could not be set in {} '{}'{}").format(field, self.model.name, self.obj, staff_message).capitalize(), 'warning')
+            if getattr(settings, 'DEBUG', False):
+              traceback.print_exc()
         else:
           self.messages.add(_("field '{}' is not found in {} '{}'").format(field, self.model.name, self.obj).capitalize())
   
