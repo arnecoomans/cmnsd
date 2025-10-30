@@ -19,7 +19,6 @@ class FilterMixin:
     search_query_char = getattr(settings, 'SEARCH_QUERY_CHARACTER', 'q')
     search_exclude_char = getattr(settings, 'SEARCH_EXCLUDE_CHARACTER', 'exclude')
     search_fields = self.__get_search_fields(model)
-    print("REQUEST:", request, self.request)
 
     # if len(search_fields) > 0 and self._get_value_from_request(search_query_char, default=False, silent=True) and self._get_value_from_request(search_exclude_char, default=False, silent=True):
     #   # Only apply search filters if there are searchable fields or a search query is provided
@@ -130,9 +129,7 @@ class FilterMixin:
   
   ''' Filter by object status '''
   def filter_status(self, queryset, allow_staff=False):
-    print("Filtering by status, allow_staff={}".format(allow_staff))
     if allow_staff and self.request.user.is_staff:
-      print("User is staff, returning all statuses")
       return queryset.distinct()
     return queryset.filter(status='p').distinct()
   
@@ -425,9 +422,11 @@ class FilterMixin:
         print("Messages object not found in FilterMixin when trying to add message: {}".format(message))
       return
     self.messages.add(message, level)
+  
   def _get_value_from_request(self, key, default=None, sources=None, silent=False):
     if not hasattr(self, 'get_value_from_request'):
       if getattr(settings, 'DEBUG', False):
         print("get_value_from_request method not found in FilterMixin when trying to get key: {}".format(key))
+      return self.request.GET.get(key, default) if self.request else default
       return default
     return self.get_value_from_request(key, default=default, sources=sources, silent=silent)
