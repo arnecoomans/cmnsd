@@ -136,6 +136,7 @@ class ResponseMixin:
         return rendered_field
       except json.JSONDecodeError as e:
         if getattr(settings, 'DEBUG', False) and self.request.user.is_staff:
+          print(f"Error decoding JSON from rendered template '{template}':")
           print(rendered_field)
           print(traceback.format_exc())
         if self.request.user.is_staff:
@@ -153,6 +154,7 @@ class ResponseMixin:
     return str(getattr(self.obj, field).value())
 
   def render_field(self, field, format='html', context={}):
+    print("Rendering field:", field)
     # Try to get field value from object or obj attribute
     try:
       value = getattr(self.obj, field, None)
@@ -170,6 +172,14 @@ class ResponseMixin:
     ''' Build template names to try to render '''
     template_names = [
       f'object/{ self.model.name.lower() }_{ field }.{ format }',
+    ]
+    if self.model.has_function(field):
+      template_names += [
+        f'function/{ self.model.name.lower() }/{ field }.{ format }',
+        f'function/{ self.model.name.lower() }_{ field }.{ format }',
+        f'function/{ field }.{ format }',
+      ]
+    template_names += [
       f'field/{ self.model.name.lower() }/{ field }.{ format }',
       f'field/{ self.model.name.lower() }_{ field }.{ format }',
       f'field/{ field }.{ format }',
@@ -181,9 +191,10 @@ class ResponseMixin:
     except Exception:
       pass
     # Add date-specific template if field is a DateField or DateTimeField
-    if isinstance(self.model.model._meta.get_field(field), models.DateTimeField) or \
-        isinstance(self.model.model._meta.get_field(field), models.DateField):
-      template_names.append(f'field/date.{ format }')
+    if self.model.has_field(field):
+        if isinstance(self.model.model._meta.get_field(field), models.DateTimeField) or \
+           isinstance(self.model.model._meta.get_field(field), models.DateField):
+          template_names.append(f'field/date.{ format }')
     ''' Filter Queryset Results '''
     if isinstance(value, QuerySet) and hasattr(self, 'filter'):
       value = self.filter(value)

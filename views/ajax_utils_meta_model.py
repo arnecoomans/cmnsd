@@ -120,3 +120,36 @@ class meta_model:
       return True
     except FieldDoesNotExist:
       return False
+
+  def has_function(self, function_name):
+    """
+    Check whether the current model defines an AJAX-callable function.
+
+    This method determines if the model associated with this instance
+    includes a callable method decorated with ``@ajax_function``.
+    It uses ``getattr()`` for safe attribute access and verifies both
+    callability and the decorator flag.
+
+    Args:
+      function_name (str): The name of the function to check.
+
+    Returns:
+      bool: ``True`` if the function exists on the model and is marked
+      as AJAX-callable, otherwise ``False``.
+
+    Example:
+      ```python
+      if self.has_function("nearby"):
+          print("The model supports the AJAX function 'nearby'.")
+      ```
+
+    Notes:
+      - This method returns ``False`` if the attribute does not exist,
+        is not callable, or lacks the ``is_ajax_callable`` marker.
+      - The decorator ``@ajax_function`` must set ``func.is_ajax_callable = True``.
+    """
+    try:
+      func = getattr(self.model, function_name, None)
+      return callable(func) and getattr(func, "is_ajax_callable", False)
+    except Exception:
+      return False

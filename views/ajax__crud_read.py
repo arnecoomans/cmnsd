@@ -8,10 +8,16 @@ class CrudRead:
     payload = {}
     format = self.get_value_from_request('format', silent=True, default='html')
     try:
-      if hasattr(self.obj, 'fields') and self.obj.fields:
-        # If fields are detected, add the rendered fields to the payload
-        for field in self.obj.fields:
-          payload[field] = self.render_field(field, format=format)
+      if hasattr(self.obj, 'fields') and self.obj.fields or \
+         hasattr(self.obj, 'functions') and self.obj.functions:
+        if hasattr(self.obj, 'fields') and self.obj.fields:
+          # If fields are detected, add the rendered fields to the payload
+          for field in self.obj.fields:
+            payload[field] = self.render_field(field, format=format)
+        if hasattr(self.obj, 'functions') and self.obj.functions:
+          # If functions are detected, add the rendered functions to the payload
+          for function in self.obj.functions:
+            payload[function] = self.render_field(function, format=format)
       elif self.obj.is_found():
         # If only object is detected, add the rendered object to the payload
         payload[self.model.name] = self.render_obj(self.obj, format=format)

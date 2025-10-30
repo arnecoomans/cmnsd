@@ -17,6 +17,7 @@ class meta_object():
     self.search_mode = str(search_mode).lower() if str(search_mode).lower() in ['exact', 'iexact', 'contains', 'icontains', 'startswith', 'istartswith'] else 'exact'
     self.none = True if none is True else False
     self.fields = []
+    self.functions = []
     self.__changes = []
     self.debug_messages = []
     self.__validate()

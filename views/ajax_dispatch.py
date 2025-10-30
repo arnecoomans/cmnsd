@@ -11,6 +11,7 @@ from .ajax__utils_response import ResponseMixin
 from .ajax_utils_meta_model import meta_model
 from .ajax_utils_meta_object import meta_object
 from .ajax_utils_meta_field import meta_field
+from .ajax_utils_meta_function import meta_function
 from .ajax__crud_read import CrudRead
 from .ajax__crud_update import CrudUpdate
 from .ajax__crud_delete import CrudDelete
@@ -45,11 +46,11 @@ class JsonDispatch(MessageMixin, FilterMixin, RequestMixin, ResponseMixin, CrudR
   def dispatch(self, request, *args, **kwargs):
     try:
       # Detect model based on request data
-      self.__detect_model()
+      self._detect_model()
       # Detect object based on request data if model is detected
-      self.__detect_object()
+      self._detect_object()
       # Detect fields based on request data if object is detected
-      self.__detect_fields()    
+      self._detect_fields()
     except Exception as e:
       # Exception Handling
       if getattr(settings, "DEBUG", False):
@@ -60,9 +61,16 @@ class JsonDispatch(MessageMixin, FilterMixin, RequestMixin, ResponseMixin, CrudR
       self.messages.add(_("an error occurred during request processing{}").format(staff_message).capitalize(), 'error')
       return self.return_response(status=400)
     return super().dispatch(request, *args, **kwargs)
+  ''' Verification methods '''
+  def _verify_model(self):
+    if not self.model:
+      raise ValueError(_("model is required").capitalize())
+  def _verify_object(self):
+    if not self.obj:
+      raise ValueError(_("object is required").capitalize())
   
   ''' Detect actions '''
-  def __detect_model(self):
+  def _detect_model(self):
     if self.get_value_from_request('model', silent=True):
       try:
         self.model = meta_model(model_name=self.get_value_from_request('model'), request=self.request)
@@ -70,7 +78,7 @@ class JsonDispatch(MessageMixin, FilterMixin, RequestMixin, ResponseMixin, CrudR
         self.messages.add(str(e), 'error')
         return self.return_response({'error 1': str(e)}, status=400)
 
-  def __detect_object(self):
+  def _detect_object(self):
     # Fetch Object in <str:object_id> or <str:object_slug>
     # Set identifier fields:
     available_identifiers = {
@@ -89,9 +97,10 @@ class JsonDispatch(MessageMixin, FilterMixin, RequestMixin, ResponseMixin, CrudR
           break
     if id_types_supplied > 0 and id_types_supplied < 2:
       raise ValueError(_("at least two identifiers are required for object lookup").capitalize())
-    if not self.model:
-      # If an invalid model is passed, this will be caught in __detect_model above
-      raise ValueError(_("model is required for object lookup").capitalize())
+    self._verify_model()
+    # if not self.model:
+    #   # If an invalid model is passed, this will be caught in __detect_model above
+    #   raise ValueError(_("model is required for object lookup").capitalize())
     # Lookup object by two or more identifiers via meta_object class
     # Pass filtered queryset to meta_object to ensure security-measures are applied
     base_qs = self.model.model.objects.all()
@@ -103,18 +112,11 @@ class JsonDispatch(MessageMixin, FilterMixin, RequestMixin, ResponseMixin, CrudR
                             none=True)
     return self.obj
   
-  def __detect_fields(self):
+  def _detect_fields(self):
     # Fetch Field in <str:field>
     if self.get_value_from_request('field', silent=True):
-      if not self.obj:
-        if not self.model:
-          # If an invalid model is passed, this will be caught in __detect_object above
-          self.messages.add(_("model is required for field lookup").capitalize(), 'error')
-        else:
-          # If invalid object is passed, this will be caught in __detect_object above
-          self.messages.add(_("object is required for field lookup").capitalize(), 'error')
-        # Stop processing and return errors
-        return self.return_response(status=400)
+      self._verify_model()
+      self._verify_object()
       # Handle special field values: show all fields when __all__ is passed
       if self.get_value_from_request('field') == '__all__' and self.request.user.is_staff:
        # __all__ search query is only allowed for staff users
@@ -122,21 +124,27 @@ class JsonDispatch(MessageMixin, FilterMixin, RequestMixin, ResponseMixin, CrudR
       else:
         fields = [attribute.strip() for attribute in self.get_value_from_request('field').split(',')]
       for field in fields:
-        # Check if field exists as attribute of object
-        # if not hasattr(self.obj.obj, field):
-        if not self.model.has_field(field):
+        if self.model.has_field(field):
+          self.obj.fields.append(field)
+          try:
+            setattr(self.obj, field, meta_field(self.obj, field))
+          except Exception as e:
+            # Field could not be set, so remove from requested fields
+            self.obj.fields.remove(field)
+            staff_message = ': ' + str(e) if getattr(settings, 'DEBUG', False) or self.request.user.is_superuser else ''
+            self.messages.add(_("field '{}' could not be set in {} '{}'{}").format(field, self.model.name, self.obj, staff_message).capitalize(), 'warning')
+        elif self.model.has_function(field):
+          self.obj.functions.append(field)
+          try:
+            setattr(self.obj, field, meta_function(self.obj, field))
+          except Exception as e:
+            # Function could not be set, so remove from requested functions
+            self.obj.functions.remove(field)
+            staff_message = ': ' + str(e) if getattr(settings, 'DEBUG', False) or self.request.user.is_superuser else ''
+            self.messages.add(_("function '{}' could not be set in {} '{}'{}").format(field, self.model.name, self.obj, staff_message).capitalize(), 'warning')
+        else:
           self.messages.add(_("field '{}' is not found in {} '{}'").format(field, self.model.name, self.obj).capitalize())
-          continue
-        self.obj.fields.append(field)
-        try:
-          setattr(self.obj, field, meta_field(self.obj, field))
-        except Exception as e:
-          # Field could not be set, so remove from requested fields
-          self.obj.fields.remove(field)
-          staff_message = ': ' + str(e) if getattr(settings, 'DEBUG', False) or self.request.user.is_superuser else ''
-          self.messages.add(_("field '{}' could not be set in {} '{}'{}").format(field, self.model.name, self.obj, staff_message).capitalize(), 'warning')
-
-        
+  
   ''' CRUD actions '''
   def get(self, request, *args, **kwargs):
     self.modes = self.guess_modes()
