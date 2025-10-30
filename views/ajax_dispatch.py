@@ -19,7 +19,7 @@ from .cmnsd_filter import FilterMixin
 
 ''' Meta classes for detection and dispatching
 '''
-class JsonDispatch(MessageMixin, FilterMixin, RequestMixin, ResponseMixin, CrudRead, CrudUpdate, CrudDelete, View):
+class AjaxDispatch(MessageMixin, FilterMixin, RequestMixin, ResponseMixin, CrudRead, CrudUpdate, CrudDelete, View):
     
   def __init__(self):
     super().__init__()
