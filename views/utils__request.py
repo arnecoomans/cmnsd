@@ -51,7 +51,8 @@ class RequestMixin:
     if hasattr(self, "messages"):
       self.messages.add(text, level)
 
-  def get_value_from_request(self, key, default=None, sources=None, silent=False):
+  def get_value_from_request(self, key, default=None, sources=None, silent=False, request=None):
+    request = getattr(self, 'request', None) if request is None else request
     """Return value of key from multiple request sources."""
     sources = self._verify_sources(sources)
     value = None
@@ -61,16 +62,16 @@ class RequestMixin:
         return str(self.kwargs[key]).strip()
 
       if "POST" in sources and key in self.request.POST:
-        return str(self.request.POST.get(key, default)).strip()
+        return str(request.POST.get(key, default)).strip()
 
       if "json" in sources and key in self.json_body:
         return self.json_body.get(key)
 
       if "GET" in sources and key in self.request.GET:
-        return str(self.request.GET.get(key, default)).strip()
+        return str(request.GET.get(key, default)).strip()
 
       if "headers" in sources and self._header_key(key) in self.request.META:
-        return self.request.META.get(self._header_key(key))
+        return request.META.get(self._header_key(key))
     except Exception as e:
       traceback.print_exc()
       self._add_message(_("Error fetching value: {}").format(e), "error")

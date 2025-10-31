@@ -423,10 +423,12 @@ class FilterMixin:
       return
     self.messages.add(message, level)
   
-  def _get_value_from_request(self, key, default=None, sources=None, silent=False):
+  def _get_value_from_request(self, key, default=None, sources=None, silent=False, request=None):
     if not hasattr(self, 'get_value_from_request'):
       if getattr(settings, 'DEBUG', False):
         print("get_value_from_request method not found in FilterMixin when trying to get key: {}".format(key))
-      return self.request.GET.get(key, default) if self.request else default
+      request = getattr(self, 'request', None) if request is None else request
+      if request:
+        return request.GET.get(key, default) if request else default
       return default
-    return self.get_value_from_request(key, default=default, sources=sources, silent=silent)
+    return self.get_value_from_request(key, default=default, sources=sources, silent=silent, request=request)

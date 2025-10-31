@@ -49,7 +49,7 @@ class meta_function:
     """
     Resolve and return the current value of the field associated with this object.
 
-    This method dynamically retrieves the value of ``self.field_name`` from the
+    This method dynamically retrieves the value of ``self.function_name`` from the
     model instance ``self.obj.obj``. It handles different types of field values:
     
     - **Direct fields**: Returns the field value directly.
@@ -121,7 +121,7 @@ class meta_function:
         )
         raise ValueError(
           _("error occurred while calling function '{}'{}")
-            .format(self.field_name, staff_message)
+            .format(self.function_name, staff_message)
             .capitalize()
         )
 
