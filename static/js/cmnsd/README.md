@@ -1,211 +1,230 @@
-# cmnsd JavaScript Framework
-![cmnsd.js](https://raw.githubusercontent.com/arnecoomans/cmnsd/refs/heads/main/static/img/cmnsd/cmnsd_js.png "cmnsd.js logo")
+# cmnsd JavaScript Framework — v2.0.0
 
-## Overview
-**cmnsd** is a lightweight modular JavaScript framework for Django-based projects.  
-It provides AJAX-driven interactions, autosuggest inputs, and declarative HTML actions using data attributes.
+Lightweight modular JavaScript framework for Django-based applications.  
+Provides unified handling for AJAX requests, dynamic DOM updates, autosuggest fields, and contextual message rendering.
 
 ---
 
-## Core Features
-1. **Action Triggers** – Perform AJAX calls or client-side actions via `data-action`.
-2. **Autosuggest Inputs** – Fetch dynamic suggestions from a remote or local source.
-3. **Utility Extensions** – Clipboard copy, message rendering, and content updates.
+## 🧩 Overview
+
+cmnsd enables declarative AJAX and UI interaction directly through HTML `data-*` attributes.  
+It is built around the following components:
+
+| Module | Purpose |
+|--------|----------|
+| `core.js` | Framework initialization, global config, debugging |
+| `http.js` | Wrapper around `fetch()` for JSON GET/POST/PATCH/DELETE |
+| `dom.js` | Safe DOM insertion, update, and event delegation |
+| `loader.js` | Batch content loading via one JSON payload |
+| `actions.js` | Delegated AJAX handling and clipboard actions |
+| `messages.js` | Bootstrap-compatible message display |
+| `autosuggest.js` | Dynamic and local autosuggest support |
 
 ---
 
-## 1️⃣ Action Triggers
+## ⚙️ Initialization
 
-Use `data-action` attributes to define interactive buttons, links, or forms that trigger AJAX actions or other client-side behaviors.
+```js
+import cmnsd from "/static/js/cmnsd/index.js";
+import { initAutosuggest } from "/static/js/cmnsd/autosuggest.js";
 
-### Example: AJAX Call
+cmnsd.init({
+  baseURL: '',
+  debug: true,
+  messages: { container: '#messages', dismissible: true, clearBefore: false, max: 5 },
+  actions: { autoBind: true }
+});
+
+// Optional autosuggest initialization
+initAutosuggest();
+```
+
+---
+
+## 🧠 Core Concepts
+
+### 1. AJAX Actions
+
+Elements with `data-action` trigger asynchronous requests or special operations.
+
+#### Example: Standard AJAX update
+
 ```html
 <button
-  class="btn btn-danger"
   data-action
-  data-method="DELETE"
-  data-url="/json/location/123-camping-les-cols/"
-  data-confirm="Are you sure?"
-  data-refresh-url="/json/location/list/"
-  data-refresh-map='{"list":"#location-list"}'
-  data-refresh-mode="update"
->
-  Delete Location
+  data-url="/json/location/1/update/"
+  data-method="PATCH"
+  data-params='{"status":"active"}'
+  data-map='{"details":"#details"}'>
+  Update
 </button>
 ```
 
-### Example: Copy to Clipboard
+#### Example: Form with AJAX submit
+
 ```html
-<button
-  class="btn btn-outline-primary"
-  data-action="copy"
-  data-text="https://example.com/invite"
-  data-message="Link copied to clipboard!"
->
-  Copy link
+<form
+  data-action
+  data-method="POST"
+  data-body="form"
+  data-map='{"comments":"#comments"}'>
+  <input name="comment" type="text" placeholder="Write comment...">
+  <button type="submit" class="btn btn-primary">Send</button>
+</form>
+```
+
+#### Example: Copy to clipboard
+
+```html
+<button data-action="copy" data-text="Hello world" data-message="Copied!">
+  Copy text
 </button>
 
-<!-- Or copy from another element -->
-<pre id="invite-code">ABC-123</pre>
-<button
-  class="btn btn-outline-secondary"
-  data-action="copy"
-  data-clipboard-target="#invite-code"
-  data-message="Copied code!"
->
-  Copy Code
+<pre id="snippet">console.log("Example");</pre>
+<button data-action="copy" data-clipboard-target="#snippet">
+  Copy code
 </button>
 ```
 
 ---
 
-## 2️⃣ Autosuggest Inputs
+### 2. Autosuggest
 
-Autosuggest allows smart text fields that fetch or filter data dynamically.
+The autosuggest system binds to any input with `data-autosuggest`.  
+It supports both remote (AJAX) and local (embedded JSON) suggestion sources.
 
-### Remote Example
+#### Example: Remote
+
 ```html
 <input
   type="text"
-  class="form-control"
-  placeholder="Search tags..."
   data-autosuggest
   data-url="/json/tags/"
   data-param="q"
-  data-container="tags"
   data-field-input="name"
   data-field-hidden="slug"
-  data-display-fields="name,description"
-/>
+  data-container="tag"
+  placeholder="Type to search...">
 ```
 
-### Local Example
+#### Example: Local list
+
 ```html
 <input
   type="text"
-  class="form-control"
-  placeholder="Select user..."
   data-autosuggest
-  data-local-source='[{"id":1,"name":"Alice"},{"id":2,"name":"Bob"}]'
+  data-local-source='[{"slug":"alice","name":"Alice"},{"slug":"bob","name":"Bob"}]'
   data-field-input="name"
-  data-field-hidden="id"
-  data-min="0"
-  data-allow-create="0"
-/>
+  data-field-hidden="slug"
+  placeholder="Search user...">
 ```
 
-### Search Mode Example
+#### Example: Follow URL on click
+
 ```html
 <input
   type="text"
-  class="form-control"
-  placeholder="Search locations..."
   data-autosuggest
   data-url="/json/locations/"
-  data-param="q"
-  data-search-mode="true"
-  data-min="1"
-/>
+  data-onclick-follow="url">
+```
+
+#### Example: Multi-field display
+
+```html
+<input
+  type="text"
+  data-autosuggest
+  data-url="/json/links/"
+  data-display-fields="name,url"
+  data-display-secondary-size="0.8">
+```
+
+#### Example: Autosuggest with search restrictions
+
+```html
+<input
+  type="text"
+  data-autosuggest
+  data-url="/json/locations/"
+  data-min="2"
+  data-allow-create="0">
 ```
 
 ---
 
-## 3️⃣ Message Handling
+### 3. Messages
 
-Messages from server or client-side events are shown using Bootstrap-style alerts.
+Server messages are normalized and displayed in a configurable container.
 
-### Example Backend Response
+#### Example response
 ```json
 {
   "messages": [
-    {"level": "success", "message": "Tag added successfully!"}
+    {"level": "success", "message": "Item saved."},
+    {"level": "warning", "message": "Some fields were skipped."}
   ]
 }
 ```
 
-### Example Display
-```
-✅ Tag added successfully!
-```
-
----
-
-## Supported Attributes
-
-| Attribute | Module | Description |
-|------------|----------|-------------|
-| `data-action` | actions.js | Declares element as actionable trigger |
-| `data-method` | actions.js | HTTP method (GET, POST, PATCH, DELETE) |
-| `data-url` | actions.js | AJAX endpoint URL |
-| `data-confirm` | actions.js | Confirmation prompt before request |
-| `data-map` | actions.js | Maps payload keys to DOM targets |
-| `data-refresh-url` | actions.js | Follow-up fetch after success |
-| `data-action="copy"` | actions.js | Copies text or target content to clipboard |
-| `data-autosuggest` | autosuggest.js | Enables autosuggest behavior |
-| `data-local-source` | autosuggest.js | Inline JSON for local suggestions |
-| `data-display-fields` | autosuggest.js | Fields to display in dropdown |
-| `data-onclick-follow="url"` | autosuggest.js | Follows suggestion URL when clicked |
-
----
-
-## Example Combined Form
+#### Bootstrap message container
 
 ```html
-<form
-  action="/json/location/1-camping-les-cols/tags/"
-  data-action
-  data-method="POST"
-  data-body="form"
-  data-map='{"tags":"#tags"}'
->
-  <input
-    type="text"
-    class="form-control"
-    placeholder="Add tag..."
-    data-autosuggest
-    data-url="/json/tags/"
-    data-param="q"
-    data-container="tags"
-    data-field-input="name"
-    data-field-hidden="slug"
-  >
-  <button type="submit" class="btn btn-primary mt-2">Add</button>
-</form>
-```
-
-This form:
-- Provides autosuggest for tags.  
-- Submits via AJAX.  
-- Updates `#tags` on success.  
-- Shows messages.
-
----
-
-## File Overview
-```
-cmnsd/
-├── actions.js        # Handles data-action logic and AJAX
-├── autosuggest.js    # Local + remote autosuggest overlay
-├── core.js           # Main initializer
-├── dom.js            # DOM update utilities
-├── http.js           # AJAX with CSRF support
-├── loader.js         # Maps payloads to DOM
-├── messages.js       # Bootstrap message rendering
-├── index.js          # Entry point
+<div id="messages" class="position-fixed top-0 w-100 p-3"></div>
 ```
 
 ---
 
-## Events
+## 🧱 Data Attribute Reference
 
-| Event | Description |
-|--------|-------------|
-| `cmnsd:autosuggest:shown` | Autosuggest dropdown shown |
-| `cmnsd:autosuggest:hidden` | Autosuggest dropdown hidden |
-| `cmnsd:autosuggest:selected` | Suggestion clicked |
-| `cmnsd:autosuggest:positioned` | Dropdown positioned |
+| Attribute | Default | Applies to | Description |
+|------------|----------|-------------|-------------|
+| **`data-action`** | – | button, form, link | Enables AJAX or special action handling |
+| **`data-url`** | – | all | Target URL for AJAX request |
+| **`data-method`** | `POST` | all | HTTP method (`GET`, `POST`, `PATCH`, `DELETE`) |
+| **`data-params`** | – | all | JSON or querystring params |
+| **`data-map`** | – | all | Maps payload keys to DOM selectors |
+| **`data-body`** | – | form | Defines body type: `"form"` or JSON string |
+| **`data-disable`** | – | all | Temporarily disables element during request |
+| **`data-confirm`** | – | all | Optional confirm dialog before request |
+| **`data-refresh-url`** | – | all | Secondary request triggered after completion |
+| **`data-refresh-map`** | – | all | Map for refresh content |
+| **`data-refresh-mode`** | `update` | all | How refreshed data is applied (`insert` or `update`) |
+| **`data-autosuggest`** | – | input | Enables autosuggest on this field |
+| **`data-url`** | – | input | Source URL for suggestions |
+| **`data-param`** | `q` | input | Query parameter name |
+| **`data-extra-params`** | – | input | JSON-encoded extra parameters |
+| **`data-local-source`** | – | input | JSON array for local suggestions |
+| **`data-field-input`** | `name` | input | Name for submitted visible field |
+| **`data-field-hidden`** | `slug` | input | Name for submitted hidden value |
+| **`data-container`** | – | input | Optional payload subkey |
+| **`data-min`** | `2` | input | Min characters before fetch |
+| **`data-debounce`** | `300` | input | Delay before fetch in ms |
+| **`data-allow-create`** | `1` | input | Whether custom text can be submitted |
+| **`data-onclick-follow`** | – | input | Follow `url` on suggestion click |
+| **`data-display-fields`** | `name` | input | Comma-separated list of fields to show |
+| **`data-display-secondary-size`** | `0.8` | input | Font scale for secondary display fields |
+| **`data-message`** | `"Copied to clipboard."` | copy action | Custom message for clipboard |
+| **`data-text`** | – | copy action | Direct text to copy |
+| **`data-clipboard-target`** | – | copy action | Selector of element whose text/value to copy |
 
 ---
 
-## License
-MIT License — © 2025 Arne Coomans
+## 🧩 Events
+
+| Event | Triggered when | Detail payload |
+|--------|----------------|----------------|
+| `cmnsd:content:applied` | New content inserted or replaced | `{ container: HTMLElement }` |
+| `cmnsd:autosuggest:selected` | Suggestion selected | `{ host, item }` |
+| `cmnsd:autosuggest:shown` | Suggestions rendered | `{ host }` |
+| `cmnsd:autosuggest:hidden` | Suggestions cleared | `{ host }` |
+| `cmnsd:autosuggest:positioned` | Dropdown repositioned | `{ host }` |
+
+---
+
+## 🧾 License & Credits
+
+Developed as part of the **cmnsd** project by Arne Coomans.  
+All code and documentation generated collaboratively with OpenAI ChatGPT.
+
+---
