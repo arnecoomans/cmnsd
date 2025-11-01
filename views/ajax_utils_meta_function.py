@@ -103,15 +103,12 @@ class meta_function:
       try:
         # Attempt to call with `request` if function supports it
         try:
-          print("A")
           value = value(request=self.request)
         except TypeError as e:
           # Retry without request if it’s not accepted
           if "unexpected keyword argument 'request'" in str(e):
-            print("B")
             value = value()
           else:
-            print("C")
             raise e
       except Exception as e:
         staff_message = (

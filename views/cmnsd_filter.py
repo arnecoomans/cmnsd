@@ -5,6 +5,7 @@ from django.utils.translation import gettext_lazy as _
 from django.conf import settings
 from django.db.models.constants import LOOKUP_SEP
 from django.core.exceptions import FieldDoesNotExist
+import traceback
 
 import logging
 from typing import Iterable
@@ -12,17 +13,11 @@ import traceback
 
 class FilterMixin:
   def filter(self, queryset, request=None, suppress_search=False, allow_staff=False):
-    self.request = getattr(self, 'request', None)
-    if not self.request and request:
-      self.request = request
+    self.request = getattr(self, 'request', request)
     model = queryset.model
     search_query_char = getattr(settings, 'SEARCH_QUERY_CHARACTER', 'q')
     search_exclude_char = getattr(settings, 'SEARCH_EXCLUDE_CHARACTER', 'exclude')
     search_fields = self.__get_search_fields(model)
-
-    # if len(search_fields) > 0 and self._get_value_from_request(search_query_char, default=False, silent=True) and self._get_value_from_request(search_exclude_char, default=False, silent=True):
-    #   # Only apply search filters if there are searchable fields or a search query is provided
-    #   suppress_search = True
     
     try:
       ''' Apply model specific access restrictions '''
@@ -99,7 +94,13 @@ class FilterMixin:
   '''
   def __get_search_fields(self, model):
     request_fields = self.__get_searched_fields_from_request()
-    model_fields = [field.name for field in model._meta.get_fields()]
+    # model_fields = [field.name for field in model._meta.get_fields()]
+    if hasattr(model, 'get_searchable_fields'):
+      model_fields = model.get_searchable_fields()
+    elif hasattr(model, 'get_model_fields'):
+      model_fields = model.get_model_fields()
+    else:
+      model_fields = [field.name for field in model._meta.get_fields()]
     query_fields = []
     for field in request_fields:
       field = field.replace('.', '__')
@@ -291,9 +292,23 @@ class FilterMixin:
         queryset = self.__search_queryset(queryset.model, queryset, field, value)
     return queryset.distinct()
 
-
   def __search_queryset(self, model, queryset, field_name, value):
-    """Internal helper that filters queryset for a single field path and value."""
+    """Internal helper that filters queryset for a single field path and value.
+
+    This method extends the default search logic with:
+      - Secure field validation via ``__field_is_secure``.
+      - Parent relation lookup inclusion when present.
+      - Iterable/callable fallback for pseudo-fields that are not real model fields.
+
+    Args:
+      model (Model): The model class to search within.
+      queryset (QuerySet): The current queryset to filter.
+      field_name (str): The lookup or pseudo-field name.
+      value (str): The search term or comma-separated values.
+
+    Returns:
+      QuerySet: The filtered queryset (possibly narrowed).
+    """
     # Secure field check
     last_field_name = field_name.split("__")[-1]
     if not self.__field_is_secure(last_field_name):
@@ -310,47 +325,93 @@ class FilterMixin:
     except (FieldDoesNotExist, AttributeError):
       return queryset.none()
 
+    # Try to get the actual field on the final model
     try:
       field = base_field._meta.get_field(last_field_name)
+      is_field = True
     except FieldDoesNotExist:
-      return queryset.none()
+      field = None
+      is_field = False
 
-    # Pick lookup
-    lookup_type = "icontains" if field.get_lookup("icontains") else "exact"
-    lookup = f"{field_name}__{lookup_type}"
-    filters = Q()
+    # Pick lookup type for field-based filtering
+    if is_field:
+      lookup_type = "icontains" if field.get_lookup("icontains") else "exact"
+      lookup = f"{field_name}__{lookup_type}"
+      filters = Q()
 
-    # Split comma-separated values into OR conditions
-    for v in [x.strip() for x in str(value).split(",") if x.strip()]:
-      filters |= Q(**{lookup: v})
+      # Split comma-separated values into OR conditions
+      for v in [x.strip() for x in str(value).split(",") if x.strip()]:
+        filters |= Q(**{lookup: v})
 
-    # Include parent lookup if applicable
-    try:
-      if any(f.name.lower() == "parent" for f in base_field._meta.get_fields()):
-        # Extract prefix (e.g., "descriptions__" from "descriptions__name")
-        parts = field_name.split("__")
-        prefix = "__".join(parts[:-1])
-        if prefix:
-          parent_lookup = f"{prefix}__parent__{last_field_name}__{lookup_type}"
-        else:
+      # Include parent lookup if applicable
+      try:
+        if any(f.name.lower() == "parent" for f in base_field._meta.get_fields()):
           parent_lookup = f"parent__{last_field_name}__{lookup_type}"
+          for v in [x.strip() for x in str(value).split(",") if x.strip()]:
+            filters |= Q(**{parent_lookup: v})
+      except Exception as e:
+        traceback.print_exc()
+        staff_message = (
+          ": " + str(e)
+          if getattr(settings, "DEBUG", False) or self.request.user.is_superuser
+          else ""
+        )
+        self.messages.add(
+          _("an error occurred while searching{}")
+            .capitalize()
+            .format(staff_message),
+          "error",
+        )
 
-        for v in [x.strip() for x in str(value).split(",") if x.strip()]:
-          filters |= Q(**{parent_lookup: v})
+      return queryset.filter(filters)
+
+    # --------------------------------------------------------------------------
+    # Fallback: handle pseudo-fields, callables, and iterable attributes
+    # --------------------------------------------------------------------------
+    results = []
+    try:
+      for obj in queryset:
+        attr = getattr(obj, last_field_name, None)
+
+        # Execute callable (methods or @property)
+        if callable(attr) and getattr(attr, "is_searchable", False):
+          try:
+            import inspect
+            sig = inspect.signature(attr)
+            if "request" in sig.parameters:
+              attr = attr(request=getattr(self, "request", None))
+            elif not sig.parameters:
+              attr = attr()
+          except Exception:
+            continue
+
+        # If the attribute is iterable, search within it
+        if hasattr(attr, "__iter__") and not isinstance(attr, (str, bytes)):
+          if any(str(value).lower() in str(item).lower() for item in attr):
+            results.append(obj)
+        elif attr is not None and str(value).lower() in str(attr).lower():
+          results.append(obj)
+
+      if results:
+        queryset = queryset.filter(pk__in=[obj.pk for obj in results])
+      else:
+        queryset = queryset.none()
 
     except Exception as e:
       traceback.print_exc()
       staff_message = (
         ": " + str(e)
-        if getattr(settings, "DEBUG", False) or getattr(self.request, "user", None) and self.request.user.is_superuser
+        if getattr(settings, "DEBUG", False) or self.request.user.is_superuser
         else ""
       )
-      self._add_message(
-        _("an error occurred while searching{}").capitalize().format(staff_message),
+      self.messages.add(
+        _("an error occurred while performing iterable search{}")
+          .capitalize()
+          .format(staff_message),
         "error",
       )
 
-    return queryset.filter(filters)
+    return queryset
 
   def exclude_results(self, queryset, exclude_character=None, **kwargs):
     """Exclude queryset entries dynamically via ?exclude=field:value.

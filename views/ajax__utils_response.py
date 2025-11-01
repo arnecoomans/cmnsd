@@ -154,7 +154,8 @@ class ResponseMixin:
     return str(getattr(self.obj, field).value())
 
   def render_field(self, field, format='html', context={}):
-    print("Rendering field:", field)
+    if getattr(settings, 'DEBUG', False) and self.request.user.is_staff:
+      print("Rendering field:", field)
     # Try to get field value from object or obj attribute
     try:
       value = getattr(self.obj, field, None)

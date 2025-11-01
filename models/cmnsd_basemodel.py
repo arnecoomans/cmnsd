@@ -4,6 +4,7 @@ from django.conf import settings
 from django.urls import reverse
 
 import string, secrets
+from inspect import getmembers, isfunction
 
 if 'django.contrib.sites' in settings.INSTALLED_APPS:
   from django.contrib.sites.models import Site
@@ -96,9 +97,29 @@ class BaseModel(models.Model):
   def __str__(self):
     return getattr(self, 'name', f"{self.__class__.__name__} ({self.pk})")
 
+  @classmethod
   def get_model_fields(self):
     return [f.name for f in self._meta.get_fields()]
+  
+  @classmethod
+  def get_searchable_fields(self):
+    """
+    Return a combined list of real field names and @searchable_function methods.
 
+    This includes:
+      - Model fields from _meta.get_fields()
+      - Methods decorated with @searchable_function
+
+    Returns:
+      list[str]: All searchable field and function names.
+    """
+    fields = [f.name for f in self._meta.get_fields()]
+    functions = [
+      name for name, func in getmembers(self, predicate=isfunction)
+      if getattr(func, "is_searchable", False)
+    ]
+    return fields + functions
+  
   class Meta:
     abstract = True
 
