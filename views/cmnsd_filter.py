@@ -139,6 +139,8 @@ class FilterStatusVisibilityMixin(FilterBaseMixin):
 class FilterSearchMixin(FilterBaseMixin):
   """Provides search and exclusion filtering."""
 
+  # --- Core field security --------------------------------------------------
+
   def __field_is_secure(self, field_name):
     blocked = ["password"] + getattr(settings, "SEARCH_BLOCKED_FIELDS", [])
     if field_name in blocked or field_name.startswith("_"):
@@ -148,6 +150,8 @@ class FilterSearchMixin(FilterBaseMixin):
       )
       return False
     return True
+
+  # --- Search entrypoint ----------------------------------------------------
 
   def search(self, queryset, suppress_search=False, allow_staff=False):
     """Main search entry point."""
@@ -175,6 +179,8 @@ class FilterSearchMixin(FilterBaseMixin):
 
     return queryset.distinct()
 
+  # --- Get searchable fields ------------------------------------------------
+
   def __get_search_fields(self, model):
     request_fields = self.__get_searched_fields_from_request()
     if hasattr(model, "get_searchable_fields"):
@@ -195,13 +201,87 @@ class FilterSearchMixin(FilterBaseMixin):
         fields.append(key)
     return fields
 
+  # --- Determine searchable field types ------------------------------------
+
+  def __get_searchable_fields(self, model):
+    """Return a list of all CharField/TextField paths usable for free-text search."""
+    fields = []
+    for field in model._meta.get_fields():
+      if isinstance(field, (CharField, TextField)):
+        if self.__field_is_secure(field.name):
+          fields.append(field.name)
+      elif isinstance(field, ManyToManyField):
+        related_model = field.remote_field.model
+        for related_field in related_model._meta.fields:
+          if isinstance(related_field, (CharField, TextField)):
+            if self.__field_is_secure(related_field.name):
+              fields.append(f"{field.name}__{related_field.name}")
+      elif field.name == "parent" and field.is_relation:
+        parent_model = field.related_model
+        for parent_field in parent_model._meta.fields:
+          if isinstance(parent_field, (CharField, TextField)):
+            if self.__field_is_secure(parent_field.name):
+              fields.append(f"parent__{parent_field.name}")
+    return fields
+
+  # --- Free-text search ----------------------------------------------------
+
   def filter_freetextsearch(self, queryset, query=None):
+    """Return queryset filtered by a free-text query using && and || syntax."""
     if not query:
       query = self._get_value_from_request(getattr(settings, "SEARCH_QUERY_CHARACTER", "q"), default=False, silent=True)
     if not query:
       return queryset
     q_obj = self.__build_search_query(query, queryset.model)
     return queryset.filter(q_obj).distinct()
+
+  def __build_q_for_term_group(self, terms, model):
+    """Build a Q object for a group of terms, all matching any searchable field."""
+    fields = self.__get_searchable_fields(model)
+    group_q = Q()
+    found = False
+    for field in fields:
+      field_q = Q()
+      for term in terms:
+        field_q &= Q(**{f"{field}__icontains": term})
+      if model.objects.filter(field_q).exists():
+        group_q |= field_q
+        found = True
+    return group_q if found else Q(pk__in=[])
+
+  def __build_search_query(self, query_string, model):
+    """Build a Q object for a free text search query.
+
+    Supports:
+      - ?q=foo&&bar (AND)
+      - ?q=foo||bar (OR)
+      - ?q=foo&&bar||baz (grouped)
+    """
+    if not query_string:
+      return Q()
+
+    query_string = (
+      query_string.lower()
+      .replace('__and__', '&&')
+      .replace('__or__', '||')
+      .replace(' and ', '&&')
+      .replace(' or ', '||')
+    )
+
+    q_obj = Q()
+    or_groups = [group.strip() for group in query_string.split('||') if group.strip()]
+    found_valid_group = False
+
+    for group in or_groups:
+      and_terms = [term.strip() for term in group.split('&&') if term.strip()]
+      group_q = self.__build_q_for_term_group(and_terms, model)
+      if model.objects.filter(group_q).exists():
+        q_obj |= group_q
+        found_valid_group = True
+
+    return q_obj if found_valid_group else Q(pk__in=[])
+
+  # --- Exclusion filtering -------------------------------------------------
 
   def exclude_results(self, queryset, exclude_character=None, **kwargs):
     logger = logging.getLogger(__name__)
@@ -228,6 +308,8 @@ class FilterSearchMixin(FilterBaseMixin):
         except Exception as ex:
           logger.debug(f"exclude_results: invalid {key}:{value} ({ex})")
     return queryset.distinct()
+
+  # --- Field search (structured) -------------------------------------------
 
   def search_results(self, queryset: QuerySet, search_fields: Iterable[str]) -> QuerySet:
     for field in search_fields:
@@ -266,7 +348,6 @@ class FilterSearchMixin(FilterBaseMixin):
       filters = Q()
       for v in [x.strip() for x in str(value).split(",") if x.strip()]:
         filters |= Q(**{lookup: v})
-
       try:
         if any(f.name.lower() == "parent" for f in base_field._meta.get_fields()):
           parent_lookup = f"parent__{last_field_name}__{lookup_type}"
@@ -274,10 +355,9 @@ class FilterSearchMixin(FilterBaseMixin):
             filters |= Q(**{parent_lookup: v})
       except Exception:
         pass
-
       return queryset.filter(filters)
 
-    # Callable fallback
+    # Callable fallback (e.g. @searchable_function)
     results = []
     try:
       for obj in queryset:
