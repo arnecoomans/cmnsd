@@ -321,10 +321,18 @@ class FilterSearchMixin(FilterBaseMixin):
     return queryset.distinct()
 
   def __search_queryset(self, model, queryset, field_name, value):
+    """Internal helper that filters queryset for a single field path and value.
+
+    Extends default search logic with:
+      - Secure field validation.
+      - Parent relation lookup (only when valid).
+      - Callable and iterable fallbacks.
+    """
     last_field_name = field_name.split("__")[-1]
     if not self.__field_is_secure(last_field_name):
       return queryset.none()
 
+    # Resolve the base model in the lookup chain
     base_field = model
     try:
       for part in field_name.split("__")[:-1]:
@@ -335,6 +343,7 @@ class FilterSearchMixin(FilterBaseMixin):
     except (FieldDoesNotExist, AttributeError):
       return queryset.none()
 
+    # Try to get the actual field on the resolved model
     try:
       field = base_field._meta.get_field(last_field_name)
       is_field = True
@@ -342,26 +351,52 @@ class FilterSearchMixin(FilterBaseMixin):
       field = None
       is_field = False
 
+    # --- Normal field-based filtering --------------------------------------
     if is_field:
       lookup_type = "icontains" if field.get_lookup("icontains") else "exact"
       lookup = f"{field_name}__{lookup_type}"
       filters = Q()
+
       for v in [x.strip() for x in str(value).split(",") if x.strip()]:
         filters |= Q(**{lookup: v})
+
+      # --- Include parent lookup if applicable (on the base related model) ---
       try:
-        if any(f.name.lower() == "parent" for f in base_field._meta.get_fields()):
-          parent_lookup = f"parent__{last_field_name}__{lookup_type}"
+        parent_field = base_field._meta.get_field("parent")
+        if getattr(parent_field, "is_relation", False):
+          # Insert 'parent' into lookup path correctly
+          if "__" in field_name:
+            prefix, _last = field_name.rsplit("__", 1)
+            parent_path = f"{prefix}__parent__{last_field_name}"
+          else:
+            parent_path = f"parent__{last_field_name}"
+          parent_lookup = f"{parent_path}__{lookup_type}"
+
           for v in [x.strip() for x in str(value).split(",") if x.strip()]:
             filters |= Q(**{parent_lookup: v})
-      except Exception:
+      except FieldDoesNotExist:
         pass
+      except Exception as e:
+        traceback.print_exc()
+        staff_message = (
+          ": " + str(e)
+          if getattr(settings, "DEBUG", False)
+          or getattr(getattr(self, "request", None), "user", None) and getattr(self.request.user, "is_superuser", False)
+          else ""
+        )
+        self._add_message(
+          _("an error occurred while searching{}").capitalize().format(staff_message), "error"
+        )
+
       return queryset.filter(filters)
 
-    # Callable fallback (e.g. @searchable_function)
+    # --- Callable or pseudo-field fallback ---------------------------------
     results = []
     try:
       for obj in queryset:
         attr = getattr(obj, last_field_name, None)
+
+        # If it’s a @searchable_function method, call it
         if callable(attr) and getattr(attr, "is_searchable", False):
           import inspect
           sig = inspect.signature(attr)
@@ -369,17 +404,22 @@ class FilterSearchMixin(FilterBaseMixin):
             attr = attr(request=getattr(self, "request", None))
           elif not sig.parameters:
             attr = attr()
+
+        # Search within iterable or direct value
         if hasattr(attr, "__iter__") and not isinstance(attr, (str, bytes)):
           if any(str(value).lower() in str(item).lower() for item in attr):
             results.append(obj)
         elif attr is not None and str(value).lower() in str(attr).lower():
           results.append(obj)
+
       if results:
         queryset = queryset.filter(pk__in=[obj.pk for obj in results])
       else:
         queryset = queryset.none()
+
     except Exception:
       traceback.print_exc()
+
     return queryset
 
 
