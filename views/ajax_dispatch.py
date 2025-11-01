@@ -98,9 +98,6 @@ class AjaxDispatch(MessageMixin, FilterMixin, RequestMixin, ResponseMixin, CrudR
     if id_types_supplied > 0 and id_types_supplied < 2:
       raise ValueError(_("at least two identifiers are required for object lookup").capitalize())
     self._verify_model()
-    # if not self.model:
-    #   # If an invalid model is passed, this will be caught in __detect_model above
-    #   raise ValueError(_("model is required for object lookup").capitalize())
     # Lookup object by two or more identifiers via meta_object class
     # Pass filtered queryset to meta_object to ensure security-measures are applied
     base_qs = self.model.model.objects.all()
