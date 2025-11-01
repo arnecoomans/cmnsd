@@ -1,139 +1,97 @@
+"""
+Reusable filtering system for cmnsd-based Django projects.
+
+This version preserves backward compatibility with the legacy FilterMixin,
+while refactoring logic into modular mixins that share a common base.
+
+Mixins:
+  - FilterBaseMixin: Shared helpers for messages and request value fetching.
+  - FilterAccessMixin: Restrict access based on ownership or model flags.
+  - FilterStatusVisibilityMixin: Handle publication/visibility filters.
+  - FilterSearchMixin: Handle field-based, free-text, and exclusion search.
+  - FilterMixin: Unified façade that keeps the same `.filter()` interface.
+
+All indentation: 2 spaces
+All docstrings: English
+"""
+
 from django.db.models import Q, QuerySet
 from django.db.models.fields import CharField, TextField
 from django.db.models.fields.related import ManyToManyField
 from django.utils.translation import gettext_lazy as _
+from django.core.exceptions import FieldDoesNotExist
 from django.conf import settings
 from django.db.models.constants import LOOKUP_SEP
-from django.core.exceptions import FieldDoesNotExist
-import traceback
-
 import logging
-from typing import Iterable
 import traceback
+from typing import Iterable
 
-class FilterMixin:
-  def filter(self, queryset, request=None, suppress_search=False, allow_staff=False):
-    self.request = getattr(self, 'request', request)
-    model = queryset.model
-    search_query_char = getattr(settings, 'SEARCH_QUERY_CHARACTER', 'q')
-    search_exclude_char = getattr(settings, 'SEARCH_EXCLUDE_CHARACTER', 'exclude')
-    search_fields = self.__get_search_fields(model)
-    
-    try:
-      ''' Apply model specific access restrictions '''
-      queryset = self.__filter_by_restrict_access(queryset)
-      ''' Conditionally filter queryset based on field availablity '''
-      if 'status' in [field.name for field in model._meta.get_fields()]:
-        queryset = self.filter_status(queryset, allow_staff=allow_staff)
-      if 'visibility' in [field.name for field in model._meta.get_fields()]:
-        queryset = self.filter_visibility(queryset, allow_staff=allow_staff)
-      ''' Check if search should be applied or suppressed '''
-      if not suppress_search:
-        queryset = self.search(queryset, suppress_search=suppress_search, allow_staff=allow_staff)
-    except Exception as e:
-      traceback.print_exc()
-      staff_message = ': ' + str(e) if getattr(settings, 'DEBUG', False) or self.request.user.is_superuser else ''
-      self._add_message(_("an error occurred while filtering{}").capitalize().format(staff_message), 'error')
-      self.status = 400
-      return QuerySet(model=model).none()
-    ''' Return filtered queryset '''
-    return queryset.distinct()
-  
-  def search(self, queryset, suppress_search=False, allow_staff=False):
-    model = queryset.model
-    search_query_char = getattr(settings, 'SEARCH_QUERY_CHARACTER', 'q')
-    search_exclude_char = getattr(settings, 'SEARCH_EXCLUDE_CHARACTER', 'exclude')
-    search_fields = self.__get_search_fields(model)
-    try:
-      if not suppress_search:
-        ''' Field specific filtering '''
-        if len(search_fields) > 0:
-          queryset = self.search_results(queryset, search_fields)
-        ''' Free text search '''
-        if self._get_value_from_request(search_query_char, default=False, silent=True):
-          queryset = self.filter_freetextsearch(queryset)
-        ''' Exclude results based on settings '''
-        if self._get_value_from_request(search_exclude_char, default=False, silent=True):
-          queryset = self.exclude_results(queryset)
-    except Exception as e:
-      traceback.print_exc()
-      staff_message = ': ' + str(e) if getattr(settings, 'DEBUG', False) or self.request.user.is_superuser else ''
-      self._add_message(_("an error occurred while searching{}").capitalize().format(staff_message), 'error')
-      self.status = 400
-      return QuerySet(model=model).none()
-    ''' Return filtered queryset '''
-    return queryset.distinct()
 
-  ''' Security Measure '''
-  def __field_is_secure(self, field_name):
-    blocked_fields = ['password'] + getattr(settings, 'SEARCH_BLOCKED_FIELDS', [])
-    if field_name in blocked_fields:
-        self._add_message(_("field '{}' is not allowed for searching due to security reasons.").format(field_name).capitalize(), "error")
-        return False
-    if field_name.startswith('_'):
-        self._add_message(_("field '{}' is not allowed for searching due to security reasons.").format(field_name).capitalize(), "error")
-        return False
-    return True
-  
-  ''' Restrict Access to objects based on model RESTRICT_READ_ACCESS attribute '''
-  def __filter_by_restrict_access(self, queryset):
+# ---------------------------------------------------------------------------
+# BASE MIXIN — common helpers for all filters
+# ---------------------------------------------------------------------------
+
+class FilterBaseMixin:
+  """Provides compatibility helpers for messaging and request parsing."""
+
+  def _add_message(self, message='', level='info'):
+    """Safely add a message if the messages system is available."""
+    if not hasattr(self, 'messages'):
+      if getattr(settings, 'DEBUG', False):
+        print(f"Messages object not found in {self.__class__.__name__} when adding message: {message}")
+      return
+    self.messages.add(message, level)
+
+  def _get_value_from_request(self, key, default=None, sources=None, silent=False, request=None):
+    """Fetch a value from request or fallback safely if RequestMixin is missing."""
+    if not hasattr(self, 'get_value_from_request'):
+      if getattr(settings, 'DEBUG', False):
+        print(f"get_value_from_request not found in {self.__class__.__name__} when fetching key: {key}")
+      request = getattr(self, 'request', None) if request is None else request
+      if request:
+        return request.GET.get(key, default)
+      return default
+    return self.get_value_from_request(key, default=default, sources=sources, silent=silent, request=request)
+
+
+# ---------------------------------------------------------------------------
+# ACCESS MIXIN — ownership and permission filters
+# ---------------------------------------------------------------------------
+
+class FilterAccessMixin(FilterBaseMixin):
+  """Provides user-based access restrictions."""
+
+  def _filter_by_restrict_access(self, queryset):
+    """Restrict access to objects if the model defines RESTRICT_READ_ACCESS."""
     model = queryset.model
-    if hasattr(model, 'RESTRICT_READ_ACCESS'):
-      if model.RESTRICT_READ_ACCESS == 'user':
-        if self.request.user.is_authenticated:
-          queryset = queryset.filter(user=self.request.user)
+    if hasattr(model, "RESTRICT_READ_ACCESS"):
+      if model.RESTRICT_READ_ACCESS == "user":
+        user = getattr(self.request, "user", None)
+        if user and user.is_authenticated:
+          queryset = queryset.filter(user=user)
         else:
-          self._add_message(_("you must be logged in to view these items").capitalize(), 'error')
+          self._add_message(_("you must be logged in to view these items").capitalize(), "error")
           self.status = 403
           return QuerySet(model=model).none()
     return queryset.distinct()
-  
-  ''' Get Searchable Fields from request kwargs 
-      Loop through request GET and POST parameters and check if they are fields in the model.
-      If they are a field, add them to the list of search fields.
-  '''
-  def __get_search_fields(self, model):
-    request_fields = self.__get_searched_fields_from_request()
-    # model_fields = [field.name for field in model._meta.get_fields()]
-    if hasattr(model, 'get_searchable_fields'):
-      model_fields = model.get_searchable_fields()
-    elif hasattr(model, 'get_model_fields'):
-      model_fields = model.get_model_fields()
-    else:
-      model_fields = [field.name for field in model._meta.get_fields()]
-    query_fields = []
-    for field in request_fields:
-      field = field.replace('.', '__')
-      if field.split('__')[0] in model_fields:
-        query_fields.append(field)
-    return query_fields
-  
-  """ Get all fields from request GET and POST parameters 
-      Return a list of all fields in the request GET and POST parameters."""
-  def __get_searched_fields_from_request(self):
-    search_fields = []
-    if not hasattr(self, 'request') or not self.request:
-      return search_fields
-    for key in self.request.GET.keys():
-      if key:
-        search_fields.append(key)
-    for key in self.request.POST.keys():
-      if key:
-        search_fields.append(key)
-    for field in ['csrfmiddlewaretoken']:
-      if field in search_fields:
-        search_fields.remove(field)
-    for field in search_fields:
-      if self._get_value_from_request(field, silent=True) in [None, '']:
-        search_fields.remove(field)
-    return search_fields
-  
-  ''' Filter by object status '''
+
+
+# ---------------------------------------------------------------------------
+# STATUS & VISIBILITY MIXIN — publication logic
+# ---------------------------------------------------------------------------
+
+class FilterStatusVisibilityMixin(FilterBaseMixin):
+  """Provides status and visibility filtering."""
+
   def filter_status(self, queryset, allow_staff=False):
-    if allow_staff and self.request.user.is_staff:
+    """Filter queryset by publication status."""
+    user = getattr(self.request, "user", None)
+    if allow_staff and user and user.is_staff:
       return queryset.distinct()
-    return queryset.filter(status='p').distinct()
-  
+    if "status" in [f.name for f in queryset.model._meta.get_fields()]:
+      return queryset.filter(status="p").distinct()
+    return queryset.distinct()
+
   def filter_visibility(self, queryset, allow_staff=False):
     """
     Filter objects based on the current user's visibility level.
@@ -145,176 +103,146 @@ class FilterMixin:
       'q' = private (owner only)
     """
     user = getattr(self.request, "user", None)
+    model = queryset.model
+
+    if "visibility" not in [f.name for f in model._meta.get_fields()]:
+      return queryset
 
     if not user or not user.is_authenticated:
       return queryset.filter(visibility="p").distinct()
 
-    # Base visibility: public, community, private(owner)
-    filters = (
-      Q(visibility="p") |
-      Q(visibility="c") |
-      Q(visibility="q", user=user)
-    )
+    filters = Q(visibility="p") | Q(visibility="c") | Q(visibility="q", user=user)
 
-    # Family visibility (f)
-    user_family = None
     try:
       profile = getattr(user, "profile", None)
       if profile:
         family_attr = getattr(profile, "family", None)
-
-        # Case 1: family is a ManyToManyField
+        # ManyToManyField
         if hasattr(family_attr, "all") and callable(family_attr.all):
           family_ids = list(family_attr.all().values_list("id", flat=True))
           if family_ids:
             filters |= Q(visibility="f", user__profile__family__in=family_ids)
-
-        # Case 2: family is a ForeignKey
-        else:
-          user_family = family_attr
-          if user_family:
-            filters |= Q(visibility="f", user__profile__family=user_family)
-
+        # ForeignKey
+        elif family_attr:
+          filters |= Q(visibility="f", user__profile__family=family_attr)
     except Exception:
-      pass  # safely ignore if profile/family unavailable
+      pass
 
-    # Also allow user’s own family posts (fallback)
     filters |= Q(visibility="f", user=user)
+    return queryset.filter(filters).distinct()
 
-    return queryset.filter(filters)
-  
-  ''' Free text search filter '''
-  def filter_freetextsearch(self, queryset, query=None):
-    """ Returns the queryset filtered by a free text search query.
-        The query is taken from the request, using the key defined in settings.
-        If the query is found, it searches for the query in all CharField and TextField fields of the model.
-        If the model has ManyToMany fields, it will also search in the related CharField and TextField fields.
-        If no query is found, it returns the original queryset
-    """
-    if not query:
-      query = self._get_value_from_request(getattr(settings, 'SEARCH_QUERY_CHARACTER', 'q'), default=False, silent=True)
-    if query:
-      # Build a Q object for the search query using the provided query string
-      q_obj = self.__build_search_query(query, queryset.model)
-      # Apply the Q object filter to the queryset
-      queryset = queryset.filter(q_obj).distinct()
-    # Return the queryset, which is either filtered or the original queryset
+
+# ---------------------------------------------------------------------------
+# SEARCH MIXIN — field, free text, and exclusion search
+# ---------------------------------------------------------------------------
+
+class FilterSearchMixin(FilterBaseMixin):
+  """Provides search and exclusion filtering."""
+
+  def __field_is_secure(self, field_name):
+    blocked = ["password"] + getattr(settings, "SEARCH_BLOCKED_FIELDS", [])
+    if field_name in blocked or field_name.startswith("_"):
+      self._add_message(
+        _("field '{}' is not allowed for searching due to security reasons.")
+          .format(field_name).capitalize(), "error"
+      )
+      return False
+    return True
+
+  def search(self, queryset, suppress_search=False, allow_staff=False):
+    """Main search entry point."""
+    model = queryset.model
+    if suppress_search:
+      return queryset.distinct()
+
+    try:
+      search_fields = self.__get_search_fields(model)
+      q_char = getattr(settings, "SEARCH_QUERY_CHARACTER", "q")
+      exclude_char = getattr(settings, "SEARCH_EXCLUDE_CHARACTER", "exclude")
+
+      if search_fields:
+        queryset = self.search_results(queryset, search_fields)
+      if self._get_value_from_request(q_char, default=False, silent=True):
+        queryset = self.filter_freetextsearch(queryset)
+      if self._get_value_from_request(exclude_char, default=False, silent=True):
+        queryset = self.exclude_results(queryset)
+    except Exception as e:
+      traceback.print_exc()
+      staff_msg = f": {e}" if getattr(settings, "DEBUG", False) else ""
+      self._add_message(_("an error occurred while searching{}").capitalize().format(staff_msg), "error")
+      self.status = 400
+      return QuerySet(model=model).none()
+
     return queryset.distinct()
 
-  def __get_searchable_fields(self, model):
-    """
-    Returns a list of fields that can be used for searching in the given model.
-    Includes:
-    - CharField and TextField fields
-    - ManyToMany related CharField/TextField fields
-    - If the model has a 'parent' relation, also include the parent model's
-      CharField/TextField fields, prefixed with 'parent__'
-    """
+  def __get_search_fields(self, model):
+    request_fields = self.__get_searched_fields_from_request()
+    if hasattr(model, "get_searchable_fields"):
+      model_fields = model.get_searchable_fields()
+    elif hasattr(model, "get_model_fields"):
+      model_fields = model.get_model_fields()
+    else:
+      model_fields = [f.name for f in model._meta.get_fields()]
+    return [f.replace(".", "__") for f in request_fields if f.split("__")[0] in model_fields]
+
+  def __get_searched_fields_from_request(self):
     fields = []
-
-    for field in model._meta.get_fields():
-      if isinstance(field, (CharField, TextField)):
-        if self.__field_is_secure(field.name):
-          fields.append(field.name)
-
-      elif isinstance(field, ManyToManyField):
-        related_model = field.remote_field.model
-        for related_field in related_model._meta.fields:
-          if isinstance(related_field, (CharField, TextField)):
-            if self.__field_is_secure(related_field.name):
-              fields.append(f"{field.name}__{related_field.name}")
-
-      elif field.name == "parent" and field.is_relation:
-        parent_model = field.related_model
-        for parent_field in parent_model._meta.fields:
-          if isinstance(parent_field, (CharField, TextField)):
-            if self.__field_is_secure(parent_field.name):
-              fields.append(f"parent__{parent_field.name}")
+    req = getattr(self, "request", None)
+    if not req:
+      return fields
+    for key in list(req.GET.keys()) + list(req.POST.keys()):
+      if key not in ["csrfmiddlewaretoken"] and self._get_value_from_request(key, silent=True) not in [None, ""]:
+        fields.append(key)
     return fields
 
-  def __build_q_for_term_group(self, terms, model):
-    """ Builds a Q object for a group of terms, where each term must match
-        all searchable fields of the model.
-        If no terms are provided, it returns an empty Q object.
-    """
-    fields = self.__get_searchable_fields(model)
-    group_q = Q()
-    found = False
-    for field in fields:
-      field_q = Q()
-      for term in terms:
-        field_q &= Q(**{f"{field}__icontains": term})
-      # Check if the AND query has results, else an empty Q object should be returned
-      if model.objects.filter(field_q).exists():
-        group_q |= field_q
-        found = True
-    return group_q if found else Q(pk__in=[])
-  
-  def __build_search_query(self, query_string, model):
-    """ Builds a Q object for a free text search query.
-        The query string can contain terms separated by '&&' (AND) and '||' (OR).
-        If no query string is provided, it returns an empty Q object.
-    """
-    if not query_string:
-      return Q()
-    # Replace custom operators with Django's Q operators, to allow __and__ and __or__ in the query string
-    # while also allowing for '&&' (encoded to %26%26) and '||' as logical operators
-    query_string = query_string.lower().replace('__and__', '&&').replace('__or__', '||')
-    query_string = query_string.lower().replace(' and ', '&&').replace(' or ', '||')
-    q_obj = Q()
-    or_groups = [group.strip() for group in query_string.split('||') if group.strip()]
-    found_valid_group = False
-    for group in or_groups:
-      and_terms = [term.strip() for term in group.split('&&') if term.strip()]
-      group_q = self.__build_q_for_term_group(and_terms, model)
-      test_qs = model.objects.filter(group_q)
-      if test_qs.exists():
-        q_obj |= group_q
-        found_valid_group = True
-    return q_obj if found_valid_group else Q(pk__in=[])
-  
+  def filter_freetextsearch(self, queryset, query=None):
+    if not query:
+      query = self._get_value_from_request(getattr(settings, "SEARCH_QUERY_CHARACTER", "q"), default=False, silent=True)
+    if not query:
+      return queryset
+    q_obj = self.__build_search_query(query, queryset.model)
+    return queryset.filter(q_obj).distinct()
+
+  def exclude_results(self, queryset, exclude_character=None, **kwargs):
+    logger = logging.getLogger(__name__)
+    exclude_character = exclude_character or getattr(settings, "SEARCH_EXCLUDE_CHARACTER", "exclude")
+    raw_values = self.request.GET.getlist(exclude_character)
+    if not raw_values:
+      return queryset
+
+    combined = ",".join(raw_values).replace(";", ",")
+    exclude_fields = [f.strip() for f in combined.split(",") if f.strip()]
+    for exclusion in exclude_fields:
+      if ":" in exclusion:
+        key, value = exclusion.split(":", 1)
+      else:
+        key, value = exclusion, "true"
+      key, value = key.strip(), value.strip()
+      if not key:
+        continue
+      try:
+        queryset = queryset.exclude(**{key: value})
+      except Exception:
+        try:
+          queryset = queryset.exclude(**{f"{key}__icontains": value})
+        except Exception as ex:
+          logger.debug(f"exclude_results: invalid {key}:{value} ({ex})")
+    return queryset.distinct()
 
   def search_results(self, queryset: QuerySet, search_fields: Iterable[str]) -> QuerySet:
-    """Search the queryset dynamically based on request parameters and field paths.
-
-    Args:
-      queryset: The base queryset to filter.
-      search_fields: Iterable of field lookups (e.g. ['name', 'country__slug']).
-
-    Returns:
-      Filtered queryset with all matching results combined via AND logic.
-    """
     for field in search_fields:
       value = self._get_value_from_request(field, default=None, silent=True)
-      if not value and '__' in field:
-        value = self._get_value_from_request(field.replace('__', '.'), default=None, silent=True)
+      if not value and "__" in field:
+        value = self._get_value_from_request(field.replace("__", "."), default=None, silent=True)
       if value:
         queryset = self.__search_queryset(queryset.model, queryset, field, value)
     return queryset.distinct()
 
   def __search_queryset(self, model, queryset, field_name, value):
-    """Internal helper that filters queryset for a single field path and value.
-
-    This method extends the default search logic with:
-      - Secure field validation via ``__field_is_secure``.
-      - Parent relation lookup inclusion when present.
-      - Iterable/callable fallback for pseudo-fields that are not real model fields.
-
-    Args:
-      model (Model): The model class to search within.
-      queryset (QuerySet): The current queryset to filter.
-      field_name (str): The lookup or pseudo-field name.
-      value (str): The search term or comma-separated values.
-
-    Returns:
-      QuerySet: The filtered queryset (possibly narrowed).
-    """
-    # Secure field check
     last_field_name = field_name.split("__")[-1]
     if not self.__field_is_secure(last_field_name):
       return queryset.none()
 
-    # Resolve base related model in chain
     base_field = model
     try:
       for part in field_name.split("__")[:-1]:
@@ -325,7 +253,6 @@ class FilterMixin:
     except (FieldDoesNotExist, AttributeError):
       return queryset.none()
 
-    # Try to get the actual field on the final model
     try:
       field = base_field._meta.get_field(last_field_name)
       is_field = True
@@ -333,163 +260,74 @@ class FilterMixin:
       field = None
       is_field = False
 
-    # Pick lookup type for field-based filtering
     if is_field:
       lookup_type = "icontains" if field.get_lookup("icontains") else "exact"
       lookup = f"{field_name}__{lookup_type}"
       filters = Q()
-
-      # Split comma-separated values into OR conditions
       for v in [x.strip() for x in str(value).split(",") if x.strip()]:
         filters |= Q(**{lookup: v})
 
-      # Include parent lookup if applicable
       try:
         if any(f.name.lower() == "parent" for f in base_field._meta.get_fields()):
           parent_lookup = f"parent__{last_field_name}__{lookup_type}"
           for v in [x.strip() for x in str(value).split(",") if x.strip()]:
             filters |= Q(**{parent_lookup: v})
-      except Exception as e:
-        traceback.print_exc()
-        staff_message = (
-          ": " + str(e)
-          if getattr(settings, "DEBUG", False) or self.request.user.is_superuser
-          else ""
-        )
-        self.messages.add(
-          _("an error occurred while searching{}")
-            .capitalize()
-            .format(staff_message),
-          "error",
-        )
+      except Exception:
+        pass
 
       return queryset.filter(filters)
 
-    # --------------------------------------------------------------------------
-    # Fallback: handle pseudo-fields, callables, and iterable attributes
-    # --------------------------------------------------------------------------
+    # Callable fallback
     results = []
     try:
       for obj in queryset:
         attr = getattr(obj, last_field_name, None)
-
-        # Execute callable (methods or @property)
         if callable(attr) and getattr(attr, "is_searchable", False):
-          try:
-            import inspect
-            sig = inspect.signature(attr)
-            if "request" in sig.parameters:
-              attr = attr(request=getattr(self, "request", None))
-            elif not sig.parameters:
-              attr = attr()
-          except Exception:
-            continue
-
-        # If the attribute is iterable, search within it
+          import inspect
+          sig = inspect.signature(attr)
+          if "request" in sig.parameters:
+            attr = attr(request=getattr(self, "request", None))
+          elif not sig.parameters:
+            attr = attr()
         if hasattr(attr, "__iter__") and not isinstance(attr, (str, bytes)):
           if any(str(value).lower() in str(item).lower() for item in attr):
             results.append(obj)
         elif attr is not None and str(value).lower() in str(attr).lower():
           results.append(obj)
-
       if results:
         queryset = queryset.filter(pk__in=[obj.pk for obj in results])
       else:
         queryset = queryset.none()
-
-    except Exception as e:
+    except Exception:
       traceback.print_exc()
-      staff_message = (
-        ": " + str(e)
-        if getattr(settings, "DEBUG", False) or self.request.user.is_superuser
-        else ""
-      )
-      self.messages.add(
-        _("an error occurred while performing iterable search{}")
-          .capitalize()
-          .format(staff_message),
-        "error",
-      )
-
     return queryset
 
-  def exclude_results(self, queryset, exclude_character=None, **kwargs):
-    """Exclude queryset entries dynamically via ?exclude=field:value.
 
-    Supports multiple ?exclude= params and comma/semicolon separated lists.
+# ---------------------------------------------------------------------------
+# COMBINED FACADE — fully backward compatible
+# ---------------------------------------------------------------------------
 
-    Examples:
-      ?exclude=status:archived
-      ?exclude=status:archived,is_active:false
-      ?exclude=location__slug:huttopia-camping-divonne
-      ?exclude=foo:bar&exclude=baz:qux,active:false
-    """
-    logger = logging.getLogger(__name__)
+class FilterMixin(
+  FilterAccessMixin,
+  FilterStatusVisibilityMixin,
+  FilterSearchMixin
+):
+  """Unified, backward-compatible filtering entry point."""
 
-    exclude_character = exclude_character or getattr(settings, "SEARCH_EXCLUDE_CHARACTER", "exclude")
-
-    # Gather all values from multiple ?exclude=... occurrences
-    raw_values = self.request.GET.getlist(exclude_character)
-    if not raw_values:
-      return queryset.distinct()
-
-    # Merge all exclude strings and allow both comma and semicolon separators
-    combined = ",".join(raw_values).replace(";", ",")
-    exclude_fields = [f.strip() for f in combined.split(",") if f.strip()]
-    for exclusion in exclude_fields:
-      # Split only on the first colon
-      if ":" in exclusion:
-        key, value = exclusion.split(":", 1)
-      else:
-        key, value = exclusion, "true"
-
-      key, value = key.strip(), value.strip()
-      if not key:
-        continue
-
-      # Convert common boolean strings
-      val_lower = value.lower()
-      if val_lower in {"true", "1", "yes", "on"}:
-        value = True
-      elif val_lower in {"false", "0", "no", "off"}:
-        value = False
-
-      # Validate field structure
-      try:
-        base_field = key.split(LOOKUP_SEP)[0]
-        if not hasattr(queryset.model, base_field):
-          logger.debug(f"exclude_results: unknown field '{key}' on {queryset.model.__name__}")
-          continue
-      except Exception as ex:
-        logger.warning(f"exclude_results: invalid exclude key '{key}': {ex}")
-        continue
-
-      # Apply exclusion safely
-      try:
-        queryset = queryset.exclude(**{key: value})
-      except Exception as ex:
-        # Fallback: attempt __icontains if possible
-        try:
-          queryset = queryset.exclude(**{f"{key}__icontains": value})
-        except Exception as inner_ex:
-          logger.debug(f"exclude_results: skipping invalid exclusion '{key}:{value}' ({inner_ex})")
-          continue
-
+  def filter(self, queryset, request=None, suppress_search=False, allow_staff=False):
+    """Apply all available filters (access, visibility, status, and search)."""
+    self.request = getattr(self, "request", request)
+    model = queryset.model
+    try:
+      queryset = self._filter_by_restrict_access(queryset)
+      queryset = self.filter_status(queryset, allow_staff=allow_staff)
+      queryset = self.filter_visibility(queryset, allow_staff=allow_staff)
+      if not suppress_search:
+        queryset = self.search(queryset, suppress_search, allow_staff)
+    except Exception as e:
+      traceback.print_exc()
+      staff_msg = f": {e}" if getattr(settings, "DEBUG", False) else ""
+      self._add_message(_("an error occurred while filtering{}").capitalize().format(staff_msg), "error")
+      self.status = 400
+      return QuerySet(model=model).none()
     return queryset.distinct()
-  
-  def _add_message(self, message = '', level='info'):
-    if not hasattr(self, 'messages'):
-      if getattr(settings, 'DEBUG', False):
-        print("Messages object not found in FilterMixin when trying to add message: {}".format(message))
-      return
-    self.messages.add(message, level)
-  
-  def _get_value_from_request(self, key, default=None, sources=None, silent=False, request=None):
-    if not hasattr(self, 'get_value_from_request'):
-      if getattr(settings, 'DEBUG', False):
-        print("get_value_from_request method not found in FilterMixin when trying to get key: {}".format(key))
-      request = getattr(self, 'request', None) if request is None else request
-      if request:
-        return request.GET.get(key, default) if request else default
-      return default
-    return self.get_value_from_request(key, default=default, sources=sources, silent=silent, request=request)

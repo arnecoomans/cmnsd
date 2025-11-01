@@ -60,18 +60,19 @@ class RequestMixin:
     try:
       if "kwargs" in sources and key in getattr(self, "kwargs", {}):
         return str(self.kwargs[key]).strip()
+      if request:
+        if "POST" in sources and key in request.POST:
+          return str(request.POST.get(key, default)).strip()
 
-      if "POST" in sources and key in self.request.POST:
-        return str(request.POST.get(key, default)).strip()
+        if "json" in sources and key in self.json_body:
+          return self.json_body.get(key)
 
-      if "json" in sources and key in self.json_body:
-        return self.json_body.get(key)
+        if "GET" in sources and key in request.GET:
+          return str(request.GET.get(key, default)).strip()
 
-      if "GET" in sources and key in self.request.GET:
-        return str(request.GET.get(key, default)).strip()
-
-      if "headers" in sources and self._header_key(key) in self.request.META:
-        return request.META.get(self._header_key(key))
+        if "headers" in sources and self._header_key(key) in request.META:
+          return request.META.get(self._header_key(key))
+      
     except Exception as e:
       traceback.print_exc()
       self._add_message(_("Error fetching value: {}").format(e), "error")
