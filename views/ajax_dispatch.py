@@ -30,7 +30,7 @@ class AjaxDispatch(MessageMixin, FilterMixin, RequestMixin, ResponseMixin, CrudR
     
   def guess_modes(self):
     modes = {}
-    for mode in ['editable', 'add']:
+    for mode in getattr(settings, 'AJAX_MODES', ['editable', 'add']):
       # Ensure mode is set to False by default
       modes[mode] = False
       # Look for mode in GET or POST request data and set to True if found
