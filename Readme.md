@@ -42,14 +42,32 @@ Use $ python manage.py check to check if all elements are present in the configu
 ### Usage instructions
 @Todo
 
-## Configuration
-### Queryset
-- SEARCH_QUERY_CHARACTER = 'q'
-- SEARCH_EXCLUDE_CHARACTER = 'exclude'
-- SEARCH_BLOCKED_FIELDS = []
-### Json
-- JSON_BLOCKED_MODELS = []
-- JSON_PROTECTED_FIELDS = []
-- JSON_RENDER_REMOVE_NEWLINES =[]
+## Configuration in settings.py
+These configuration settings are expected by CMNSD. They will all have a default setting
 
+| Setting | Default Value | Suggestion or explenation|
+| --- | --- | --- |
+| SITE_NAME | 'Vakantieplanner DEVELOPMENT'
+| AJAX_BLOCKED_MODELS | [] | |
+| AJAX_DEFAULT_DATA_SOURCES | ['kwargs', 'GET', 'POST', 'json', 'headers'] | |
+| AJAX_PROTECTED_FIELDS | [] | |
+| AJAX_RESTRICTED_FIELDS | [] | |
+| AJAX_RENDER_REMOVE_NEWLINES | True | |
+| AJAX_ALLOW_FK_CREATION_MODELS | [] | ['comment'] |
+| AJAX_ALLOW_RELATED_CREATION_MODELS | [] | ['tag', 'visited in', 'list', 'list-location', 'description', 'link'] |
+| AJAX_MAX_DEPTH_RECURSION | 3 | Maximum depth for recursion in nested objects (ForeignKey, ManyToMany, OneToOne) creation, updates and lookups |
+| AJAX_MODES | ['editable', 'add'] | Will be added to context.ajax |
+| DEFAULT_MODEL_STATUS | 'p' | draft (d), published (p), revoked (r) or deleted (x) |
+| DEFAULT_MODEL_VISIBILITY | 'p' | private (q), family (f), community (c) or public (p) |
+| SEARCH_EXCLUDE_CHARACTER | 'exclude' | For url structure ?exclude=pk:1 |
+| SEARCH_MIN_LENGTH | 2 | |
+| SEARCH_QUERY_CHARACTER | 'q' | For url structure ?q=foo |
+
+## Model configuration
+| Setting | Default Value | Suggestion or explenation|
+| --- | --- | --- |
+| disallow_access_fields | [] | Do not allow ajax access to these fields |
+| restrict_access_fields | [] | Do not allow unauthenticated access to these fields |
+| ajax_template_name | | Default template name when rendering model |
+| 
 
