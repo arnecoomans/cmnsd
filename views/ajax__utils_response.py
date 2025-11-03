@@ -187,8 +187,8 @@ class ResponseMixin:
     ]
     # Prepend template list with model-specific field template if available
     try:
-      if hasattr(getattr(self.obj, field).related_model(), 'js_template_name') and getattr(self.obj, field).related_model().js_template_name:
-        template_names.insert(0, f'field/{ getattr(self.obj, field).related_model().js_template_name }.{ format }')
+      if hasattr(getattr(self.obj, field).related_model(), 'ajax_template_name') and getattr(self.obj, field).related_model().ajax_template_name:
+        template_names.insert(0, f'field/{ getattr(self.obj, field).related_model().ajax_template_name }.{ format }')
     except Exception:
       pass
     # Add date-specific template if field is a DateField or DateTimeField
