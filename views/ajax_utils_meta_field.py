@@ -120,7 +120,7 @@ class meta_field:
         _("access to field '{}' is blocked in configuration")
           .format(self.field_name).capitalize()
       )
-    if self.field_name:
+    if self.field_name in restricted_fields:
       request = getattr(self, 'request', False)
       if not request or not request.user.is_staff:
         raise PermissionDenied(
