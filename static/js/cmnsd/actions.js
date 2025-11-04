@@ -22,9 +22,8 @@ export function createActionBinder({
 }) {
   function safeJSON(s) {
     if (!s) return null;
-    try {
-      return JSON.parse(s);
-    } catch (err) {
+    try { return JSON.parse(s); }
+    catch (err) {
       console.warn('[cmnsd:json] invalid JSON', { val: s, err });
       return null;
     }
@@ -32,47 +31,22 @@ export function createActionBinder({
 
   function parseParams(val) {
     if (!val) return null;
-
-    // Try JSON first
     if (typeof val === 'string' && val.trim().startsWith('{')) {
-      try {
-        return JSON.parse(val);
-      } catch (err) {
-        console.warn('[cmnsd:params] invalid JSON, falling back', { val, err });
-      }
+      try { return JSON.parse(val); }
+      catch (err) { console.warn('[cmnsd:params] invalid JSON', { val, err }); }
     }
-
-    // Try querystring fallback
-    try {
-      return Object.fromEntries(new URLSearchParams(val));
-    } catch (err) {
-      console.warn('[cmnsd:params] invalid querystring', { val, err });
-      return null;
-    }
+    try { return Object.fromEntries(new URLSearchParams(val)); }
+    catch (err) { console.warn('[cmnsd:params] invalid querystring', { val, err }); return null; }
   }
 
   function applyFromExistingPayload(response, map, mode = 'update') {
     const data = response && response.payload ? response.payload : {};
     Object.entries(map || {}).forEach(([key, selector]) => {
-      if (!(key in data)) {
-        dbg('action:skip (missing key in payload)', { key });
-        return;
-      }
-      const el =
-        typeof selector === 'string'
-          ? document.querySelector(selector)
-          : selector;
-      if (!el) {
-        dbg('action:skip (no container found)', { key, selector });
-        return;
-      }
-
+      if (!(key in data)) { dbg('action:skip (missing key in payload)', { key }); return; }
+      const el = typeof selector === 'string' ? document.querySelector(selector) : selector;
+      if (!el) { dbg('action:skip (no container found)', { key, selector }); return; }
       try {
-        if (mode === 'insert') {
-          insert(el, data[key]);
-        } else {
-          update(el, data[key]);
-        }
+        mode === 'insert' ? insert(el, data[key]) : update(el, data[key]);
         dbg('action:applied', { key, selector, mode });
       } catch (err) {
         dbg('action:apply:error', { key, selector, err });
@@ -87,75 +61,31 @@ export function createActionBinder({
     const confirmMsg = el.dataset.confirm;
     if (confirmMsg && !window.confirm(confirmMsg)) return;
 
-    // 🧩 COPY-TO-CLIPBOARD HANDLER (isolated, non-AJAX)
-    if ((el.dataset.action || '').toLowerCase() === 'copy') {
-      const targetSel = el.dataset.clipboardTarget;
-      const directText = el.dataset.text;
-      let text = '';
-
-      if (directText) {
-        text = directText;
-      } else if (targetSel) {
-        const target = document.querySelector(targetSel);
-        if (target) {
-          text = target.innerText || target.value || '';
-        }
-      }
-
-      if (!text) {
-        renderMessages(
-          [{ level: 'warning', text: 'Nothing to copy.' }],
-          getConfig().messages
-        );
-        return;
-      }
-
-      try {
-        await navigator.clipboard.writeText(text);
-        const msg = el.dataset.message || 'Copied to clipboard.';
-        dbg('action:copy', { text });
-        renderMessages([{ level: 'success', text: msg }], getConfig().messages);
-      } catch (err) {
-        console.error('[cmnsd:copy] failed', err);
-        renderMessages(
-          [{ level: 'danger', text: 'Failed to copy to clipboard.' }],
-          getConfig().messages
-        );
-      }
-      return; // ✅ stop here; don't run AJAX logic
-    }
-
-    // 🧩 STANDARD AJAX ACTION HANDLER
     let url =
       el.dataset.url ||
       el.getAttribute('href') ||
       el.getAttribute('action') ||
       (el.form && el.form.action) ||
       '';
-    if (!url) {
-      dbg('action:missing-url', el);
-      return;
-    }
+    if (!url) { dbg('action:missing-url', el); return; }
 
     let method = (el.dataset.method || '').toUpperCase();
     if (!method) {
       const tag = el.tagName.toLowerCase();
-      method =
-        tag === 'a'
-          ? 'GET'
-          : tag === 'form'
-          ? el.getAttribute('method') || 'POST'
-          : 'POST';
+      method = tag === 'a'
+        ? 'GET'
+        : tag === 'form'
+        ? el.getAttribute('method') || 'POST'
+        : 'POST';
       method = method.toUpperCase();
     }
 
     const params = parseParams(el.dataset.params);
 
-    let body = undefined;
+    let body;
     const bodySpec = el.dataset.body;
     if (bodySpec === 'form') {
-      const form =
-        el.closest('form') || (el.tagName.toLowerCase() === 'form' ? el : null);
+      const form = el.closest('form') || (el.tagName.toLowerCase() === 'form' ? el : null);
       if (form) body = new FormData(form);
     } else if (bodySpec) {
       const parsed = safeJSON(bodySpec);
@@ -182,34 +112,21 @@ export function createActionBinder({
           const mode = el.dataset.mode === 'insert' ? 'insert' : 'update';
           dbg('action:distribute', { keys: Object.keys(map), mode });
           applyFromExistingPayload(res, map, mode);
-        } else {
-          dbg('action:map:invalid', mapStr);
-        }
+        } else dbg('action:map:invalid', mapStr);
       }
 
       if (el.dataset.refreshUrl) {
         const rUrl = el.dataset.refreshUrl;
         const rParams = parseParams(el.dataset.refreshParams);
         const rMap = safeJSON(el.dataset.refreshMap);
-        const rMode =
-          el.dataset.refreshMode === 'insert' ? 'insert' : 'update';
+        const rMode = el.dataset.refreshMode === 'insert' ? 'insert' : 'update';
         if (rMap && typeof rMap === 'object') {
-          await loadContent({
-            url: rUrl,
-            params: rParams,
-            map: rMap,
-            mode: rMode
-          });
-        } else {
-          dbg('action:refresh:missing-or-invalid-map', el.dataset.refreshMap);
-        }
+          await loadContent({ url: rUrl, params: rParams, map: rMap, mode: rMode });
+        } else dbg('action:refresh:missing-or-invalid-map', el.dataset.refreshMap);
       }
     } catch (err) {
       const context = url || el.getAttribute('action') || '(unknown)';
-      renderMessages(
-        [{ level: 'danger', text: `Action failed for ${context}` }],
-        getConfig().messages
-      );
+      renderMessages([{ level: 'danger', text: `Action failed for ${context}` }], getConfig().messages);
       dbg('action:error', { error: err, element: el, context });
       const cfg = getConfig();
       cfg.onError && cfg.onError(err);
@@ -221,23 +138,47 @@ export function createActionBinder({
   return function bindDelegatedActions(root) {
     const base = root || document;
 
-    // Handle click triggers (ignore forms with data-action)
-    base.addEventListener('click', (e) => {
+    // 🔹 AJAX actions
+    base.addEventListener('click', e => {
       const t = e.target.closest('[data-action]');
       if (!t || !base.contains(t)) return;
-
-      // ✅ Ignore forms here; let submit listener handle them
-      if (t.tagName.toLowerCase() === 'form') return;
-
+      if (t.tagName.toLowerCase() === 'form') return; // ignore forms here
       handleActionTrigger(e, t);
     });
 
-    // Handle form submissions
-    base.addEventListener('submit', (e) => {
+    // 🔹 AJAX forms
+    base.addEventListener('submit', e => {
       const form = e.target.closest('form[data-action]');
       if (!form || !base.contains(form)) return;
       if (!form.dataset.body) form.dataset.body = 'form';
       handleActionTrigger(e, form);
+    });
+
+    // 🔹 Copy-to-clipboard (standalone, no collision)
+    base.addEventListener('click', async e => {
+      const btn = e.target.closest('[data-copy]');
+      if (!btn || !base.contains(btn)) return;
+
+      const text =
+        btn.dataset.text ||
+        (btn.dataset.clipboardTarget
+          ? document.querySelector(btn.dataset.clipboardTarget)?.innerText || ''
+          : '');
+
+      if (!text) {
+        renderMessages([{ level: 'warning', text: 'Nothing to copy.' }], getConfig().messages);
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(text);
+        const msg = btn.dataset.message || 'Copied to clipboard.';
+        renderMessages([{ level: 'success', text: msg }], getConfig().messages);
+        dbg('clipboard:copied', { text });
+      } catch (err) {
+        renderMessages([{ level: 'danger', text: 'Failed to copy text.' }], getConfig().messages);
+        dbg('clipboard:error', err);
+      }
     });
 
     dbg('actions:bound', { root: base === document ? 'document' : base });
