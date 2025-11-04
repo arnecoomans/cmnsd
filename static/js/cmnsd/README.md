@@ -199,6 +199,7 @@ Server messages are normalized and displayed in a configurable container.
 | **`data-field-hidden`** | `slug` | input | Name for submitted hidden value |
 | **`data-container`** | – | input | Optional payload subkey |
 | **`data-min`** | `2` | input | Min characters before fetch |
+| **`data-force-unique`** | - | input | In the results, force unique results for this field |
 | **`data-debounce`** | `300` | input | Delay before fetch in ms |
 | **`data-allow-create`** | `1` | input | Whether custom text can be submitted |
 | **`data-onclick-follow`** | – | input | Follow `url` on suggestion click |

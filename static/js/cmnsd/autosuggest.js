@@ -42,9 +42,9 @@ function getOverlayRoot() {
     overlay.style.top = '0';
     overlay.style.left = '0';
     overlay.style.width = '100%';
-    overlay.style.height = '0'; // don't block layout
+    overlay.style.height = '0';
     overlay.style.zIndex = '3000';
-    overlay.style.pointerEvents = 'none'; // let clicks pass through when empty
+    overlay.style.pointerEvents = 'none';
     document.body.appendChild(overlay);
   }
   return overlay;
@@ -54,7 +54,8 @@ function setupInput(host) {
   if (host.dataset.autosuggestActive) return;
   host.dataset.autosuggestActive = '1';
 
-  const stray = ['action', 'method', 'map', 'body', 'disable', 'confirm', 'action'];
+  // Remove stray action-like attributes
+  const stray = ['action', 'method', 'map', 'body', 'disable', 'confirm'];
   stray.forEach(attr => {
     const key = 'data-' + attr;
     if (host.hasAttribute(key)) host.removeAttribute(key);
@@ -77,6 +78,7 @@ function setupInput(host) {
     .map(s => s.trim())
     .filter(Boolean);
   const secondaryScale = parseFloat(host.dataset.displaySecondarySize || '0.8');
+  const uniqueKey = host.dataset.forceUnique || null;
   const isSearchMode = host.dataset.searchMode === 'true';
 
   // Hidden fields
@@ -169,46 +171,57 @@ function setupInput(host) {
 
   async function fetchSuggestions(q) {
     try {
-      // --- Local source support ---
+      // Local data source
       if (localSource) {
         let listData = [];
-        try {
-          listData = JSON.parse(localSource);
-        } catch {
-          console.warn('[cmnsd:autosuggest] invalid JSON in data-local-source', host);
-          return;
-        }
+        try { listData = JSON.parse(localSource); }
+        catch { console.warn('[cmnsd:autosuggest] invalid data-local-source', host); return; }
 
         if (!Array.isArray(listData)) return clearList(true);
 
-        const results = listData.filter(item => {
+        let results = listData.filter(item => {
           const val = (typeof item === 'string' ? item : item[inputKey] || '').toLowerCase();
           return val.includes(q.toLowerCase());
         });
 
-        if (!results.length) {
-          clearList(true);
-          return;
+        // Apply uniqueness if needed
+        if (uniqueKey && Array.isArray(results)) {
+          const seen = new Set();
+          results = results.filter(item => {
+            const val = String(item?.[uniqueKey] || '').toLowerCase();
+            if (val && !seen.has(val)) { seen.add(val); return true; }
+            return false;
+          });
         }
+
+        if (!results.length) { clearList(true); return; }
         renderSuggestions(results);
         return;
       }
 
-      // --- Remote fetch ---
+      // Remote source
       const params = {};
       if (paramName) params[paramName] = q;
       if (host.dataset.extraParams) {
-        try {
-          Object.assign(params, JSON.parse(host.dataset.extraParams));
-        } catch (err) {
-          console.warn('[cmnsd:autosuggest] invalid data-extra-params JSON', err);
-        }
+        try { Object.assign(params, JSON.parse(host.dataset.extraParams)); }
+        catch (err) { console.warn('[cmnsd:autosuggest] invalid data-extra-params JSON', err); }
       }
+
       const res = await api.get(url, { params });
       let data = res?.payload || [];
 
       if (containerKey && data && typeof data === 'object') data = data[containerKey];
       if (data && !Array.isArray(data) && typeof data === 'object') data = Object.values(data);
+
+      // ✅ Apply case-insensitive uniqueness filter
+      if (uniqueKey && Array.isArray(data)) {
+        const seen = new Set();
+        data = data.filter(item => {
+          const val = String(item?.[uniqueKey] || '').toLowerCase();
+          if (val && !seen.has(val)) { seen.add(val); return true; }
+          return false;
+        });
+      }
 
       if (!Array.isArray(data) || !data.length) {
         clearList(true);
@@ -216,6 +229,7 @@ function setupInput(host) {
         updateValidity();
         return;
       }
+
       renderSuggestions(data);
     } catch (err) {
       console.warn('[cmnsd:autosuggest] fetch failed', err);
@@ -230,7 +244,7 @@ function setupInput(host) {
     itemsRef = [];
     positionList();
 
-    items.forEach((item, index) => {
+    items.forEach((item) => {
       const el = document.createElement('button');
       el.type = 'button';
       el.className = 'list-group-item list-group-item-action text-start';
@@ -311,7 +325,7 @@ function setupInput(host) {
     }
   });
 
-  // Input & focus behavior
+  // Input and focus
   let debounceTimer = null;
   host.addEventListener('input', () => {
     const q = host.value.trim();
@@ -347,11 +361,8 @@ function setupInput(host) {
 export function initAutosuggest(root = document) {
   const found = root.querySelectorAll('input[data-autosuggest]');
   found.forEach(el => {
-    try {
-      setupInput(el);
-    } catch (err) {
-      console.error('[cmnsd:autosuggest] setup failed for', el, err);
-    }
+    try { setupInput(el); }
+    catch (err) { console.error('[cmnsd:autosuggest] setup failed for', el, err); }
   });
 }
 
