@@ -106,9 +106,12 @@ class ResponseMixin:
   def render(self, field=None, template_names=[], format='html', context={}):
     ''' In-function configuration '''
     remove_newlines = getattr(settings, 'AJAX_RENDER_REMOVE_NEWLINES', False)
-    if isinstance(self.obj.model._meta.get_field(field), models.TextField):
-      # For TextField fields, do not remove newlines to preserve formatting
-      remove_newlines = False
+    try:
+      if isinstance(self.obj.model._meta.get_field(field), models.TextField):
+        # For TextField fields, do not remove newlines to preserve formatting
+        remove_newlines = False
+    except Exception:
+      pass
     ''' Add request and permissions to context '''
     context = context | {
       'ajax': getattr(self, 'modes', {'editable': False}),
