@@ -4,7 +4,7 @@
 import { api } from './http.js';
 
 /**
- * Sanitize limited inline HTML coming from server (e.g. <b>, <i>).
+ * Sanitize limited inline HTML (e.g. <b>, <i>).
  * Converts everything else to plain text.
  */
 function sanitizeHTML(input, allowedTags = ['B', 'STRONG', 'I', 'EM']) {
@@ -54,9 +54,8 @@ function setupInput(host) {
   if (host.dataset.autosuggestActive) return;
   host.dataset.autosuggestActive = '1';
 
-  // Remove stray action-like attributes
-  const stray = ['action', 'method', 'map', 'body', 'disable', 'confirm'];
-  stray.forEach(attr => {
+  // Clean stray action-like attributes
+  ['action', 'method', 'map', 'body', 'disable', 'confirm', 'action'].forEach(attr => {
     const key = 'data-' + attr;
     if (host.hasAttribute(key)) host.removeAttribute(key);
   });
@@ -68,7 +67,7 @@ function setupInput(host) {
   const debounceMs = parseInt(host.dataset.debounce || '300', 10);
   const paramName = host.dataset.param || 'q';
   const inputKey = host.dataset.fieldInput || 'name';
-  const hiddenKey = host.dataset.fieldHidden || 'slug';
+  const hiddenKey = host.dataset.fieldHidden || null; // optional
   const containerKey = host.dataset.container || null;
   const allowCreate = host.dataset.allowCreate !== '0';
   const prefix = host.dataset.fieldPrefix || '';
@@ -79,27 +78,29 @@ function setupInput(host) {
     .filter(Boolean);
   const secondaryScale = parseFloat(host.dataset.displaySecondarySize || '0.8');
   const uniqueKey = host.dataset.forceUnique || null;
+  const sourceKey = host.dataset.sourceField || inputKey;
   const isSearchMode = host.dataset.searchMode === 'true';
 
-  // Hidden fields
-  let hiddenVal = host.parentNode.querySelector(
-    `input[type="hidden"][name="${prefix}${hiddenKey}"]`
-  );
-  if (!hiddenVal) {
-    hiddenVal = document.createElement('input');
-    hiddenVal.type = 'hidden';
-    hiddenVal.name = prefix + hiddenKey;
-    host.parentNode.appendChild(hiddenVal);
-  }
+  // Hidden fields (optional)
+  let hiddenVal = null;
+  let hiddenName = null;
 
-  let hiddenName = host.parentNode.querySelector(
-    `input[type="hidden"][name="${prefix}${inputKey}"]`
-  );
-  if (!hiddenName) {
-    hiddenName = document.createElement('input');
-    hiddenName.type = 'hidden';
-    hiddenName.name = prefix + inputKey;
-    host.parentNode.appendChild(hiddenName);
+  if (hiddenKey) {
+    hiddenVal = host.parentNode.querySelector(`input[type="hidden"][name="${prefix}${hiddenKey}"]`);
+    if (!hiddenVal) {
+      hiddenVal = document.createElement('input');
+      hiddenVal.type = 'hidden';
+      hiddenVal.name = prefix + hiddenKey;
+      host.parentNode.appendChild(hiddenVal);
+    }
+
+    hiddenName = host.parentNode.querySelector(`input[type="hidden"][name="${prefix}${inputKey}"]`);
+    if (!hiddenName) {
+      hiddenName = document.createElement('input');
+      hiddenName.type = 'hidden';
+      hiddenName.name = prefix + inputKey;
+      host.parentNode.appendChild(hiddenName);
+    }
   }
 
   const overlayRoot = getOverlayRoot();
@@ -114,24 +115,23 @@ function setupInput(host) {
   let itemsRef = [];
 
   function dispatch(name, detail) {
-    const ev = new CustomEvent(name, { bubbles: true, detail });
-    (host || document).dispatchEvent(ev);
+    host.dispatchEvent(new CustomEvent(name, { bubbles: true, detail }));
   }
 
   function positionList() {
     const rect = host.getBoundingClientRect();
-    list.style.position = 'absolute';
     list.style.top = `${rect.bottom + window.scrollY}px`;
     list.style.left = `${rect.left + window.scrollX}px`;
     list.style.width = `${rect.width}px`;
-    dispatch('cmnsd:autosuggest:positioned', { host });
   }
 
-  const onScrollOrResize = () => {
+  window.addEventListener('scroll', () => {
     if (list.style.display === 'block') positionList();
-  };
-  window.addEventListener('scroll', onScrollOrResize, { passive: true });
-  window.addEventListener('resize', onScrollOrResize, { passive: true });
+  }, { passive: true });
+
+  window.addEventListener('resize', () => {
+    if (list.style.display === 'block') positionList();
+  }, { passive: true });
 
   function clearList(empty = false) {
     list.innerHTML = '';
@@ -139,27 +139,34 @@ function setupInput(host) {
     list.classList.toggle('empty', empty);
     activeIndex = -1;
     itemsRef = [];
-    if (!empty) dispatch('cmnsd:autosuggest:hidden', { host });
   }
 
+  /**
+   * Updated: allow override via data-autosuggest-allow-empty="1" on <form>
+   */
   function updateValidity() {
     const form = host.closest('form');
     if (!form) return;
-    const submitBtn = form.querySelector('[type=submit]');
-    if (!submitBtn) return;
+    const submit = form.querySelector('[type=submit]');
+    if (!submit) return;
 
-    const hasHidden = !!hiddenVal.value && host.value.trim() !== '';
+    // Allow opt-out via form flag
+    if (form.dataset.autosuggestAllowEmpty === '1') {
+      submit.disabled = false;
+      return;
+    }
+
+    const hasHidden = hiddenVal && !!hiddenVal.value && host.value.trim() !== '';
     const hasText = host.value.trim() !== '';
-
-    if (!allowCreate) submitBtn.disabled = !hasHidden;
-    else submitBtn.disabled = !hasText;
+    submit.disabled = !allowCreate ? !hasHidden : !hasText;
   }
 
   function syncFieldNames() {
+    if (!hiddenVal) return; // skip if no hidden field
     if (hiddenVal.value) {
       if (!isSearchMode) host.removeAttribute('name');
       hiddenVal.name = prefix + hiddenKey;
-      hiddenName.removeAttribute('name');
+      if (hiddenName) hiddenName.removeAttribute('name');
     } else if (host.value.trim() !== '') {
       host.name = isSearchMode ? 'q' : prefix + inputKey;
       hiddenVal.removeAttribute('name');
@@ -171,70 +178,59 @@ function setupInput(host) {
 
   async function fetchSuggestions(q) {
     try {
-      // Local data source
       if (localSource) {
         let listData = [];
         try { listData = JSON.parse(localSource); }
-        catch { console.warn('[cmnsd:autosuggest] invalid data-local-source', host); return; }
-
+        catch { return; }
         if (!Array.isArray(listData)) return clearList(true);
-
         let results = listData.filter(item => {
-          const val = (typeof item === 'string' ? item : item[inputKey] || '').toLowerCase();
+          const val = (typeof item === 'string' ? item : item[sourceKey] || '').toLowerCase();
           return val.includes(q.toLowerCase());
         });
-
-        // Apply uniqueness if needed
         if (uniqueKey && Array.isArray(results)) {
           const seen = new Set();
-          results = results.filter(item => {
-            const val = String(item?.[uniqueKey] || '').toLowerCase();
-            if (val && !seen.has(val)) { seen.add(val); return true; }
+          const keys = uniqueKey.split(',').map(k => k.trim());
+          results = results.filter(it => {
+            const combo = keys.map(k => String(it?.[k] || '').toLowerCase()).join('|');
+            if (!seen.has(combo)) { seen.add(combo); return true; }
             return false;
           });
         }
-
-        if (!results.length) { clearList(true); return; }
+        if (!results.length) return clearList(true);
         renderSuggestions(results);
         return;
       }
 
-      // Remote source
       const params = {};
       if (paramName) params[paramName] = q;
       if (host.dataset.extraParams) {
         try { Object.assign(params, JSON.parse(host.dataset.extraParams)); }
-        catch (err) { console.warn('[cmnsd:autosuggest] invalid data-extra-params JSON', err); }
+        catch {}
       }
-
       const res = await api.get(url, { params });
       let data = res?.payload || [];
-
       if (containerKey && data && typeof data === 'object') data = data[containerKey];
       if (data && !Array.isArray(data) && typeof data === 'object') data = Object.values(data);
-
-      // ✅ Apply case-insensitive uniqueness filter
       if (uniqueKey && Array.isArray(data)) {
         const seen = new Set();
-        data = data.filter(item => {
-          const val = String(item?.[uniqueKey] || '').toLowerCase();
-          if (val && !seen.has(val)) { seen.add(val); return true; }
+        const keys = uniqueKey.split(',').map(k => k.trim());
+        data = data.filter(it => {
+          const combo = keys.map(k => String(it?.[k] || '').toLowerCase()).join('|');
+          if (!seen.has(combo)) { seen.add(combo); return true; }
           return false;
         });
       }
-
       if (!Array.isArray(data) || !data.length) {
         clearList(true);
-        hiddenVal.value = '';
+        if (hiddenVal) hiddenVal.value = '';
         updateValidity();
         return;
       }
-
       renderSuggestions(data);
     } catch (err) {
       console.warn('[cmnsd:autosuggest] fetch failed', err);
       clearList(true);
-      hiddenVal.value = '';
+      if (hiddenVal) hiddenVal.value = '';
       updateValidity();
     }
   }
@@ -244,21 +240,19 @@ function setupInput(host) {
     itemsRef = [];
     positionList();
 
-    items.forEach((item) => {
+    items.forEach(item => {
       const el = document.createElement('button');
       el.type = 'button';
       el.className = 'list-group-item list-group-item-action text-start';
-
-      const mainField = displayFields[0];
+      const mainField = displayFields[0] || sourceKey;
       const secondaryFields = displayFields.slice(1);
       const mainValue = item[mainField] ?? '';
-      const mainSpan = document.createElement('div');
-      mainSpan.className = 'autosuggest-main';
-      mainSpan.appendChild(sanitizeHTML(mainValue));
-      el.appendChild(mainSpan);
-
-      secondaryFields.forEach(fld => {
-        const val = item[fld];
+      const mainDiv = document.createElement('div');
+      mainDiv.className = 'autosuggest-main';
+      mainDiv.appendChild(sanitizeHTML(mainValue));
+      el.appendChild(mainDiv);
+      secondaryFields.forEach(f => {
+        const val = item[f];
         if (val) {
           const sub = document.createElement('div');
           sub.className = 'autosuggest-secondary';
@@ -269,8 +263,6 @@ function setupInput(host) {
         }
       });
 
-      const submitVal = item[hiddenKey] ?? null;
-
       el.addEventListener('click', e => {
         e.preventDefault();
         e.stopPropagation();
@@ -280,19 +272,14 @@ function setupInput(host) {
           return;
         }
 
-        host.value = String(mainValue).replace(/<[^>]*>/g, '');
-        if (submitVal) {
-          hiddenVal.value = submitVal;
-          hiddenName.value = '';
-        } else if (allowCreate) {
-          hiddenVal.value = '';
-          hiddenName.value = host.value;
-        }
+        const value = String(item[sourceKey] || mainValue).replace(/<[^>]*>/g, '');
+        host.value = value;
 
-        syncFieldNames();
+        if (hiddenVal) hiddenVal.value = '';
+        if (hiddenName) hiddenName.value = value;
+
         list.style.display = 'none';
         updateValidity();
-        dispatch('cmnsd:autosuggest:selected', { host, item });
       });
 
       list.appendChild(el);
@@ -301,7 +288,6 @@ function setupInput(host) {
 
     activeIndex = -1;
     list.style.display = 'block';
-    dispatch('cmnsd:autosuggest:shown', { host });
   }
 
   // Keyboard navigation
@@ -310,11 +296,9 @@ function setupInput(host) {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       activeIndex = (activeIndex + 1) % itemsRef.length;
-      itemsRef.forEach((el, i) => el.classList.toggle('active', i === activeIndex));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       activeIndex = (activeIndex - 1 + itemsRef.length) % itemsRef.length;
-      itemsRef.forEach((el, i) => el.classList.toggle('active', i === activeIndex));
     } else if (e.key === 'Enter') {
       if (activeIndex >= 0 && itemsRef[activeIndex]) {
         e.preventDefault();
@@ -323,51 +307,39 @@ function setupInput(host) {
     } else if (e.key === 'Escape') {
       clearList();
     }
+    itemsRef.forEach((el, i) => el.classList.toggle('active', i === activeIndex));
   });
 
-  // Input and focus
   let debounceTimer = null;
   host.addEventListener('input', () => {
     const q = host.value.trim();
-    hiddenVal.value = '';
-    hiddenName.value = allowCreate ? q : '';
-    syncFieldNames();
+    if (hiddenVal) hiddenVal.value = '';
+    if (hiddenName) hiddenName.value = allowCreate ? q : '';
     updateValidity();
-
-    if (q.length < minChars) {
-      if (minChars === 0) fetchSuggestions('');
-      else clearList();
-      return;
-    }
+    if (q.length < minChars) { if (minChars === 0) fetchSuggestions(''); else clearList(); return; }
     if (debounceTimer) clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => fetchSuggestions(q), debounceMs);
   });
 
-  host.addEventListener('focus', () => {
-    if (minChars === 0) fetchSuggestions('');
-  });
-
-  host.addEventListener('blur', () => {
-    setTimeout(() => clearList(), 200);
-  });
+  host.addEventListener('focus', () => { if (minChars === 0) fetchSuggestions(''); });
+  host.addEventListener('blur', () => { setTimeout(() => clearList(), 200); });
 
   const form = host.closest('form');
-  if (form) form.addEventListener('submit', () => syncFieldNames());
+  if (form) form.addEventListener('submit', () => { if (hiddenVal) syncFieldNames(); });
 
   updateValidity();
-  syncFieldNames();
+  if (hiddenVal) syncFieldNames();
 }
 
 export function initAutosuggest(root = document) {
   const found = root.querySelectorAll('input[data-autosuggest]');
   found.forEach(el => {
     try { setupInput(el); }
-    catch (err) { console.error('[cmnsd:autosuggest] setup failed for', el, err); }
+    catch (err) { console.error('[cmnsd:autosuggest] setup failed', el, err); }
   });
 }
 
 document.addEventListener('DOMContentLoaded', () => initAutosuggest());
 document.addEventListener('cmnsd:content:applied', e => {
-  const root = e.detail?.container || document;
-  initAutosuggest(root);
+  initAutosuggest(e.detail?.container || document);
 });
