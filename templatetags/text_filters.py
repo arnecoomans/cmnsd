@@ -69,3 +69,17 @@ def whatsapp_number(value):
     formatted = re.sub(r'[^0-9]', '', formatted)
 
     return formatted
+
+@register.filter(name="remove")
+def remove(value, arg):
+    """
+    Remove all occurrences of arg from value.
+    Usage: {{ value|remove:"substring_to_remove" }}
+    """
+    if type(value) == list:
+      x = []
+      for v in value:
+        if v != arg:
+          x.append(v)
+      return x
+    return str(value).replace(str(arg), "")
