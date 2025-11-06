@@ -293,7 +293,11 @@ export function createActionBinder({
     base.addEventListener('submit', (e) => {
       const form = e.target.closest('form[data-action]');
       if (!form || !base.contains(form)) return;
-      if (!form.dataset.body) form.dataset.body = 'form';
+      if (!form.dataset.body || form.dataset.body === '') {
+        form.dataset.body = 'form';
+      } else {
+        console.debug('[cmnsd] using custom data-body for', form);
+      }
       handleActionTrigger(e, form);
     });
 

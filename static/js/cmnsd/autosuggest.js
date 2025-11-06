@@ -1,4 +1,5 @@
 // Autosuggest feature for cmnsd
+// Version 2.6 — created with ChatGPT
 // Indentation: 2 spaces. Docs in English.
 
 import { api } from './http.js';
@@ -86,20 +87,31 @@ function setupInput(host) {
   let hiddenName = null;
 
   if (hiddenKey) {
-    hiddenVal = host.parentNode.querySelector(`input[type="hidden"][name="${prefix}${hiddenKey}"]`);
+    const form = host.closest('form');
+    const scope = form || host.parentNode;
+
+    hiddenVal = scope.querySelector(`input[type="hidden"][name="${prefix}${hiddenKey}"]`);
     if (!hiddenVal) {
       hiddenVal = document.createElement('input');
       hiddenVal.type = 'hidden';
       hiddenVal.name = prefix + hiddenKey;
-      host.parentNode.appendChild(hiddenVal);
+      hiddenVal.value = ''; // ensure value always exists
+
+      // ✅ Fix: always append hidden field inside the form if it exists
+      if (form) form.appendChild(hiddenVal);
+      else scope.appendChild(hiddenVal);
     }
 
-    hiddenName = host.parentNode.querySelector(`input[type="hidden"][name="${prefix}${inputKey}"]`);
+    hiddenName = scope.querySelector(`input[type="hidden"][name="${prefix}${inputKey}"]`);
     if (!hiddenName) {
       hiddenName = document.createElement('input');
       hiddenName.type = 'hidden';
       hiddenName.name = prefix + inputKey;
-      host.parentNode.appendChild(hiddenName);
+      hiddenName.value = '';
+
+      // ✅ Same form-append fix
+      if (form) form.appendChild(hiddenName);
+      else scope.appendChild(hiddenName);
     }
   }
 
@@ -114,24 +126,12 @@ function setupInput(host) {
   let activeIndex = -1;
   let itemsRef = [];
 
-  function dispatch(name, detail) {
-    host.dispatchEvent(new CustomEvent(name, { bubbles: true, detail }));
-  }
-
   function positionList() {
     const rect = host.getBoundingClientRect();
     list.style.top = `${rect.bottom + window.scrollY}px`;
     list.style.left = `${rect.left + window.scrollX}px`;
     list.style.width = `${rect.width}px`;
   }
-
-  window.addEventListener('scroll', () => {
-    if (list.style.display === 'block') positionList();
-  }, { passive: true });
-
-  window.addEventListener('resize', () => {
-    if (list.style.display === 'block') positionList();
-  }, { passive: true });
 
   function clearList(empty = false) {
     list.innerHTML = '';
@@ -141,16 +141,13 @@ function setupInput(host) {
     itemsRef = [];
   }
 
-  /**
-   * Updated: allow override via data-autosuggest-allow-empty="1" on <form>
-   */
   function updateValidity() {
     const form = host.closest('form');
     if (!form) return;
     const submit = form.querySelector('[type=submit]');
     if (!submit) return;
 
-    // Allow opt-out via form flag
+    // allow override via form attribute
     if (form.dataset.autosuggestAllowEmpty === '1') {
       submit.disabled = false;
       return;
@@ -162,7 +159,7 @@ function setupInput(host) {
   }
 
   function syncFieldNames() {
-    if (!hiddenVal) return; // skip if no hidden field
+    if (!hiddenVal) return;
     if (hiddenVal.value) {
       if (!isSearchMode) host.removeAttribute('name');
       hiddenVal.name = prefix + hiddenKey;
@@ -178,6 +175,7 @@ function setupInput(host) {
 
   async function fetchSuggestions(q) {
     try {
+      // --- local data mode ---
       if (localSource) {
         let listData = [];
         try { listData = JSON.parse(localSource); }
@@ -201,6 +199,7 @@ function setupInput(host) {
         return;
       }
 
+      // --- remote data mode ---
       const params = {};
       if (paramName) params[paramName] = q;
       if (host.dataset.extraParams) {
@@ -272,11 +271,23 @@ function setupInput(host) {
           return;
         }
 
-        const value = String(item[sourceKey] || mainValue).replace(/<[^>]*>/g, '');
-        host.value = value;
+        const displayVal = String(item[sourceKey] || mainValue).replace(/<[^>]*>/g, '');
+        const hiddenFieldVal = item[hiddenKey] ?? '';
 
-        if (hiddenVal) hiddenVal.value = '';
-        if (hiddenName) hiddenName.value = value;
+        host.value = displayVal;
+
+        if (hiddenVal) {
+          hiddenVal.name = prefix + hiddenKey;
+          hiddenVal.value = hiddenFieldVal;
+        }
+        if (hiddenName) {
+          hiddenName.name = prefix + inputKey;
+          hiddenName.value = displayVal;
+        }
+
+        console.debug('[cmnsd:autosuggest] selected', {
+          displayVal, hiddenFieldVal, hiddenKey, prefix
+        });
 
         list.style.display = 'none';
         updateValidity();
