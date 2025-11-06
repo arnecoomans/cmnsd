@@ -14,7 +14,7 @@ class CrudDelete(CrudUtil):
     try:
       self.obj.obj.status = "x"
       self.obj.obj.save()
-      self.messages.add(_("object '{}' marked as deleted".format(self.model.name)).capitalize(), 'success')
+      self.messages.add(_("object '{}' '{}' marked as deleted".format(self.model.name, self.obj.obj)).capitalize(), 'success')
       result = '{"info": "object marked as deleted"}'
     except Exception as e:
       if getattr(settings, "DEBUG", False):
