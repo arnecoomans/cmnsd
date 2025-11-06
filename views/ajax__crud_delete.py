@@ -11,17 +11,32 @@ class CrudDelete(CrudUtil):
     
     result = None
     # set the field "status" to "d" (Deleted) if the field exists
-    try:
-      self.obj.obj.status = "x"
-      self.obj.obj.save()
-      self.messages.add(_("object '{}' '{}' marked as deleted".format(self.model.name, self.obj.obj)).capitalize(), 'success')
-      result = '{"info": "object marked as deleted"}'
-    except Exception as e:
-      if getattr(settings, "DEBUG", False):
-        # Log the exception trackback to the console or log when
-        # DEBUG is True in settings.py
-        traceback.print_exc()
-      staff_message = ': ' + str(e) if str(e) else ''
-      self.messages.add(_("failed to mark object as deleted{}".format(staff_message)).capitalize(), 'error')
-      raise ValueError(_("failed to mark object as deleted".capitalize()))
+    if hasattr(self.obj.obj, 'status'):
+      try:
+        self.obj.obj.status = "x"
+        self.obj.obj.save()
+        self.messages.add(_("object '{}' '{}' marked as deleted".format(self.model.name, self.obj.obj)).capitalize(), 'success')
+        result = '{"info": "object marked as deleted"}'
+      except Exception as e:
+        if getattr(settings, "DEBUG", False):
+          # Log the exception trackback to the console or log when
+          # DEBUG is True in settings.py
+          traceback.print_exc()
+        staff_message = ': ' + str(e) if str(e) else ''
+        self.messages.add(_("failed to mark object as deleted{}".format(staff_message)).capitalize(), 'error')
+        raise ValueError(_("failed to mark object as deleted".capitalize()))
+    else:
+      # Object has no status field, perform hard delete
+      try:
+        self.obj.obj.delete()
+        self.messages.add(_("object '{}' '{}' deleted".format(self.model.name, self.obj.obj)).capitalize(), 'success')
+        result = '{"info": "object deleted"}'
+      except Exception as e:
+        if getattr(settings, "DEBUG", False):
+          # Log the exception trackback to the console or log when
+          # DEBUG is True in settings.py
+          traceback.print_exc()
+        staff_message = ': ' + str(e) if str(e) else ''
+        self.messages.add(_("failed to delete object{}".format(staff_message)).capitalize(), 'error')
+        raise ValueError(_("failed to delete object".capitalize()))
     return result
