@@ -151,6 +151,27 @@ It supports both remote (AJAX) and local (embedded JSON) suggestion sources.
   data-allow-create="0">
 ```
 
+#### Example: Info box
+```html
+<button
+  data-action="info"
+  data-title="About Location"
+  data-url="/ajax/location/1/info/"
+  data-placement="right"
+>
+  Show Info
+</button>
+````
+or
+```html
+<button
+  data-action="info"
+  data-title="Details"
+  data-info="<p>This feature displays an <b>HTML-enabled</b> info box without needing an AJAX request.</p>"
+>
+  ℹ️ Info
+</button>
+```
 ---
 
 ### 3. Messages
@@ -180,6 +201,7 @@ Server messages are normalized and displayed in a configurable container.
 | Attribute | Default | Applies to | Description |
 |------------|----------|-------------|-------------|
 | **`data-action`** | – | button, form, link | Enables AJAX or special action handling |
+| **`data-action=info`** | – | button, form, link | when clicked, an info box appears |
 | **`data-url`** | – | all | Target URL for AJAX request |
 | **`data-method`** | `POST` | all | HTTP method (`GET`, `POST`, `PATCH`, `DELETE`) |
 | **`data-params`** | – | all | JSON or querystring params |
@@ -208,7 +230,10 @@ Server messages are normalized and displayed in a configurable container.
 | **`data-message`** | `"Copied to clipboard."` | copy action | Custom message for clipboard |
 | **`data-text`** | – | copy action | Direct text to copy |
 | **`data-clipboard-target`** | – | copy action | Selector of element whose text/value to copy |
-
+| **`data-title`** | – | info overlay | Direct text to copy |
+| **`data-url`** | – | info overlay | Source of data to show on overlay |
+| **`data-info`** | – | info overlay | Local source of data to show on overlay |
+| **`data-placement`** | right left top botoom | info overlay | Direct text to copy |
 ---
 
 ## 🧩 Events

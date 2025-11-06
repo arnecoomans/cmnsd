@@ -82,6 +82,116 @@ export function createActionBinder({
     const confirmMsg = el.dataset.confirm;
     if (confirmMsg && !window.confirm(confirmMsg)) return;
 
+    // 🧩 INFO BOX HANDLER (local or remote)
+    if (el.dataset.action === 'info') {
+      const title = el.dataset.title || 'Info';
+      const placement = el.dataset.placement || 'bottom';
+      const width = el.dataset.width || '400px';
+      const localHTML = el.dataset.info;
+
+      async function showBox(html) {
+        document.querySelectorAll('.cmnsd-infobox').forEach(b => b.remove());
+
+        const box = document.createElement('div');
+        box.className = 'cmnsd-infobox shadow rounded border bg-white p-3';
+        box.style.position = 'absolute';
+        box.style.zIndex = '3050';
+        box.style.maxWidth = width;
+        box.style.pointerEvents = 'auto';
+        box.innerHTML = `
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <h6 class="fw-bold me-2 mb-0">${title}</h6>
+            <button type="button" class="btn-close btn-sm" aria-label="Close"></button>
+          </div>
+          <div class="cmnsd-infobox-body">${html}</div>
+        `;
+        document.body.appendChild(box);
+
+        const rect = el.getBoundingClientRect();
+        const margin = 6;
+        let top, left;
+
+        box.style.top = '-9999px';
+        box.style.left = '-9999px';
+        const boxRect = box.getBoundingClientRect();
+
+        switch (placement) {
+          case 'top':
+            top = rect.top + window.scrollY - boxRect.height - margin;
+            left = rect.left + window.scrollX;
+            break;
+          case 'right':
+            top = rect.top + window.scrollY;
+            left = rect.right + window.scrollX + margin;
+            break;
+          case 'left':
+            top = rect.top + window.scrollY;
+            left = rect.left + window.scrollX - boxRect.width - margin;
+            break;
+          default:
+            top = rect.bottom + window.scrollY + margin;
+            left = rect.left + window.scrollX;
+        }
+
+        box.style.top = `${top}px`;
+        box.style.left = `${left}px`;
+        box.style.animation = 'fadeIn 0.2s ease-out';
+
+        const closeBox = () => {
+          box.remove();
+          document.removeEventListener('click', onClickOutside);
+        };
+        const onClickOutside = (ev) => {
+          if (!box.contains(ev.target) && ev.target !== el) closeBox();
+        };
+        box.querySelector('.btn-close').addEventListener('click', closeBox);
+        document.addEventListener('click', onClickOutside);
+      }
+
+      if (localHTML) {
+        await showBox(localHTML);
+      } else if (el.dataset.url) {
+        try {
+          const res = await request('GET', el.dataset.url);
+          const html = res?.payload?.info || res?.payload || '(no info available)';
+          await showBox(html);
+        } catch (err) {
+          renderMessages(
+            [{ level: 'danger', text: 'Failed to load info box.' }],
+            getConfig().messages
+          );
+        }
+      } else {
+        renderMessages(
+          [{ level: 'warning', text: 'No info source provided.' }],
+          getConfig().messages
+        );
+      }
+      return;
+    }
+
+    // 🧩 COPY TO CLIPBOARD HANDLER
+    if (el.dataset.action === 'copy') {
+      const text =
+        el.dataset.text ||
+        (el.dataset.clipboardTarget
+          ? document.querySelector(el.dataset.clipboardTarget)?.innerText || ''
+          : '');
+      if (!text) {
+        renderMessages([{ level: 'warning', text: 'Nothing to copy.' }], getConfig().messages);
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(text);
+        renderMessages([{ level: 'success', text: 'Copied to clipboard.' }], getConfig().messages);
+      } catch (err) {
+        renderMessages([{ level: 'danger', text: 'Failed to copy text.' }], getConfig().messages);
+      }
+      return;
+    }
+
+    // 🧩 STANDARD AJAX ACTION HANDLER
     let url =
       el.dataset.url ||
       el.getAttribute('href') ||
@@ -106,14 +216,11 @@ export function createActionBinder({
     }
 
     const params = parseParams(el.dataset.params);
-
-    let body = undefined;
+    let body;
     const bodySpec = el.dataset.body;
 
-    // 🧩 Enhanced: support data-body="#form-id"
     if (bodySpec === 'form') {
-      const form =
-        el.closest('form') || (el.tagName.toLowerCase() === 'form' ? el : null);
+      const form = el.closest('form') || (el.tagName.toLowerCase() === 'form' ? el : null);
       if (form) body = new FormData(form);
     } else if (bodySpec && bodySpec.startsWith('#')) {
       const form = document.querySelector(bodySpec);
@@ -152,15 +259,9 @@ export function createActionBinder({
         const rUrl = el.dataset.refreshUrl;
         const rParams = parseParams(el.dataset.refreshParams);
         const rMap = safeJSON(el.dataset.refreshMap);
-        const rMode =
-          el.dataset.refreshMode === 'insert' ? 'insert' : 'update';
+        const rMode = el.dataset.refreshMode === 'insert' ? 'insert' : 'update';
         if (rMap && typeof rMap === 'object') {
-          await loadContent({
-            url: rUrl,
-            params: rParams,
-            map: rMap,
-            mode: rMode
-          });
+          await loadContent({ url: rUrl, params: rParams, map: rMap, mode: rMode });
         } else {
           dbg('action:refresh:missing-or-invalid-map', el.dataset.refreshMap);
         }
@@ -182,18 +283,13 @@ export function createActionBinder({
   return function bindDelegatedActions(root) {
     const base = root || document;
 
-    // Handle clicks
     base.addEventListener('click', (e) => {
       const t = e.target.closest('[data-action]');
       if (!t || !base.contains(t)) return;
-
-      // ✅ Ignore form tags here — submit listener handles them
       if (t.tagName.toLowerCase() === 'form') return;
-
       handleActionTrigger(e, t);
     });
 
-    // Handle form submissions
     base.addEventListener('submit', (e) => {
       const form = e.target.closest('form[data-action]');
       if (!form || !base.contains(form)) return;

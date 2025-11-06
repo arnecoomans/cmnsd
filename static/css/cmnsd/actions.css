@@ -1,0 +1,13 @@
+.cmnsd-infobox {
+  animation: fadeIn 0.2s ease-out;
+  box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15);
+}
+
+.cmnsd-infobox .cmnsd-infobox-body p:last-child {
+  margin-bottom: 0;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
