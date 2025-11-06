@@ -51,6 +51,7 @@ def check_cmnsd_config(app_configs, **kwargs):
         "AJAX_PROTECTED_FIELDS",
         "AJAX_RESTRICTED_FIELDS",
         "AJAX_BLOCKED_MODELS",
+        "AJAX_IGNORE_CHANGE_FIELDS"
         "AJAX_ALLOW_FK_CREATION_MODELS",
         "AJAX_ALLOW_RELATED_CREATION_MODELS",
         "AJAX_MAX_DEPTH_RECURSION",

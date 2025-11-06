@@ -112,7 +112,25 @@ class meta_object():
       if 'description' in change:
         structured_changes.append(f"<li>{str(change['description'])}</li>")
       else:
-        structured_changes.append(f"<li>{ _("changed field '{}' from '{}' to '{}'").format(change['field'], change['old_value'], change['new_value']) }</li>")
+        if change['field'] in getattr(settings, 'AJAX_IGNORE_CHANGE_FIELDS', ['id', 'date_created', 'date_modified']):
+          continue
+        max_length = 250
+        field = change['field'].replace('_', ' ').replace('-', ' ')
+        old_value = str(change.get('old_value', ''))
+        if len(old_value) > max_length:
+          old_value = '<br>\'' + old_value[:max_length] + '...' + '\'</br>'
+        elif old_value == '':
+          old_value = _('empty')
+        else:
+          old_value = f"'{old_value}'"
+        new_value = str(change.get('new_value', ''))
+        if len(new_value) > max_length:
+          new_value = '<br>\'' + new_value[:max_length] + '...' + '\'</br>'
+        elif new_value == '':
+          new_value = _('empty')
+        else:
+          new_value = f"'{new_value}'"
+        structured_changes.append(f"<li>{ _("changed field '{}' from {} to {}").format(field, old_value, new_value) }</li>")
     structured_changes.append('</ul>')
     return "".join(structured_changes)
   
