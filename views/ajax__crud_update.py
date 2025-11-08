@@ -14,10 +14,10 @@ class CrudUpdate(CrudUtil):
     # Retrieve payload data and map this to object usable fields 
     # (field__subfield is mapped to field)
     self.update_results = []
-    payload = self.__get_payload()
+    payload = self._get_payload()
     # Get the object referenced by the request
-    obj = self.__get_obj()
-    actions = self.__get_actions(obj, payload)
+    obj = self._get_obj()
+    actions = self._get_actions(obj, payload)
     if getattr(settings, 'DEBUG', False):
       print("OBJECT:", self.obj, "of model", self.model)
       print("PAYLOAD:", payload)
@@ -42,7 +42,7 @@ class CrudUpdate(CrudUtil):
     self.modes = self.guess_modes()
     return self.crud__read()
     
-  def __get_payload(self, max_depth=3):
+  def _get_payload(self, max_depth=3):
     """
     Build a structured payload dictionary from request data, 
     with configurable maximum nesting depth.
@@ -143,7 +143,7 @@ class CrudUpdate(CrudUtil):
 
 
   
-  def __get_obj(self):
+  def _get_obj(self):
     """
     Ensure a valid object (`self.obj`) is available for the current CRUD operation.
 
@@ -210,7 +210,7 @@ class CrudUpdate(CrudUtil):
   ''' get_actions:
       Return the actions to be performed on the object based on the payload and requested fields
   '''
-  def __get_actions(self, obj, payload):
+  def _get_actions(self, obj, payload):
     actions = {
       'simple': {},
       'foreign_key': {},
@@ -238,7 +238,7 @@ class CrudUpdate(CrudUtil):
         actions[self.__get_update_type(field)][field] = payload[field]
       else:
         if getattr(settings, 'DEBUG', False):
-          print("[DEBUG] Field '{}' not in payload keys {}.".format(field, list(payload.keys())))
+          print("[DEBUG] Field '{}' in object fields {} but not in payload keys {}.".format(field, obj.fields, list(payload.keys())))
     return actions
     
   def __get_update_type(self, field):
