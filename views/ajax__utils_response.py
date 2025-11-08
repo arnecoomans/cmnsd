@@ -130,7 +130,8 @@ class ResponseMixin:
         continue
       except Exception as e:
         if getattr(settings, 'DEBUG', False) and self.request.user.is_staff:
-          self._add_message(_("error rendering template '{}': {}").format(template, str(e)).capitalize(), "error")
+          staff_message = f": {str(e)}" if getattr(settings, 'DEBUG', False) else ''
+          self._add_message(_("error rendering template '{}'{}").format(template, staff_message).capitalize(), "error")
         pass
       try:
         if format == 'json':
