@@ -1,4 +1,4 @@
 "{{ category.slug }}": {
   "slug": "{{ category.slug }}",
-  "name": "{{ category.name }}"
+  "name": "{% if category.parent %}{% translate category.parent.name %}: {% endif %}{% translate category.name %}"
 }

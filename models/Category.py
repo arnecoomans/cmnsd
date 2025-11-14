@@ -30,7 +30,7 @@ class Category(BaseModel):
     # Handle Parent Identifiers
     if ':' in self.name:
       parent_name, name = [part.strip() for part in self.name.split(':', 1)]
-      parent_category, created = Category.objects.get_or_create(name=parent_name)
+      parent_category, created = self.__class__.objects.get_or_create(name=parent_name)
       self.parent = parent_category
       self.name = name
     # Auto-generate slug from name if not provided
