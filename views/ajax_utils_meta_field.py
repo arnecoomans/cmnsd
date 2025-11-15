@@ -541,58 +541,50 @@ class meta_field:
     
   
   def update_foreign_key(self, related_identifiers):
-    # Verify value type:
     if not self.is_foreign_key():
-      raise ValueError(_("cannot update {}'s foreign key field '{}' with value '{}' because value does not belong to a {}").capitalize().format(self.obj().name, self.field_name, str(related_identifiers), 'foreign key field'))
-    # Check for related model
-    if not self.related_model():
-      raise ValueError(_("cannot update {}'s foreign key field '{}' with value '{}' because related model could not be determined").capitalize().format(self.obj().name, self.field_name, str(related_identifiers)))
-    # Find related object based on related_identifiers
+      raise ValueError("Not a foreign key field")
+
+    model = self.related_model()
+    field = self.field_name
+
+    # Find or create FK object
     related_obj = self.__get_related_object(related_identifiers)
-    current_value = self.value()
     if not related_obj:
       related_obj = self.__create_related_object(related_identifiers)
-    # Check if related object has field changes
-    changes_made = False
-    for field in related_identifiers:
-      if hasattr(related_obj, field):
-        new_value = related_identifiers[field]
-        current_value = getattr(related_obj, field, None)
-        if str(new_value) != str(current_value):
-          # Save change to related object
-          setattr(related_obj, field, new_value)
-          self.obj.report_change({
-            'field': f"{self.field_name}.{field}", 
-            'old_value': str(current_value),
-            'new_value': str(new_value),
-          })
-          changes_made = True
-          related_obj.save()
-          # Save changes to the meta class
-          setattr(self.obj, self.field_name, related_obj)
-          setattr(self.obj.obj, self.field_name, related_obj)
 
-    if changes_made:
-      # Assume related object was just created/updated, so skip adding/removing it
+    # Current FK value
+    current_obj = self.value()
+
+    # If same object already set → nothing to do
+    # Same? → unset the FK
+    if current_obj and current_obj == related_obj:
+      setattr(self.obj.obj, field, None)
+      self.__value = None
+
+      self.obj.report_change({
+          "field": field,
+          "old_value": str(current_obj),
+          "new_value": None,
+      })
+
       return True
-    # If related object is already set, remove it
-    if self.value() == related_obj:
-      pass
-    else:
-      # Set value to new related object
-      try:
-        setattr(self.obj.obj, self.field_name, related_obj)
-        self.__value = related_obj
-        self.obj.report_change({
-          'field': self.name, 
-          'old_value': str(current_value),
-          'new_value': str(related_obj),
-        })
-      except Exception as e:
-        staff_message = ': ' + str(e) if getattr(settings, 'DEBUG', False) or self.request.user.is_superuser else ''
-        return ValueError(_("unable to set value of {} to {}{}").capitalize().format(str(self.field_name), str(related_obj), staff_message))
+
+    # Update the FK
+    old_display = str(current_obj) if current_obj else None
+    new_display = str(related_obj)
+
+    setattr(self.obj.obj, field, related_obj)
+    self.__value = related_obj
+
+    self.obj.report_change({
+        "field": field,
+        "old_value": old_display,
+        "new_value": new_display,
+    })
+
     return True
-  
+          
+
   def update_related(self, related_identifiers):
     # Verify value type:
     if not self.is_related():
