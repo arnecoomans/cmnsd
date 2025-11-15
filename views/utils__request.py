@@ -42,8 +42,13 @@ class RequestMixin:
     if not hasattr(self, "_json_body"):
       try:
         self._json_body = json.loads(self.request.body or "{}")
+        # Sometimes this returns a string, and not a dict. In that case, 
+        # run json.loads again to convert the string into a dict.
+        if type(self._json_body) is not dict:
+          self._json_body = json.loads(self._json_body)
       except Exception:
         self._json_body = {}
+    
     return self._json_body
 
   def _add_message(self, text, level="debug"):
@@ -63,7 +68,10 @@ class RequestMixin:
       if request:
         if "POST" in sources and key in request.POST:
           return str(request.POST.get(key, default)).strip()
-
+        
+        if "PATCH" in sources and key in request.PATCH:
+          return str(request.PATCH.get(key, default)).strip()
+        
         if "json" in sources and key in self.json_body:
           return self.json_body.get(key)
 
@@ -96,6 +104,8 @@ class RequestMixin:
       keys |= set(self.request.POST.keys())
     if "GET" in sources:
       keys |= set(self.request.GET.keys())
+    if "PATCH" in sources:
+      keys |= set(self.request.PATCH.keys())
     if "json" in sources and isinstance(self.json_body, dict):
       keys |= set(self.json_body.keys())
     if "headers" in sources:
