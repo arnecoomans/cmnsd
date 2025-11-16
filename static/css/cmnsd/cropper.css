@@ -1,0 +1,23 @@
+/* Cropper container */
+[data-cropper] {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+
+/* Image should define the box */
+[data-cropper] img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Draggable selection rectangle */
+.cmnsd-crop-rect {
+  position: absolute;
+  border: 2px dashed #0d6efd;
+  background: rgba(13, 110, 253, 0.15);
+  display: none;
+  pointer-events: none;
+  box-sizing: border-box;
+}
