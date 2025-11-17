@@ -83,3 +83,11 @@ def remove(value, arg):
           x.append(v)
       return x
     return str(value).replace(str(arg), "")
+
+@register.filter(name="prepend")
+def prepend(value, arg):
+    """
+    Prepend arg to value.
+    Usage: {{ value|prepend:"string_to_prepend" }}
+    """
+    return str(arg) + str(value)

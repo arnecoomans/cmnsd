@@ -1,18 +1,49 @@
-/* Cropper container */
+/** Display Cropped Image **/
+.portrait-wrapper {
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: calc(var(--cw) / var(--ch));
+}
+
+.portrait-img {
+  position: absolute;
+  top: 0;
+  left: 0;
+
+  /* Scale entire FULL image so crop width fits wrapper */
+  width: calc(100% * (var(--ox) / var(--cw)));
+  height: auto;
+
+  /* Correct: move image by original ratios */
+  transform:
+    translateX(calc(-1 * var(--cx) / var(--ox) * 100%))
+    translateY(calc(-1 * var(--cy) / var(--oy) * 100%));
+}
+
+
+/** Cropper tool **/
+
+/* --- Fixes image dragging issues --- */
 [data-cropper] {
   position: relative;
   display: inline-block;
   width: 100%;
+  touch-action: none;     /* iOS fix */
 }
 
-/* Image should define the box */
 [data-cropper] img {
-  display: block;
+  user-drag: none;
+  -webkit-user-drag: none;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;   /* prevents image from moving */
   width: 100%;
   height: auto;
+  display: block;
 }
 
-/* Draggable selection rectangle */
+/* Crop rectangle */
 .cmnsd-crop-rect {
   position: absolute;
   border: 2px dashed #0d6efd;

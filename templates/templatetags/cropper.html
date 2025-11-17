@@ -1,0 +1,26 @@
+{% if enabled %}
+<div class="portrait-wrapper"
+     style="
+            --ox: {{ ox }};
+            --oy: {{ oy }};
+            --cx: {{ cx }};
+            --cy: {{ cy }};
+            --cw: {{ cw }};
+            --ch: {{ ch }};
+            aspect-ratio: {{ cw }}/{{ ch }}; 
+            border: 2px solid red;">
+
+  <img
+    src="{{ src }}"
+    alt=""
+    class="portrait-img"
+    style="
+      --ox: {{ ox }};
+      --oy: {{ oy }};
+      --cx: {{ cx }};
+      --cy: {{ cy }};
+      --cw: {{ cw }};
+      --ch: {{ ch }};
+    ">
+</div>
+{% endif %}
