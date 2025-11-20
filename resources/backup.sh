@@ -5,7 +5,7 @@
 # Creates compressed backups of directories inside a source directory.
 # Supports weekly, monthly, and yearly backups, with configurable retention.
 # Adds duplicate detection, dry-run mode, logging, zstd compression,
-# and prevents deletion of the last existing backup for any directory.
+# safe retention (never delete last backup), and email alerts on failure.
 #
 # Usage:
 #   ./backup.sh [--dry-run] <frequency> <source_dir> <target_dir>
@@ -18,10 +18,45 @@
 set -euo pipefail
 
 LOGFILE="/var/log/backup.log"
+ADMIN_EMAIL="web06@cmns.nl"
 
 log() {
   echo "$@" | tee -a "$LOGFILE"
 }
+
+send_failure_email() {
+  # Avoid failing inside the trap
+  set +e
+
+  if ! command -v mail >/dev/null 2>&1; then
+    # No mail command available; just log it
+    echo "Backup FAILED but 'mail' command not found to send alert." >> "$LOGFILE"
+    return
+  fi
+
+  local freq="${FREQ:-unknown}"
+  local src="${SRC_DIR:-unknown}"
+  local dest="${DEST_ROOT:-unknown}"
+
+  local subject="BACKUP FAILURE on $(hostname)"
+  local body
+  body=$(cat <<EOF
+Backup FAILED on host: $(hostname)
+Date: $(date)
+
+Frequency: ${freq}
+Source: ${src}
+Target root: ${dest}
+
+See log for details: $LOGFILE
+EOF
+)
+
+  echo "$body" | mail -s "$subject" "$ADMIN_EMAIL"
+}
+
+# Trap ANY error and send an email alert
+trap 'send_failure_email' ERR
 
 # --- Optional --dry-run flag ---
 DRYRUN=false
@@ -129,7 +164,7 @@ if [[ -n "$RETENTION" ]]; then
     FILES=( "$DEST_DIR/${BASENAME}_"*.tar.zst )
     FILECOUNT=${#FILES[@]}
 
-    # If no files, skip (no previous backup)
+    # If no files, skip
     if (( FILECOUNT == 0 )); then
       continue
     fi
@@ -140,7 +175,7 @@ if [[ -n "$RETENTION" ]]; then
       continue
     fi
 
-    # Otherwise perform retention, but only on old files
+    # Delete only old backups; last one will remain because of mtime window
     if [[ "$DRYRUN" == true ]]; then
       find "$DEST_DIR" -type f -name "${BASENAME}_*.tar.zst" \
            -mtime "$RETENTION" -print |
