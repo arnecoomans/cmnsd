@@ -4,20 +4,31 @@
 #
 # Creates compressed backups of directories inside a source directory.
 # Supports weekly, monthly, and yearly backups, with configurable retention.
+# Adds duplicate detection, dry-run mode, logging, and zstd compression.
 #
 # Usage:
-#   ./backup.sh <frequency> <source_dir> <target_dir>
-#
-# Arguments:
-#   frequency   weekly|monthly|yearly
-#   source_dir  path to source (e.g. /data)
-#   target_dir  path to backup root (e.g. /backup)
+#   ./backup.sh [--dry-run] <frequency> <source_dir> <target_dir>
 #
 # Example:
 #   ./backup.sh weekly /data /backup
+#   ./backup.sh --dry-run weekly /data /backup
 #
 
 set -euo pipefail
+
+LOGFILE="/var/log/backup.log"
+
+log() {
+  echo "$@" | tee -a "$LOGFILE"
+}
+
+# --- Parse optional --dry-run ---
+DRYRUN=false
+if [[ "${1:-}" == "--dry-run" ]]; then
+  DRYRUN=true
+  shift
+  log "DRY-RUN mode activated (no files will be written or deleted)"
+fi
 
 FREQ="$1"
 SRC_DIR="$2"
@@ -25,47 +36,101 @@ DEST_ROOT="$3"
 
 # Validate frequency
 if [[ "$FREQ" != "weekly" && "$FREQ" != "monthly" && "$FREQ" != "yearly" ]]; then
-  echo "Error: Frequency must be weekly, monthly, or yearly."
+  log "Error: Frequency must be weekly, monthly, or yearly."
   exit 1
 fi
 
-# Ensure directories exist
+# Ensure source exists
 if [[ ! -d "$SRC_DIR" ]]; then
-  echo "Error: Source directory $SRC_DIR does not exist."
+  log "Error: Source directory $SRC_DIR does not exist."
   exit 1
 fi
 
 DEST_DIR="$DEST_ROOT/$FREQ"
-mkdir -p "$DEST_DIR"
+[[ "$DRYRUN" == false ]] && mkdir -p "$DEST_DIR"
 
-# Generate timestamp (week number, month, or year)
+# Timestamp per frequency
 case "$FREQ" in
   weekly)
-    TS=$(date +%Y-%V)   # e.g., 2025-39 (ISO week)
-    RETENTION="+42"     # 6 weeks * 7 days
+    TS=$(date +%Y-%V)
+    RETENTION="+42"  # 6 weeks
     ;;
   monthly)
-    TS=$(date +%Y-%m)   # e.g., 2025-09
-    RETENTION="+548"    # ~18 months (548 days)
+    TS=$(date +%Y-%m)
+    RETENTION="+548" # ~18 months
     ;;
   yearly)
-    TS=$(date +%Y)      # e.g., 2025
-    RETENTION=""        # keep forever
+    TS=$(date +%Y)
+    RETENTION=""
     ;;
 esac
 
-# Backup each subdirectory inside SRC_DIR
+log "=== Backup run: $FREQ @ $(date) ==="
+log "Source: $SRC_DIR"
+log "Destination: $DEST_DIR"
+log "Timestamp: $TS"
+log ""
+
+# --- Backup each directory ---
 for DIR in "$SRC_DIR"/*/; do
   BASENAME=$(basename "$DIR")
-  TARFILE="$DEST_DIR/${BASENAME}_${TS}.tar.gz"
-  echo "Creating backup for $DIR -> $TARFILE"
-  tar -czf "$TARFILE" -C "$SRC_DIR" "$BASENAME"
+  TMPFILE=$(mktemp)
+
+  log "--- Processing: $BASENAME ---"
+  log "Creating temporary archive (zstd)..."
+
+  # Create .tar.zst (much faster & smaller than gzip)
+  tar -c --use-compress-program=zstd -f "$TMPFILE" -C "$SRC_DIR" "$BASENAME"
+
+  # Find previous backup
+  LASTFILE=$(ls -1t "$DEST_DIR/${BASENAME}_"*.tar.zst 2>/dev/null | head -n 1 || true)
+
+  if [[ -n "$LASTFILE" ]]; then
+    log "Found previous backup: $LASTFILE"
+    log "Comparing hashes..."
+
+    NEW_HASH=$(sha256sum "$TMPFILE" | awk '{print $1}')
+    OLD_HASH=$(sha256sum "$LASTFILE" | awk '{print $1}')
+
+    if [[ "$NEW_HASH" == "$OLD_HASH" ]]; then
+      log "No changes detected — skipping backup for $BASENAME."
+
+      rm "$TMPFILE"
+      log ""
+      continue
+    else
+      log "Changes detected — storing new backup."
+    fi
+  else
+    log "No previous backup found — creating first backup."
+  fi
+
+  TARFILE="$DEST_DIR/${BASENAME}_${TS}.tar.zst"
+
+  if [[ "$DRYRUN" == true ]]; then
+    log "[DRY-RUN] Would save: $TARFILE"
+    rm "$TMPFILE"
+  else
+    mv "$TMPFILE" "$TARFILE"
+    log "Backup saved: $TARFILE"
+  fi
+
+  log ""
 done
 
-# Remove old backups if retention is defined
+# Retention cleanup
 if [[ -n "$RETENTION" ]]; then
-  echo "Cleaning up backups older than $RETENTION days in $DEST_DIR"
-  find "$DEST_DIR" -type f -name "*.tar.gz" -mtime "$RETENTION" -print -delete
+  log "Cleaning up backups older than $RETENTION days..."
+
+  if [[ "$DRYRUN" == true ]]; then
+    find "$DEST_DIR" -type f -name "*.tar.zst" -mtime "$RETENTION" -print | sed 's/^/[DRY-RUN] Would delete: /' | tee -a "$LOGFILE"
+  else
+    find "$DEST_DIR" -type f -name "*.tar.zst" -mtime "$RETENTION" -print -delete | tee -a "$LOGFILE"
+  fi
+
+  log "Cleanup complete."
 fi
 
-echo "Backup for $FREQ completed successfully."
+log ""
+log "Backup for $FREQ completed successfully."
+log "========================================="
