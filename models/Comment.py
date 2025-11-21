@@ -43,8 +43,6 @@ class BaseComment(BaseModel):
   )
 
   class Meta:
-    verbose_name = _("comment")
-    verbose_name_plural = _("comments")
     ordering = ["-date_created"]
     abstract = True
 
@@ -60,7 +58,7 @@ class BaseComment(BaseModel):
     """
     if self.title:
       return self.title
-    return _("Comment #{pk}").format(pk=self.pk)
+    return _("Comment #{pk} on {object}").format(pk=self.pk, object=self.content_object)
 
   def __str__(self):
     return self.get_title()
