@@ -1,10 +1,10 @@
 // cmnsd/cropper.js
-// Simple drag-to-crop helper for cmnsd.js
+// Simple drag-to-crop helper for cmnsd.js (Option A)
 // - Auto-binds on [data-cropper]
 // - Converts displayed selection to natural pixel coords
 // - Writes JSON payload to save button's data-body
 // - Supports field mapping via data-cropper-fields="x=portrait_x,y=...,w=...,h=..."
-// - Shows green overlay over the selected area for debugging/preview
+// - Optional aspect lock via data-cropper-aspect="1:1" or "4:3" etc.
 
 function parseFieldMap(str) {
   // default: x,y,w,h
@@ -15,6 +15,24 @@ function parseFieldMap(str) {
     if (from && to) map[from] = to;
   });
   return map;
+}
+
+function parseAspect(str) {
+  if (!str) return null;
+  const trimmed = String(str).trim();
+  if (!trimmed) return null;
+
+  // "4:3" or "1:1"
+  if (trimmed.includes(':')) {
+    const [a, b] = trimmed.split(':').map(parseFloat);
+    if (a > 0 && b > 0) {
+      return a / b; // width / height
+    }
+    return null;
+  }
+
+  const val = parseFloat(trimmed);
+  return val > 0 ? val : null;
 }
 
 function setupCropper(wrapper) {
@@ -34,23 +52,37 @@ function setupCropper(wrapper) {
     wrapper.style.position = 'relative';
   }
   wrapper.style.userSelect = 'none';
+  wrapper.style.touchAction = 'none'; // iOS helper
 
+  // ---------------------------
   // Find / create selection rect
+  // ---------------------------
   let rect = wrapper.querySelector('.cmnsd-crop-rect');
   if (!rect) {
     rect = document.createElement('div');
     rect.className = 'cmnsd-crop-rect';
     wrapper.appendChild(rect);
   }
-  // Base rect styling (debug overlay: green)
-  rect.style.position = 'absolute';
   rect.style.display = 'none';
-  rect.style.border = '2px solid rgba(0, 255, 0, 0.9)';
-  rect.style.background = 'rgba(0, 255, 0, 0.25)';
-  rect.style.pointerEvents = 'none';
-  rect.style.boxSizing = 'border-box';
 
+  // Create handles (8: corners + edges)
+  const handlePositions = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
+  const handles = {};
+
+  handlePositions.forEach(pos => {
+    let h = rect.querySelector(`.cmnsd-crop-handle--${pos}`);
+    if (!h) {
+      h = document.createElement('div');
+      h.className = `cmnsd-crop-handle cmnsd-crop-handle--${pos}`;
+      h.dataset.handle = pos;
+      rect.appendChild(h);
+    }
+    handles[pos] = h;
+  });
+
+  // ---------------------------
   // Resolve save button
+  // ---------------------------
   let saveBtn = null;
   if (wrapper.dataset.cropperSave) {
     saveBtn = document.querySelector(wrapper.dataset.cropperSave);
@@ -66,8 +98,11 @@ function setupCropper(wrapper) {
     console.warn('[cmnsd:cropper] no save button found for', wrapper);
   }
 
-  // Field mapping
+  // ---------------------------
+  // Config
+  // ---------------------------
   const fieldMap = parseFieldMap(wrapper.dataset.cropperFields);
+  const aspectRatio = parseAspect(wrapper.dataset.cropperAspect);
 
   let naturalW = 0;
   let naturalH = 0;
@@ -80,13 +115,197 @@ function setupCropper(wrapper) {
     }
   }
 
-  // Track drag
+  // ---------------------------
+  // State
+  // ---------------------------
+  let mode = null; // 'new' | 'move' | 'resize'
+  let resizeHandle = null;
   let dragging = false;
+
+  // crop rect in DISPLAYED image coords (relative to imgRect)
+  let crop = { x: 0, y: 0, w: 0, h: 0 };
+
+  // For dragging / moving
   let startX = 0;
   let startY = 0;
-  let cropDisplay = { x: 0, y: 0, w: 0, h: 0 }; // in displayed-image coords
+  let startCrop = null; // {x,y,w,h}
+  let moveOffsetX = 0;
+  let moveOffsetY = 0;
 
-  function beginDrag(e) {
+  // ---------------------------
+  // Helpers
+  // ---------------------------
+  function hitTestRect(clientX, clientY) {
+    const imgRect = img.getBoundingClientRect();
+    const x = crop.x + imgRect.left;
+    const y = crop.y + imgRect.top;
+    const w = crop.w;
+    const h = crop.h;
+    return (
+      clientX >= x &&
+      clientX <= x + w &&
+      clientY >= y &&
+      clientY <= y + h
+    );
+  }
+
+  function pointerInHandle(target) {
+    const h = target.closest('.cmnsd-crop-handle');
+    if (!h || !rect.contains(h)) return null;
+    return h.dataset.handle || null;
+  }
+
+  function renderRect() {
+    if (!crop.w || !crop.h) {
+      rect.style.display = 'none';
+      return;
+    }
+    const imgRect = img.getBoundingClientRect();
+    const wrapperRect = wrapper.getBoundingClientRect();
+
+    const offsetLeft = imgRect.left - wrapperRect.left;
+    const offsetTop = imgRect.top - wrapperRect.top;
+
+    rect.style.display = 'block';
+    rect.style.left = `${offsetLeft + crop.x}px`;
+    rect.style.top = `${offsetTop + crop.y}px`;
+    rect.style.width = `${crop.w}px`;
+    rect.style.height = `${crop.h}px`;
+
+    // Handles are positioned via CSS, we don't need per-frame math
+  }
+
+  function clampCropToImage() {
+    const imgRect = img.getBoundingClientRect();
+    if (!imgRect.width || !imgRect.height) return;
+
+    crop.w = Math.max(0, Math.min(crop.w, imgRect.width));
+    crop.h = Math.max(0, Math.min(crop.h, imgRect.height));
+
+    crop.x = Math.max(0, Math.min(crop.x, imgRect.width - crop.w));
+    crop.y = Math.max(0, Math.min(crop.y, imgRect.height - crop.h));
+  }
+
+  function applyAspectOnNewSelection(endX, endY) {
+    if (!aspectRatio) return;
+
+    const imgRect = img.getBoundingClientRect();
+    const dx = endX - startX;
+    const dy = endY - startY;
+
+    let w = Math.abs(dx);
+    let h = Math.abs(dy);
+
+    if (w === 0 && h === 0) {
+      crop = { x: startX, y: startY, w: 0, h: 0 };
+      return;
+    }
+
+    // Adjust h based on w (simple and intuitive)
+    h = w / aspectRatio;
+
+    // Determine direction
+    const signX = dx >= 0 ? 1 : -1;
+    const signY = dy >= 0 ? 1 : -1;
+
+    const x = signX > 0 ? startX : startX - w;
+    const y = signY > 0 ? startY : startY - h;
+
+    // clamp inside image
+    crop = {
+      x: Math.max(0, Math.min(x, imgRect.width - w)),
+      y: Math.max(0, Math.min(y, imgRect.height - h)),
+      w,
+      h
+    };
+  }
+
+  function applyAspectOnResize(handle, endX, endY) {
+    if (!aspectRatio) return;
+
+    const imgRect = img.getBoundingClientRect();
+    let { x, y, w, h } = startCrop;
+
+    const right = x + w;
+    const bottom = y + h;
+
+    let nx = x;
+    let ny = y;
+    let nw = w;
+    let nh = h;
+
+    if (handle === 'se' || handle === 'ne' || handle === 'sw' || handle === 'nw') {
+      // Corner resizing with aspect ratio
+      const anchorX = (handle === 'se' || handle === 'ne') ? x : right;
+      const anchorY = (handle === 'se' || handle === 'sw') ? y : bottom;
+
+      const dx = endX - anchorX;
+      const dy = endY - anchorY;
+
+      let absW = Math.abs(dx);
+      let absH = absW / aspectRatio;
+
+      // direction
+      const signX = (handle === 'se' || handle === 'ne') ? 1 : -1;
+      const signY = (handle === 'se' || handle === 'sw') ? 1 : -1;
+
+      nw = absW;
+      nh = absH;
+
+      nx = signX > 0 ? anchorX : anchorX - nw;
+      ny = signY > 0 ? anchorY : anchorY - nh;
+
+      // clamp inside image
+      nw = Math.min(nw, imgRect.width);
+      nh = Math.min(nh, imgRect.height);
+
+      nx = Math.max(0, Math.min(nx, imgRect.width - nw));
+      ny = Math.max(0, Math.min(ny, imgRect.height - nh));
+
+      crop = { x: nx, y: ny, w: nw, h: nh };
+    } else {
+      // Edge handles: basic free resize, aspect ignored
+      applyResizeWithoutAspect(handle, endX, endY);
+    }
+  }
+
+  function applyResizeWithoutAspect(handle, endX, endY) {
+    const imgRect = img.getBoundingClientRect();
+    let { x, y, w, h } = startCrop;
+
+    const right = x + w;
+    const bottom = y + h;
+
+    let nx = x;
+    let ny = y;
+    let nw = w;
+    let nh = h;
+
+    if (handle === 'e' || handle === 'ne' || handle === 'se') {
+      nw = Math.max(0, endX - x);
+    }
+    if (handle === 'w' || handle === 'nw' || handle === 'sw') {
+      nx = Math.min(endX, right);
+      nw = right - nx;
+    }
+    if (handle === 's' || handle === 'se' || handle === 'sw') {
+      nh = Math.max(0, endY - y);
+    }
+    if (handle === 'n' || handle === 'ne' || handle === 'nw') {
+      ny = Math.min(endY, bottom);
+      nh = bottom - ny;
+    }
+
+    // clamp
+    nw = Math.min(nw, imgRect.width);
+    nh = Math.min(nh, imgRect.height);
+    nx = Math.max(0, Math.min(nx, imgRect.width - nw));
+    ny = Math.max(0, Math.min(ny, imgRect.height - nh));
+
+    crop = { x: nx, y: ny, w: nw, h: nh };
+  }
+
+  function beginNewSelection(e) {
     ensureNaturalSize();
     if (!naturalW || !naturalH) {
       console.warn('[cmnsd:cropper] natural size unknown for image', img);
@@ -94,12 +313,9 @@ function setupCropper(wrapper) {
     }
 
     const imgRect = img.getBoundingClientRect();
-    const wrapperRect = wrapper.getBoundingClientRect();
-
     const cx = e.clientX;
     const cy = e.clientY;
 
-    // Only start if inside image
     if (
       cx < imgRect.left ||
       cx > imgRect.right ||
@@ -110,63 +326,110 @@ function setupCropper(wrapper) {
     }
 
     dragging = true;
+    mode = 'new';
 
     startX = cx - imgRect.left;
     startY = cy - imgRect.top;
+    startCrop = null;
 
-    cropDisplay = { x: startX, y: startY, w: 0, h: 0 };
+    crop = { x: startX, y: startY, w: 0, h: 0 };
+    renderRect();
 
-    // Position rect inside wrapper: image offset + local start
-    const offsetLeft = imgRect.left - wrapperRect.left;
-    const offsetTop = imgRect.top - wrapperRect.top;
-
-    rect.style.left = `${offsetLeft + startX}px`;
-    rect.style.top = `${offsetTop + startY}px`;
-    rect.style.width = '0px';
-    rect.style.height = '0px';
-    rect.style.display = 'block';
-
-    // Prevent image drag ghost
     e.preventDefault();
   }
 
-  function updateDrag(e) {
+  function beginMove(e) {
+    dragging = true;
+    mode = 'move';
+
+    const imgRect = img.getBoundingClientRect();
+    const cx = e.clientX - imgRect.left;
+    const cy = e.clientY - imgRect.top;
+
+    moveOffsetX = cx - crop.x;
+    moveOffsetY = cy - crop.y;
+
+    startCrop = { ...crop };
+    e.preventDefault();
+  }
+
+  function beginResize(e, handle) {
+    dragging = true;
+    mode = 'resize';
+    resizeHandle = handle;
+    startCrop = { ...crop };
+    e.preventDefault();
+  }
+
+  function onMouseDown(e) {
+    if (e.button !== 0) return;
+
+    const handle = pointerInHandle(e.target);
+    if (handle) {
+      beginResize(e, handle);
+      return;
+    }
+
+    const insideRect = hitTestRect(e.clientX, e.clientY);
+    if (insideRect && crop.w > 0 && crop.h > 0) {
+      beginMove(e);
+      return;
+    }
+
+    beginNewSelection(e);
+  }
+
+  function onMouseMove(e) {
     if (!dragging) return;
 
     const imgRect = img.getBoundingClientRect();
-    const wrapperRect = wrapper.getBoundingClientRect();
+    const cx = e.clientX - imgRect.left;
+    const cy = e.clientY - imgRect.top;
 
-    // Coordinates relative to image
-    let currentX = e.clientX - imgRect.left;
-    let currentY = e.clientY - imgRect.top;
+    if (mode === 'new') {
+      const endX = Math.max(0, Math.min(imgRect.width, cx));
+      const endY = Math.max(0, Math.min(imgRect.height, cy));
 
-    // Clamp inside image
-    currentX = Math.max(0, Math.min(imgRect.width, currentX));
-    currentY = Math.max(0, Math.min(imgRect.height, currentY));
+      if (aspectRatio) {
+        applyAspectOnNewSelection(endX, endY);
+      } else {
+        const x = Math.min(startX, endX);
+        const y = Math.min(startY, endY);
+        const w = Math.abs(endX - startX);
+        const h = Math.abs(endY - startY);
+        crop = { x, y, w, h };
+      }
+      clampCropToImage();
+      renderRect();
+    } else if (mode === 'move') {
+      const newX = cx - moveOffsetX;
+      const newY = cy - moveOffsetY;
 
-    const x = Math.min(startX, currentX);
-    const y = Math.min(startY, currentY);
-    const w = Math.abs(currentX - startX);
-    const h = Math.abs(currentY - startY);
+      crop.x = newX;
+      crop.y = newY;
+      clampCropToImage();
+      renderRect();
+    } else if (mode === 'resize' && startCrop) {
+      const endX = Math.max(0, Math.min(imgRect.width, cx));
+      const endY = Math.max(0, Math.min(imgRect.height, cy));
 
-    cropDisplay = { x, y, w, h };
-
-    const offsetLeft = imgRect.left - wrapperRect.left;
-    const offsetTop = imgRect.top - wrapperRect.top;
-
-    rect.style.left = `${offsetLeft + x}px`;
-    rect.style.top = `${offsetTop + y}px`;
-    rect.style.width = `${w}px`;
-    rect.style.height = `${h}px`;
+      if (aspectRatio) {
+        applyAspectOnResize(resizeHandle, endX, endY);
+      } else {
+        applyResizeWithoutAspect(resizeHandle, endX, endY);
+      }
+      clampCropToImage();
+      renderRect();
+    }
   }
 
-  function endDrag() {
+  function onMouseUp() {
     if (!dragging) return;
     dragging = false;
+    resizeHandle = null;
+    mode = null;
 
-    const { x, y, w, h } = cropDisplay;
-    if (w < 3 || h < 3) {
-      // Too small – reset
+    if (crop.w < 3 || crop.h < 3) {
       rect.style.display = 'none';
       if (saveBtn) saveBtn.disabled = true;
       return;
@@ -175,47 +438,40 @@ function setupCropper(wrapper) {
     const imgRect = img.getBoundingClientRect();
     ensureNaturalSize();
 
+    if (!naturalW || !naturalH || !imgRect.width || !imgRect.height) {
+      console.warn('[cmnsd:cropper] cannot compute scaling (missing sizes)');
+      return;
+    }
+
     const scaleX = naturalW / imgRect.width;
     const scaleY = naturalH / imgRect.height;
 
-    const crop = {
-      [fieldMap.x]: Math.round(x * scaleX),
-      [fieldMap.y]: Math.round(y * scaleY),
-      [fieldMap.w]: Math.round(w * scaleX),
-      [fieldMap.h]: Math.round(h * scaleY)
+    const payload = {
+      [fieldMap.x]: Math.round(crop.x * scaleX),
+      [fieldMap.y]: Math.round(crop.y * scaleY),
+      [fieldMap.w]: Math.round(crop.w * scaleX),
+      [fieldMap.h]: Math.round(crop.h * scaleY)
     };
 
-    console.debug('[cmnsd:cropper] crop → natural pixels', crop);
+    console.debug('[cmnsd:cropper] crop → natural pixels', payload);
 
     if (saveBtn) {
-      saveBtn.dataset.body = JSON.stringify(crop);
+      saveBtn.dataset.body = JSON.stringify(payload);
       saveBtn.disabled = false;
     }
 
-    // Fire a custom event so backend logic can hook in if desired
     wrapper.dispatchEvent(
       new CustomEvent('cmnsd:cropper:changed', {
         bubbles: true,
-        detail: { crop, wrapper, img }
+        detail: { crop: payload, wrapper, img }
       })
     );
   }
 
   // Mouse handlers
-  wrapper.addEventListener('mousedown', (e) => {
-    if (e.button !== 0) return;
-    beginDrag(e);
-  });
-
-  document.addEventListener('mousemove', (e) => {
-    if (!dragging) return;
-    updateDrag(e);
-  });
-
-  document.addEventListener('mouseup', () => {
-    if (!dragging) return;
-    endDrag();
-  });
+  wrapper.addEventListener('mousedown', onMouseDown);
+  document.addEventListener('mousemove', onMouseMove);
+  document.addEventListener('mouseup', onMouseUp);
 
   // Ensure natural size if image already loaded
   if (img.complete) {
@@ -224,7 +480,7 @@ function setupCropper(wrapper) {
     img.addEventListener('load', ensureNaturalSize, { once: true });
   }
 
-  console.debug('[cmnsd:cropper] bound cropper to', wrapper);
+  console.debug('[cmnsd:cropper] bound to', wrapper);
 }
 
 export function initCropper(root = document) {

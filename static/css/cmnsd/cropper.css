@@ -24,31 +24,85 @@
 
 /** Cropper tool **/
 
-/* --- Fixes image dragging issues --- */
+/* --- Base host --- */
 [data-cropper] {
   position: relative;
   display: inline-block;
   width: 100%;
-  touch-action: none;     /* iOS fix */
+  touch-action: none; /* helps on touch devices */
 }
 
+/* Ensure image behaves nicely in the wrapper */
 [data-cropper] img {
-  user-drag: none;
-  -webkit-user-drag: none;
-  user-select: none;
-  -webkit-user-select: none;
-  pointer-events: none;   /* prevents image from moving */
-  width: 100%;
+  max-width: 100%;
   height: auto;
   display: block;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
+  pointer-events: none; /* so wrapper receives mouse events */
 }
 
-/* Crop rectangle */
+/* Selection rectangle */
 .cmnsd-crop-rect {
   position: absolute;
   border: 2px dashed #0d6efd;
   background: rgba(13, 110, 253, 0.15);
   display: none;
-  pointer-events: none;
+  pointer-events: auto;
   box-sizing: border-box;
+}
+
+/* Handles */
+.cmnsd-crop-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #0d6efd;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* Corners */
+.cmnsd-crop-handle--nw {
+  top: 0;
+  left: 0;
+  cursor: nwse-resize;
+}
+.cmnsd-crop-handle--ne {
+  top: 0;
+  right: 0;
+  cursor: nesw-resize;
+}
+.cmnsd-crop-handle--se {
+  bottom: 0;
+  right: 0;
+  cursor: nwse-resize;
+}
+.cmnsd-crop-handle--sw {
+  bottom: 0;
+  left: 0;
+  cursor: nesw-resize;
+}
+
+/* Edges */
+.cmnsd-crop-handle--n {
+  top: 0;
+  left: 50%;
+  cursor: ns-resize;
+}
+.cmnsd-crop-handle--s {
+  bottom: 0;
+  left: 50%;
+  cursor: ns-resize;
+}
+.cmnsd-crop-handle--e {
+  right: 0;
+  top: 50%;
+  cursor: ew-resize;
+}
+.cmnsd-crop-handle--w {
+  left: 0;
+  top: 50%;
+  cursor: ew-resize;
 }

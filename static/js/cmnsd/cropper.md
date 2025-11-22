@@ -51,6 +51,7 @@ document.addEventListener("cmnsd:content:applied", e => initCropper(e.detail?.co
 | `data-cropper-target` | Image to crop | required |
 | `data-cropper-save` | Button receiving payload | required |
 | `data-cropper-fields` | Mapping natural → payload fields | `"x=x,y=y,w=w,h=h"` |
+| `data-cropper-aspect` | Define aspect ratio of cropped image | optional |
 
 ### 4. JSON Output Format
 
