@@ -3,7 +3,7 @@ from django import template
 register = template.Library()
 
 @register.inclusion_tag('templatetags/cropper.html')
-def portrait_crop(image, x=None, y=None, w=None, h=None, src=None, crop_source=None):
+def portrait_crop(image, x=None, y=None, w=None, h=None, src=None, field="portrait", crop_source=None):
     """
     Renders a responsive cropped portrait using CSS transform trickery.
 
@@ -17,10 +17,10 @@ def portrait_crop(image, x=None, y=None, w=None, h=None, src=None, crop_source=N
 
     oy, ox = image.get_image_dimensions()
     # Get crop values
-    cx = getattr(crop_source, "portrait_x", x or 0) or 0
-    cy = getattr(crop_source, "portrait_y", y or 0) or 0
-    cw = getattr(crop_source, "portrait_w", w or ox) or ox
-    ch = getattr(crop_source, "portrait_h", h or oy) or oy
+    cx = getattr(crop_source, f"{field}_x", x or 0) or 0
+    cy = getattr(crop_source, f"{field}_y", y or 0) or 0
+    cw = getattr(crop_source, f"{field}_w", w or ox) or ox
+    ch = getattr(crop_source, f"{field}_h", h or oy) or oy
     # Avoid division by zero
     if cw <= 0: cw = ox
     if ch <= 0: ch = oy
