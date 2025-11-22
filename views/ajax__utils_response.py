@@ -137,10 +137,12 @@ class ResponseMixin:
         if format == 'json':
           rendered_field = json.loads(rendered_field)
         # Remove newlines, tabs and extra spaces if configured
-        if remove_newlines and isinstance(rendered_field, str) and not isinstance(getattr(self.obj.obj, field), models.TextField):
-          rendered_field = rendered_field.replace('\n', '').replace('\r', '').replace('\t', '')
-          while '  ' in rendered_field:
-            rendered_field = rendered_field.replace('  ', ' ')
+        if remove_newlines and \
+          isinstance(rendered_field, str):
+          if not field or not isinstance(getattr(self.obj.obj, field), models.TextField):
+            rendered_field = rendered_field.replace('\n', '').replace('\r', '').replace('\t', '')
+            while '  ' in rendered_field:
+              rendered_field = rendered_field.replace('  ', ' ')
         return rendered_field
       except json.JSONDecodeError as e:
         if getattr(settings, 'DEBUG', False) and self.request.user.is_staff:
