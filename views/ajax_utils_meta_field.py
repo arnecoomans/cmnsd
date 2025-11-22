@@ -221,6 +221,8 @@ class meta_field:
   
 
   """ Field type checks """
+  def is_text(self):
+    return isinstance(self.__field, (models.CharField, models.TextField, models.SlugField, models.EmailField, models.URLField))
   def is_foreign_key(self):
     return isinstance(self.__field, models.ForeignKey)
   def is_related(self):
@@ -601,8 +603,13 @@ class meta_field:
         new_value = related_identifiers[field]
         current_value = getattr(related_obj, field, None)
         if str(new_value) != str(current_value):
-          setattr(related_obj, field, new_value)
-          setattr(self.obj, field, related_obj)
+          try:
+            setattr(related_obj, field, new_value)
+            setattr(self.obj, field, related_obj)
+          except Exception as e:
+            staff_message = ': ' + str(e) if getattr(settings, 'DEBUG', False) or self.request.user.is_superuser else ''
+            return ValueError(_("unable to update field '{}' on related object '{}'{}").capitalize().format(field, str(related_obj), staff_message))
+          
           self.obj.report_change({
             'field': f"{self.field_name}.{field}", 
             'old_value': str(current_value),
@@ -781,7 +788,7 @@ class meta_field:
     related_model = model or self.related_model()
     related_model_name = str(related_model._meta.verbose_name).lower()
     max_depth = getattr(settings, "AJAX_MAX_DEPTH_RECURSION", 3)
-
+    ''' Validate identifiers '''
     if depth >= max_depth:
         raise RecursionError(
             _("maximum recursion depth ({}) exceeded while creating related objects for model '{}'").format(
@@ -813,44 +820,47 @@ class meta_field:
     # --- Resolve nested related objects ---
     resolved_identifiers = {}
     for key, value in identifiers.items():
-        if isinstance(value, dict):
-            try:
-                related_field = related_model._meta.get_field(key)
-                if getattr(related_field, "is_relation", False):
-                    nested_model = related_field.related_model
-                    nested_obj = (
-                        self.__get_related_object(value, model=nested_model, depth=depth + 1)
-                        or self.__create_related_object(value, model=nested_model, depth=depth + 1)
-                    )
-                    resolved_identifiers[key] = nested_obj
-                    continue
-            except Exception as e:
-                if getattr(settings, "DEBUG", False):
-                    print(f"[DEBUG] Failed to resolve nested relation '{key}' on {related_model}: {e}")
-        resolved_identifiers[key] = value
+      related_field = related_model._meta.get_field(key)
+      if value == '' and not getattr(related_field, 'is_text', False):
+        ''' Replace empty strings with None for non-text fields '''
+        value = None
+      elif isinstance(value, dict):
+        try:
+          if getattr(related_field, "is_relation", False):
+            nested_model = related_field.related_model
+            nested_obj = (
+              self.__get_related_object(value, model=nested_model, depth=depth + 1)
+              or self.__create_related_object(value, model=nested_model, depth=depth + 1)
+            )
+            resolved_identifiers[key] = nested_obj
+            continue
+        except Exception as e:
+          if getattr(settings, "DEBUG", False):
+            print(f"[DEBUG] Failed to resolve nested relation '{key}' on {related_model}: {e}")
+      resolved_identifiers[key] = value
 
     # --- Create object normally ---
     try:
-        related_obj = related_model.objects.create(**{**defaults, **resolved_identifiers})
-        related_obj.save()
+      related_obj = related_model.objects.create(**{**defaults, **resolved_identifiers})
+      related_obj.save()
 
-        self.obj.report_change({
-            "field": self.name,
-            "old_value": None,
-            "new_value": str(related_obj),
-            "description": _("created new '{}' '{}'").capitalize().format(
-                str(related_obj._meta.verbose_name), str(related_obj)
-            ),
-        })
-        return related_obj
+      self.obj.report_change({
+        "field": self.name,
+        "old_value": None,
+        "new_value": str(related_obj),
+        "description": _("created new '{}' '{}'").capitalize().format(
+          str(related_obj._meta.verbose_name), str(related_obj)
+        ),
+      })
+      return related_obj
 
     except Exception as e:
-        staff_message = f": {e}" if getattr(settings, "DEBUG", False) or self.request.user.is_superuser else ""
-        raise ValueError(
-            _("error creating new related object for the given arguments: {}{}")
-              .capitalize()
-              .format(identifiers, staff_message)
-        )
+      staff_message = f": {e}" if getattr(settings, "DEBUG", False) or self.request.user.is_superuser else ""
+      raise ValueError(
+        _("error creating new related object for the given arguments: {}{}")
+          .capitalize()
+          .format(identifiers, staff_message)
+      )
 
 
   def __create_with_parents(self, related_model, full_name, defaults=None):

@@ -278,5 +278,4 @@ class CrudUpdate(CrudUtil):
       # Verify field is updatable
       if not hasattr(obj, field):
         raise ValueError(_("field '{}' does not exist on object {} '{}'".format(field, self.model.name, obj)).capitalize())
-      print(f"[DEBUG] Updating related field '{field}' with value: {value}")
       getattr(self.obj, field).update_related(value)
