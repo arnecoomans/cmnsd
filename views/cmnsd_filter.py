@@ -153,19 +153,19 @@ class FilterSearchMixin(FilterBaseMixin):
 
   # --- Search entrypoint ----------------------------------------------------
 
-  def search(self, queryset, suppress_search=False, allow_staff=False):
+  def search(self, queryset, suppress_search=False, allow_staff=False , mapping={}):
     """Main search entry point."""
     model = queryset.model
     if suppress_search:
       return queryset.distinct()
 
     try:
-      search_fields = self.__get_search_fields(model)
+      search_fields = self._get_search_fields(model, mapping=mapping)
       q_char = getattr(settings, "SEARCH_QUERY_CHARACTER", "q")
       exclude_char = getattr(settings, "SEARCH_EXCLUDE_CHARACTER", "exclude")
 
       if search_fields:
-        queryset = self.search_results(queryset, search_fields)
+        queryset = self.search_results(queryset, search_fields, mapping=mapping)
       if self._get_value_from_request(q_char, default=False, silent=True):
         queryset = self.filter_freetextsearch(queryset)
       if self._get_value_from_request(exclude_char, default=False, silent=True):
@@ -181,21 +181,25 @@ class FilterSearchMixin(FilterBaseMixin):
 
   # --- Get searchable fields ------------------------------------------------
 
-  def __get_search_fields(self, model):
-    request_fields = self.__get_searched_fields_from_request()
+  def _get_search_fields(self, model, mapping={}):
+    request_fields = self._get_searched_fields_from_request()
     if hasattr(model, "get_searchable_fields"):
       model_fields = model.get_searchable_fields()
     elif hasattr(model, "get_model_fields"):
       model_fields = model.get_model_fields()
     else:
       model_fields = [f.name for f in model._meta.get_fields()]
-    return [f.replace(".", "__") for f in request_fields if f.split("__")[0] in model_fields]
+    model_fields = [f.replace(".", "__") for f in request_fields if f.split("__")[0] in model_fields]
+    # Apply mapping overrides
+    for key, value in mapping.items():
+      model_fields = [value if f == key else f for f in model_fields]
+    return model_fields
 
-  def __get_searched_fields_from_request(self):
+  def _get_searched_fields_from_request(self):
     fields = []
     req = getattr(self, "request", None)
     if not req:
-      return fields
+      return []
     for key in list(req.GET.keys()) + list(req.POST.keys()):
       if key not in ["csrfmiddlewaretoken"] and self._get_value_from_request(key, silent=True) not in [None, ""]:
         fields.append(key)
@@ -311,13 +315,24 @@ class FilterSearchMixin(FilterBaseMixin):
 
   # --- Field search (structured) -------------------------------------------
 
-  def search_results(self, queryset: QuerySet, search_fields: Iterable[str]) -> QuerySet:
+  def search_results(self, queryset: QuerySet, search_fields: Iterable[str], mapping={}) -> QuerySet:
     for field in search_fields:
       value = self._get_value_from_request(field, default=None, silent=True)
       if not value and "__" in field:
-        value = self._get_value_from_request(field.replace("__", "."), default=None, silent=True)
+        if field in mapping.values():
+          # If mapping is used, the value must be fetched using the original key
+          # so we reverse-lookup the original key from the mapping
+          # ex. {'tag': 'tag__slug'} -> we need to fetch value 'tag' from request 
+          #     and not 'tag__slug', but search on 'tag__slug'
+          key = next((k for k, v in mapping.items() if v == field), None)
+          value = self._get_value_from_request(key, default=None, silent=True)
+        else:
+          # Try fetching using dot notation
+          # ex. 'parent.name' instead of 'parent__name'
+          value = self._get_value_from_request(field.replace("__", "."), default=None, silent=True)
       if value:
         queryset = self.__search_queryset(queryset.model, queryset, field, value)
+      # If no value, retain original queryset
     return queryset.distinct()
 
   def __search_queryset(self, model, queryset, field_name, value):
@@ -434,7 +449,7 @@ class FilterMixin(
 ):
   """Unified, backward-compatible filtering entry point."""
 
-  def filter(self, queryset, request=None, suppress_search=False, allow_staff=False):
+  def filter(self, queryset, request=None, suppress_search=False, allow_staff=False, mapping={}):
     """Apply all available filters (access, visibility, status, and search)."""
     self.request = getattr(self, "request", request)
     model = queryset.model
@@ -443,7 +458,10 @@ class FilterMixin(
       queryset = self.filter_status(queryset, allow_staff=allow_staff)
       queryset = self.filter_visibility(queryset, allow_staff=allow_staff)
       if not suppress_search:
-        queryset = self.search(queryset, suppress_search, allow_staff)
+        queryset = self.search(queryset, 
+                               suppress_search=suppress_search, 
+                               allow_staff=allow_staff, 
+                               mapping=mapping)
     except Exception as e:
       traceback.print_exc()
       staff_msg = f": {e}" if getattr(settings, "DEBUG", False) else ""
