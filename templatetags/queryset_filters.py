@@ -45,3 +45,9 @@ def filter_by_visibility(queryset, user):
     else:
       queryset =  queryset.filter(visibility='p')
     return queryset.distinct()
+
+@register.filter
+def without(queryset, exclude_object):
+  ''' Exclude objects from a queryset '''
+  queryset = queryset.exclude(id=exclude_object.id)
+  return queryset

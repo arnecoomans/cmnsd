@@ -4,7 +4,7 @@ from django.utils.translation import pgettext
 from django.utils.formats import date_format
 from django.conf import settings
 from datetime import datetime, date
-
+from dateutil.relativedelta import relativedelta
 register = template.Library()
 
 
@@ -85,3 +85,23 @@ def humanize_date(value, fmt=None):
   local_value = timezone.localtime(value)
   # Use Django's locale-aware date_format (instead of strftime)
   return date_format(local_value, fmt, use_l10n=True)
+
+@register.filter
+def calc_age(event_date, birth_date):
+  """
+  Returns the age (in full years) at the given event_date.
+  Both event_date and birth_date must be datetime.date objects.
+  """
+
+  if not event_date or not birth_date:
+    return ""
+
+  # Ensure datetime -> date
+  if hasattr(event_date, "date"):
+    event_date = event_date.date()
+
+  if hasattr(birth_date, "date"):
+    birth_date = birth_date.date()
+
+  r = relativedelta(event_date, birth_date)
+  return r.years
