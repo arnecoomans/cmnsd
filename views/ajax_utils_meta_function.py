@@ -29,6 +29,30 @@ class meta_function:
   def __call__(self):
     return self.__function()
 
+  def get_required_args(self, func):
+    sig = inspect.signature(func)
+    required = []
+
+    for name, param in sig.parameters.items():
+      # Skip self
+      if name == "self":
+        continue
+
+      # Required = no default AND not *args/**kwargs
+      if (param.default is inspect.Parameter.empty 
+          and param.kind in (param.POSITIONAL_OR_KEYWORD, param.KEYWORD_ONLY)):
+        required.append(name)
+      if 'request' in sig.parameters:
+        required.remove('request')
+    return required
+  
+  def get_required_arg_values(self):
+    required_args = self.get_required_args(self._function)
+    req_args = {}
+    for arg in required_args:
+      req_args[arg] = self.request.GET.get(arg, None) or \
+        self.request.POST.get(arg, None)
+    return req_args
   
   def _detect(self):
     function = None
@@ -40,7 +64,7 @@ class meta_function:
       staff_message = ': ' + str(e) if getattr(settings, 'DEBUG', False) or self.request.user.is_superuser else ''
       raise ValueError(_("no function with the name '{}' could be found in object of type '{}'{}".format(self.function_name, type(self.obj), staff_message).capitalize()))
     self._function = function
-    self._value = function()
+    self._value = function(**self.get_required_arg_values()) if callable(function) else function
     
   def _secure(self):
     return True
@@ -103,11 +127,12 @@ class meta_function:
       try:
         # Attempt to call with `request` if function supports it
         try:
-          value = value(request=self.request)
+          req_args = self.get_required_arg_values()
+          value = value(request=self.request, **req_args)
         except TypeError as e:
           # Retry without request if it’s not accepted
           if "unexpected keyword argument 'request'" in str(e):
-            value = value()
+            value = value(**self.get_required_arg_values())
           else:
             raise e
       except Exception as e:
