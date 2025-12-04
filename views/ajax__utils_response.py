@@ -123,6 +123,7 @@ class ResponseMixin:
       print(template_names)
     for template in template_names:
       try:
+        # print("Context in render:", context)
         rendered_field = render_to_string(template, context=context, request=self.request)
         if getattr(settings, 'DEBUG', False) and self.request.user.is_staff:
           print(f"Rendered template: {template}")
@@ -131,7 +132,8 @@ class ResponseMixin:
       except Exception as e:
         if getattr(settings, 'DEBUG', False) and self.request.user.is_staff:
           staff_message = f": {str(e)}" if getattr(settings, 'DEBUG', False) else ''
-          self._add_message(_("error rendering template '{}'{}").format(template, staff_message).capitalize(), "error")
+          traceback.print_exc()
+        self._add_message(_("error rendering template '{}'{}").format(template, staff_message).capitalize(), "error")
         pass
       try:
         if format == 'json':
@@ -212,7 +214,7 @@ class ResponseMixin:
     ''' Build rendering context '''
     context = context | {
       'field_name': field,
-      'field_value': value,
+      'field_value': str(value),
       field: value,
       'format': format,
       'model': self.model.name,
