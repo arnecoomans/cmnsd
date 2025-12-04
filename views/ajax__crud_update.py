@@ -19,7 +19,7 @@ class CrudUpdate(CrudUtil):
     obj = self._get_obj()
     actions = self._get_actions(obj, payload)
     if getattr(settings, 'DEBUG', False):
-      print("OBJECT:", self.obj, "of model", self.model)
+      print("UPDATE OBJECT:", self.obj, "of model", self.model)
       print("PAYLOAD:", payload)
       print("ACTIONS:", actions)
     # Update fields in a safe order: simple, bool, foreign_key, related
@@ -221,10 +221,6 @@ class CrudUpdate(CrudUtil):
       # No fields are passed in the request, so walk through the payload
       # and map existing object fields to the object meta class
       for key in payload.keys():
-        if '__' in key:
-          # Related field with subfield (ex. category__name) detected. To map this field to payload,
-          # only use the first identifier (ex. category) as field
-          key = key.split('__')[0]
         if self.model.has_field(key):
           # Field is a field of the model/object, so add it to the object meta class
           obj.fields.append(key)
