@@ -611,6 +611,8 @@ class meta_field:
             return ValueError(_("unable to update field '{}' on related object '{}'{}").capitalize().format(field, str(related_obj), staff_message))
           
           self.obj.report_change({
+            'object': str(self.obj.obj),
+            'related_object': str(related_obj),
             'field': f"{self.field_name}.{field}", 
             'old_value': str(current_value),
             'new_value': str(new_value),
