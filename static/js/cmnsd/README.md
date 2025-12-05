@@ -206,7 +206,7 @@ Server messages are normalized and displayed in a configurable container.
 | **`data-method`** | `POST` | all | HTTP method (`GET`, `POST`, `PATCH`, `DELETE`) |
 | **`data-params`** | – | all | JSON or querystring params |
 | **`data-map`** | – | all | Maps payload keys to DOM selectors |
-| **`data-body`** | – | form | Defines body type: `"form"` or JSON string |
+| **`data-body`** | – | form | Defines body type: `"form"`, `#myform` or JSON string |
 | **`data-disable`** | – | all | Temporarily disables element during request |
 | **`data-confirm`** | – | all | Optional confirm dialog before request |
 | **`data-refresh-url`** | – | all | Secondary request triggered after completion |
@@ -219,6 +219,7 @@ Server messages are normalized and displayed in a configurable container.
 | **`data-local-source`** | – | input | JSON array for local suggestions |
 | **`data-field-input`** | `name` | input | Name for submitted visible field |
 | **`data-field-hidden`** | `slug` | input | Name for submitted hidden value |
+| **`data-field-prefix`** | - | input | Prefix submitted field names with this value |
 | **`data-container`** | – | input | Optional payload subkey |
 | **`data-min`** | `2` | input | Min characters before fetch |
 | **`data-force-unique`** | - | input | In the results, force unique results for this field |
