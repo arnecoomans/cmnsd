@@ -130,6 +130,7 @@ class ResponseMixin:
       except TemplateDoesNotExist:
         continue
       except Exception as e:
+        staff_message = ''
         if getattr(settings, 'DEBUG', False) and self.request.user.is_staff:
           staff_message = f": {str(e)}" if getattr(settings, 'DEBUG', False) else ''
           traceback.print_exc()
