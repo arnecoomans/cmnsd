@@ -225,6 +225,7 @@ Server messages are normalized and displayed in a configurable container.
 | **`data-force-unique`** | - | input | In the results, force unique results for this field |
 | **`data-debounce`** | `300` | input | Delay before fetch in ms |
 | **`data-allow-create`** | `1` | input | Whether custom text can be submitted |
+| **`data-autosuggest-allow-empty`** | `0` | Place in form. Set to 1 to stop disable sumbit in form when autosuggest is not used |
 | **`data-onclick-follow`** | – | input | Follow `url` on suggestion click |
 | **`data-display-fields`** | `name` | input | Comma-separated list of fields to show |
 | **`data-display-secondary-size`** | `0.8` | input | Font scale for secondary display fields |
