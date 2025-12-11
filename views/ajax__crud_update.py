@@ -206,6 +206,16 @@ class CrudUpdate(CrudUtil):
           .capitalize()
       )
 
+  def _clean_related_dict(self, d: dict):
+    """
+    Remove empty or meaningless keys from a related-field dict.
+    Return None if nothing meaningful remains.
+    """
+    if not isinstance(d, dict):
+        return d
+
+    cleaned = {k: v for k, v in d.items() if v not in ("", None)}
+    return cleaned or None
   
   ''' get_actions:
       Return the actions to be performed on the object based on the payload and requested fields
@@ -229,6 +239,12 @@ class CrudUpdate(CrudUtil):
     for field in obj.fields:
       if field in payload.keys():
         # Request Field has a Payload Value. Add to Actionable Fields
+        if type(payload[field]) is dict:
+          value = self._clean_related_dict(payload[field])
+          if value is not None:
+            payload[field] = value
+          else:
+            continue
         if self.__get_update_type(field) not in actions:
           actions[self.__get_update_type(field)] = {}
         actions[self.__get_update_type(field)][field] = payload[field]
