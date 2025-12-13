@@ -244,6 +244,12 @@ class ResponseMixin:
       'obj': obj,
       self.model.name: obj.obj,
     }
+    # Prepend template list with model-specific field template if available
+    try:
+      if getattr(self.obj.obj, 'ajax_template_name'):
+        template_names.insert(0, f'{ getattr(self.obj.obj, 'ajax_template_name') }.{ format }')
+    except Exception:
+      pass
     return self.render(field=None, template_names=template_names, format=format, context=context)
   def render_object(self, obj, format='html', context={}):
     ''' Alias for render_obj '''
