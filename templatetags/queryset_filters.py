@@ -60,3 +60,14 @@ def without(queryset, exclude_object):
   else:
     pass
   return queryset
+
+@register.filter
+def match_queryset(queryset, include_object):
+  ''' Include objects in a queryset '''
+  if isinstance(include_object, QuerySet):
+    queryset = queryset.filter(id__in=include_object.values_list('id', flat=True))
+  elif isinstance(include_object, models.Model):
+    queryset = queryset.filter(id=include_object.id)
+  else:
+    pass
+  return queryset 
