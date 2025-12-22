@@ -1,4 +1,7 @@
 from django import template
+from django.db.models import QuerySet
+from django.db import models
+
 register = template.Library()
 
 
@@ -49,5 +52,11 @@ def filter_by_visibility(queryset, user):
 @register.filter
 def without(queryset, exclude_object):
   ''' Exclude objects from a queryset '''
-  queryset = queryset.exclude(id=exclude_object.id)
+  if isinstance(exclude_object, QuerySet):
+    for object in exclude_object:
+      queryset = queryset.exclude(id=object.id)
+  elif isinstance(exclude_object, models.Model):
+    queryset = queryset.exclude(id=exclude_object.id)
+  else:
+    pass
   return queryset
