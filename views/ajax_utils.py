@@ -7,9 +7,9 @@ from markdown import markdown
 
 
 ''' Import Utilities '''
-from .ajax__utils_messages import MessageMixin
+from .utils__messages import MessageMixin
 from .utils__request import RequestMixin
-from .ajax__utils_response import ResponseMixin
+from .utils__response import ResponseMixin
 
 from .cmnsd_filter import FilterMixin
 

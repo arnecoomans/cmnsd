@@ -7,7 +7,7 @@ from django.views import View
 # from .ajax_utils import JsonUtil
 from .utils__messages import MessageMixin
 from .utils__request import RequestMixin
-from .ajax__utils_response import ResponseMixin
+from .utils__response import ResponseMixin
 from .ajax_utils_meta_model import meta_model
 from .ajax_utils_meta_object import meta_object
 from .ajax_utils_meta_field import meta_field
