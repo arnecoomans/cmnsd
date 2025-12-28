@@ -1,6 +1,5 @@
 from django.conf import settings
 from django.http import JsonResponse
-from django.contrib.auth.context_processors import PermWrapper
 from django.template.loader import render_to_string
 from django.utils.translation import gettext_lazy as _
 from django.template.exceptions import TemplateDoesNotExist

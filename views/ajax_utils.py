@@ -1,7 +1,6 @@
 from django.conf import settings
 from django.views import View
 from django.utils.translation import gettext_lazy as _
-from django.apps import apps
 
 from markdown import markdown
 
