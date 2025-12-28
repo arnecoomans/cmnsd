@@ -1,5 +1,5 @@
 // Autosuggest feature for cmnsd
-// Version 2.6 — created with ChatGPT
+// Version 2.6 — with AbortController support
 // Indentation: 2 spaces. Docs in English.
 
 import { api } from './http.js';
@@ -55,6 +55,9 @@ function setupInput(host) {
   if (host.dataset.autosuggestActive) return;
   host.dataset.autosuggestActive = '1';
 
+  // 🆕 Abort controller per input
+  let abortController = null;
+
   // Clean stray action-like attributes
   ['action', 'method', 'map', 'body', 'disable', 'confirm', 'action'].forEach(attr => {
     const key = 'data-' + attr;
@@ -68,7 +71,7 @@ function setupInput(host) {
   const debounceMs = parseInt(host.dataset.debounce || '300', 10);
   const paramName = host.dataset.param || 'q';
   const inputKey = host.dataset.fieldInput || 'name';
-  const hiddenKey = host.dataset.fieldHidden || null; // optional
+  const hiddenKey = host.dataset.fieldHidden || null;
   const containerKey = host.dataset.container || null;
   const allowCreate = host.dataset.allowCreate !== '0';
   const prefix = host.dataset.fieldPrefix || '';
@@ -82,7 +85,7 @@ function setupInput(host) {
   const sourceKey = host.dataset.sourceField || inputKey;
   const isSearchMode = host.dataset.searchMode === 'true';
 
-  // Hidden fields (optional)
+  // Hidden fields
   let hiddenVal = null;
   let hiddenName = null;
 
@@ -95,9 +98,7 @@ function setupInput(host) {
       hiddenVal = document.createElement('input');
       hiddenVal.type = 'hidden';
       hiddenVal.name = prefix + hiddenKey;
-      hiddenVal.value = ''; // ensure value always exists
-
-      // ✅ Fix: always append hidden field inside the form if it exists
+      hiddenVal.value = '';
       if (form) form.appendChild(hiddenVal);
       else scope.appendChild(hiddenVal);
     }
@@ -108,8 +109,6 @@ function setupInput(host) {
       hiddenName.type = 'hidden';
       hiddenName.name = prefix + inputKey;
       hiddenName.value = '';
-
-      // ✅ Same form-append fix
       if (form) form.appendChild(hiddenName);
       else scope.appendChild(hiddenName);
     }
@@ -147,7 +146,6 @@ function setupInput(host) {
     const submit = form.querySelector('[type=submit]');
     if (!submit) return;
 
-    // allow override via form attribute
     if (form.dataset.autosuggestAllowEmpty === '1') {
       submit.disabled = false;
       return;
@@ -175,41 +173,28 @@ function setupInput(host) {
 
   async function fetchSuggestions(q) {
     try {
-      // --- local data mode ---
-      if (localSource) {
-        let listData = [];
-        try { listData = JSON.parse(localSource); }
-        catch { return; }
-        if (!Array.isArray(listData)) return clearList(true);
-        let results = listData.filter(item => {
-          const val = (typeof item === 'string' ? item : item[sourceKey] || '').toLowerCase();
-          return val.includes(q.toLowerCase());
-        });
-        if (uniqueKey && Array.isArray(results)) {
-          const seen = new Set();
-          const keys = uniqueKey.split(',').map(k => k.trim());
-          results = results.filter(it => {
-            const combo = keys.map(k => String(it?.[k] || '').toLowerCase()).join('|');
-            if (!seen.has(combo)) { seen.add(combo); return true; }
-            return false;
-          });
-        }
-        if (!results.length) return clearList(true);
-        renderSuggestions(results);
-        return;
+      // 🆕 Abort previous request
+      if (abortController) {
+        abortController.abort();
       }
+      abortController = new AbortController();
 
-      // --- remote data mode ---
       const params = {};
       if (paramName) params[paramName] = q;
       if (host.dataset.extraParams) {
         try { Object.assign(params, JSON.parse(host.dataset.extraParams)); }
         catch {}
       }
-      const res = await api.get(url, { params });
+
+      const res = await api.get(url, {
+        params,
+        signal: abortController.signal
+      });
+
       let data = res?.payload || [];
       if (containerKey && data && typeof data === 'object') data = data[containerKey];
       if (data && !Array.isArray(data) && typeof data === 'object') data = Object.values(data);
+
       if (uniqueKey && Array.isArray(data)) {
         const seen = new Set();
         const keys = uniqueKey.split(',').map(k => k.trim());
@@ -219,14 +204,20 @@ function setupInput(host) {
           return false;
         });
       }
+
       if (!Array.isArray(data) || !data.length) {
         clearList(true);
         if (hiddenVal) hiddenVal.value = '';
         updateValidity();
         return;
       }
+
       renderSuggestions(data);
+
     } catch (err) {
+      // 🆕 Abort is expected behavior
+      if (err.name === 'AbortError') return;
+
       console.warn('[cmnsd:autosuggest] fetch failed', err);
       clearList(true);
       if (hiddenVal) hiddenVal.value = '';
@@ -243,13 +234,16 @@ function setupInput(host) {
       const el = document.createElement('button');
       el.type = 'button';
       el.className = 'list-group-item list-group-item-action text-start';
+
       const mainField = displayFields[0] || sourceKey;
       const secondaryFields = displayFields.slice(1);
       const mainValue = item[mainField] ?? '';
+
       const mainDiv = document.createElement('div');
       mainDiv.className = 'autosuggest-main';
       mainDiv.appendChild(sanitizeHTML(mainValue));
       el.appendChild(mainDiv);
+
       secondaryFields.forEach(f => {
         const val = item[f];
         if (val) {
@@ -285,10 +279,6 @@ function setupInput(host) {
           hiddenName.value = displayVal;
         }
 
-        console.debug('[cmnsd:autosuggest] selected', {
-          displayVal, hiddenFieldVal, hiddenKey, prefix
-        });
-
         list.style.display = 'none';
         updateValidity();
       });
@@ -301,7 +291,6 @@ function setupInput(host) {
     list.style.display = 'block';
   }
 
-  // Keyboard navigation
   host.addEventListener('keydown', e => {
     if (list.style.display !== 'block' || !itemsRef.length) return;
     if (e.key === 'ArrowDown') {
@@ -327,16 +316,31 @@ function setupInput(host) {
     if (hiddenVal) hiddenVal.value = '';
     if (hiddenName) hiddenName.value = allowCreate ? q : '';
     updateValidity();
-    if (q.length < minChars) { if (minChars === 0) fetchSuggestions(''); else clearList(); return; }
+
+    if (q.length < minChars) {
+      if (minChars === 0) fetchSuggestions('');
+      else clearList();
+      return;
+    }
+
     if (debounceTimer) clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => fetchSuggestions(q), debounceMs);
   });
 
-  host.addEventListener('focus', () => { if (minChars === 0) fetchSuggestions(''); });
-  host.addEventListener('blur', () => { setTimeout(() => clearList(), 200); });
+  host.addEventListener('focus', () => {
+    if (minChars === 0) fetchSuggestions('');
+  });
+
+  host.addEventListener('blur', () => {
+    setTimeout(() => clearList(), 200);
+  });
 
   const form = host.closest('form');
-  if (form) form.addEventListener('submit', () => { if (hiddenVal) syncFieldNames(); });
+  if (form) {
+    form.addEventListener('submit', () => {
+      if (hiddenVal) syncFieldNames();
+    });
+  }
 
   updateValidity();
   if (hiddenVal) syncFieldNames();
