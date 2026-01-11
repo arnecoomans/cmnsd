@@ -36,7 +36,7 @@ class meta_function:
       if (param.default is inspect.Parameter.empty 
           and param.kind in (param.POSITIONAL_OR_KEYWORD, param.KEYWORD_ONLY)):
         required.append(name)
-      if 'request' in sig.parameters:
+      if 'request' in sig.parameters and 'request' in required:
         required.remove('request')
     return required
   
