@@ -58,7 +58,7 @@ class meta_function:
       staff_message = ': ' + str(e) if getattr(settings, 'DEBUG', False) or self.request.user.is_superuser else ''
       raise ValueError(_("no function with the name '{}' could be found in object of type '{}'{}".format(self.function_name, type(self.obj), staff_message).capitalize()))
     self._function = function
-    self._value = function(**self.get_required_arg_values()) if callable(function) else function
+    # self._value = function(**self.get_required_arg_values()) if callable(function) else function
     
   def _secure(self):
     return True
@@ -104,7 +104,6 @@ class meta_function:
 
     # Default to None if the attribute does not exist
     value = getattr(self.obj.obj, self.function_name, None)
-
     # Case 1: Related manager (e.g. ManyToMany or reverse FK)
     if hasattr(value, "all") and callable(value.all):
       try:
@@ -146,6 +145,7 @@ class meta_function:
     self._value_cached = True
 
     return self.__value
+  
   def get_value(self):
     """ Alias for value() method. """
     return self.value()

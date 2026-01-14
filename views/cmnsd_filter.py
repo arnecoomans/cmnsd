@@ -83,7 +83,8 @@ class FilterAccessMixin(FilterBaseMixin):
 class FilterStatusVisibilityMixin(FilterBaseMixin):
   """Provides status and visibility filtering."""
 
-  def filter_status(self, queryset, allow_staff=False):
+  def filter_status(self, queryset, allow_staff=False, request=None):
+    self.request = getattr(self, "request", request)
     """Filter queryset by publication status."""
     user = getattr(self.request, "user", None)
     if allow_staff and user and user.is_staff:
@@ -92,7 +93,8 @@ class FilterStatusVisibilityMixin(FilterBaseMixin):
       return queryset.filter(status="p").distinct()
     return queryset.distinct()
 
-  def filter_visibility(self, queryset, allow_staff=False):
+  def filter_visibility(self, queryset, allow_staff=False, request=None):
+    self.request = getattr(self, "request", request)
     """
     Filter objects based on the current user's visibility level.
 
@@ -455,8 +457,8 @@ class FilterMixin(
     model = queryset.model
     try:
       queryset = self._filter_by_restrict_access(queryset)
-      queryset = self.filter_status(queryset, allow_staff=allow_staff)
-      queryset = self.filter_visibility(queryset, allow_staff=allow_staff)
+      queryset = self.filter_status(queryset, request=self.request, allow_staff=allow_staff)
+      queryset = self.filter_visibility(queryset, request=request, allow_staff=allow_staff)
       if not suppress_search:
         queryset = self.search(queryset, 
                                suppress_search=suppress_search, 
