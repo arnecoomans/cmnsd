@@ -5,6 +5,12 @@ register = template.Library()
 ''' Update Query Params 
     Allows to add and remove qyery parameters from the current URL
     keeping the other parameters intact.
+
+    Use in templates like this:
+    {% load query_filters %}
+    <a href="{% url 'baseurl' %}{% update_query_params request add='tag1' to='tags' %}">Add tag1</a>
+    <a href="{% url 'baseurl' %}{% update_query_params request remove='tag1' to='tags' %}">Remove tag1</a>
+    <a href="{% url 'baseurl' %}{% update_query_params request replace='newvalue' to='category' %}">Replace category with newvalue</a>
 '''
 
 @register.simple_tag
