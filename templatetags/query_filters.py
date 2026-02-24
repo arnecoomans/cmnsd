@@ -36,6 +36,7 @@ def update_query_params(request, add=None, remove=None, to=None, replace=None, a
     
     # Handle removing a value from the specified parameter
     if remove:
+      print(f"Removing '{remove}' from parameter '{to}'")
       existing_values = query_params.get(to, '').split(',')
       if not type(remove) == list:
         remove = [remove]
@@ -46,10 +47,11 @@ def update_query_params(request, add=None, remove=None, to=None, replace=None, a
         query_params[to] = ','.join(existing_values)
       else:
         query_params.pop(to)
+        print(query_params)
     
     # Handle replacing the value of the specified parameter
     if replace:
       query_params[to] = replace
 
-    return len(query_params) > 0 and f"?{ query_params.urlencode() }" or ''
+    return len(query_params) > 0 and f"?{ query_params.urlencode() }" or '?'
     
