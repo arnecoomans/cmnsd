@@ -22,6 +22,7 @@ def setting_data(request):
   '''  
   return {
     'project_name': getattr(settings, 'SITE_NAME', 'A CMNS Django Project - backed by cmnsd'),
+    'project_payline': getattr(settings, 'SITE_PAYLINE', 'Discover campings and holiday accommodations across Europe'),
     'meta_description': getattr(settings, 'META_DESCRIPTION', 'A CMNS Django Project'),#
     'language_code': getattr(settings, 'LANGUAGE_CODE', 'en'),
     
