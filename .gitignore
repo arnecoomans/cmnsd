@@ -29,3 +29,6 @@ old_*
 dev_*
 *.old
 *.dev
+
+# Claude
+docs/claude-session-*.md
