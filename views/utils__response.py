@@ -292,9 +292,14 @@ class ResponseMixin:
       'format': format,
       'model': model.name,
     }
-    object_list = model.model.objects.all()
+    # Check if model has optimization
+    if hasattr(model.model, 'get_optimized_queryset'):
+      object_list = model.model.get_optimized_queryset()
+    else:
+      object_list = model.model.objects.all()
     if hasattr(self, 'filter'):
-      object_list = self.filter(object_list)
+      mapping = getattr(model.model, 'get_filter_mapping', lambda: {})()
+      object_list = self.filter(object_list, mapping=mapping, request=self.request)
     context[model_name] = object_list
     return self.render(field=None, template_names=template_names, format=format, context=context)
   

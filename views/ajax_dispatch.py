@@ -5,9 +5,10 @@ from django.apps import apps
 from django.views import View
 
 # from .ajax_utils import JsonUtil
-from .utils__messages import MessageMixin
-from .utils__request import RequestMixin
-from .utils__response import ResponseMixin
+# from cmnsd.mixins import MessagesMixin
+from cmnsd.mixins import MessagesMixin
+from cmnsd.mixins import RequestMixin
+from cmnsd.mixins import ResponseMixin
 from .ajax_utils_meta_model import meta_model
 from .ajax_utils_meta_object import meta_object
 from .ajax_utils_meta_field import meta_field
@@ -15,11 +16,11 @@ from .ajax_utils_meta_function import meta_function
 from .ajax__crud_read import CrudRead
 from .ajax__crud_update import CrudUpdate
 from .ajax__crud_delete import CrudDelete
-from .cmnsd_filter import FilterMixin
+from cmnsd.mixins import FilterMixin
 
 ''' Meta classes for detection and dispatching
 '''
-class AjaxDispatch(MessageMixin, FilterMixin, RequestMixin, ResponseMixin, CrudRead, CrudUpdate, CrudDelete, View):
+class AjaxDispatch(MessagesMixin, FilterMixin, RequestMixin, ResponseMixin, CrudRead, CrudUpdate, CrudDelete, View):
     
   def __init__(self):
     super().__init__()
