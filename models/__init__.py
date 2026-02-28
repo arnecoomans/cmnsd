@@ -1,2 +1,3 @@
-from .cmnsd_basemodel import *
+from .BaseModel import BaseModel
+from .VisibilityModel import VisibilityModel
 from .Tag import *

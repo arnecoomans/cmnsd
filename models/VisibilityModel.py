@@ -14,6 +14,21 @@ class VisibilityModel(models.Model):
   class Meta:
     abstract = True
   
-  @property
+  @classmethod
   def get_visibility_choices(self):
     return dict(self.visibility_choices)
+
+  ''' Visibility Helpers '''
+  @property
+  def is_private(self):
+    print(f"Checking if visibility '{self.visibility}' is private")
+    return self.visibility == 'q'
+  @property
+  def is_family(self):
+    return self.visibility == 'f'
+  @property
+  def is_community(self):
+    return self.visibility == 'c'
+  @property
+  def is_public(self):
+    return self.visibility == 'p'

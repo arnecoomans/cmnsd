@@ -2,6 +2,7 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings
 from django.urls import reverse
+from django.core.exceptions import ValidationError
 
 import string, secrets
 from inspect import getmembers, isfunction
@@ -66,7 +67,7 @@ class BaseModel(models.Model):
     if not self.token:
       self.token = self._generate_unique_public_id()
     super().save(*args, **kwargs)
-
+  
   @property
   def ajax_slug(self):
     """Return a combined identifier for AJAX routes."""
@@ -92,6 +93,15 @@ class BaseModel(models.Model):
   def __str__(self):
     return getattr(self, 'name', f"{self.__class__.__name__} ({self.pk})")
 
+  @classmethod
+  def get_optimized_queryset(cls):
+    """
+    Return an optimized queryset for this model.
+    Override in subclasses to add select_related, prefetch_related, annotations.
+    Default: returns all objects.
+    """
+    return cls.objects.all()
+  
   @classmethod
   def get_model_fields(self):
     return [f.name for f in self._meta.get_fields()]
