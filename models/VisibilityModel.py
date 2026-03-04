@@ -17,7 +17,15 @@ class VisibilityModel(models.Model):
   @classmethod
   def get_visibility_choices(self):
     return dict(self.visibility_choices)
-
+  @classmethod
+  def get_visibility_order_map(self):
+    return {
+      'p': 3,
+      'c': 2,
+      'f': 1,
+      'q': 0,
+    }
+  
   ''' Visibility Helpers '''
   @property
   def is_private(self):
@@ -32,3 +40,5 @@ class VisibilityModel(models.Model):
   @property
   def is_public(self):
     return self.visibility == 'p'
+  
+  
