@@ -6,7 +6,7 @@ from django.views import View
 
 # from .ajax_utils import JsonUtil
 # from cmnsd.mixins import MessagesMixin
-from cmnsd.mixins import MessagesMixin
+from cmnsd.mixins import MessageMixin
 from cmnsd.mixins import RequestMixin
 from cmnsd.mixins import ResponseMixin
 from .ajax_utils_meta_model import meta_model
@@ -20,7 +20,7 @@ from cmnsd.mixins import FilterMixin
 
 ''' Meta classes for detection and dispatching
 '''
-class AjaxDispatch(MessagesMixin, FilterMixin, RequestMixin, ResponseMixin, CrudRead, CrudUpdate, CrudDelete, View):
+class AjaxDispatch(MessageMixin, FilterMixin, RequestMixin, ResponseMixin, CrudRead, CrudUpdate, CrudDelete, View):
     
   def __init__(self):
     super().__init__()
