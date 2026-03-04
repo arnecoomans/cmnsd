@@ -1,6 +1,6 @@
 from django.conf import settings
 
-class MessagesMixin(object):
+class MessagesClass(object):
   def __init__(self):
     self.__messages = []
     self.__is_staff = False
@@ -70,7 +70,7 @@ class MessagesMixin(object):
   
 class MessageMixin:
   def __init__(self):
-    self.messages = Messages()
+    self.messages = MessagesClass()
     super().__init__()
 
   def setup(self, request, *args, **kwargs):
