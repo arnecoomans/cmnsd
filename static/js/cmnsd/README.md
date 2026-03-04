@@ -1,7 +1,7 @@
-# cmnsd JavaScript Framework — v2.0.0
+# cmnsd JavaScript Framework — v2.1.0
 
-Lightweight modular JavaScript framework for Django-based applications.  
-Provides unified handling for AJAX requests, dynamic DOM updates, autosuggest fields, and contextual message rendering.
+Lightweight modular JavaScript framework for Django-based applications.
+Provides unified handling for AJAX requests, dynamic DOM updates, autosuggest fields, contextual message rendering, image lightbox, and modal overlays.
 
 ---
 
@@ -19,6 +19,8 @@ It is built around the following components:
 | `actions.js` | Delegated AJAX handling and clipboard actions |
 | `messages.js` | Bootstrap-compatible message display |
 | `autosuggest.js` | Dynamic and local autosuggest support |
+| `lightbox.js` | Full-screen image overlay with gallery navigation |
+| `modal.js` | Centered overlay for remote or inline HTML content |
 
 ---
 
@@ -174,7 +176,82 @@ or
 ```
 ---
 
-### 3. Messages
+### 3. Lightbox
+
+Import and initialize `lightbox.js` separately (not part of core):
+
+```js
+import { initLightbox } from '/static/js/cmnsd/lightbox.js';
+// Auto-initializes on DOMContentLoaded — no manual call needed.
+```
+
+#### Example: Single image
+
+```html
+<a data-action="lightbox" data-src="/media/photo-full.jpg" href="/media/photo-full.jpg">
+  <img src="/media/photo-thumb.jpg" alt="Campsite view">
+</a>
+```
+
+#### Example: Gallery (arrow navigation)
+
+```html
+<a data-action="lightbox" data-src="/media/photo1.jpg" data-gallery="hero" data-caption="Entrance">
+  <img src="/media/photo1-thumb.jpg">
+</a>
+<a data-action="lightbox" data-src="/media/photo2.jpg" data-gallery="hero" data-caption="Pool">
+  <img src="/media/photo2-thumb.jpg">
+</a>
+```
+
+---
+
+### 4. Modal
+
+Import and initialize `modal.js` separately:
+
+```js
+import { initModal, openModal, closeModal } from '/static/js/cmnsd/modal.js';
+// Auto-initializes on DOMContentLoaded — no manual call needed.
+```
+
+#### Example: Remote content (visit form)
+
+```html
+<button
+  data-action="modal"
+  data-url="/ajax/location/42/visit/form/"
+  data-title="Add visit">
+  Mark as visited
+</button>
+```
+
+The Django view should return `{ "payload": { "content": "<form>...</form>" } }`.
+
+Inside the rendered form, use standard `data-action` for submission. Add `data-close-modal` to the cancel button:
+
+```html
+<form data-action data-method="POST" data-url="/ajax/location/42/visit/add/">
+  <input type="date" name="date">
+  <button type="submit" class="btn btn-primary">Save</button>
+  <button type="button" data-close-modal class="btn btn-secondary">Cancel</button>
+</form>
+```
+
+#### Example: Inline HTML (no fetch)
+
+```html
+<button
+  data-action="modal"
+  data-title="Confirm"
+  data-content="<p>Are you sure?</p><button data-close-modal>Close</button>">
+  Open
+</button>
+```
+
+---
+
+### 5. Messages
 
 Server messages are normalized and displayed in a configurable container.
 
@@ -236,6 +313,16 @@ Server messages are normalized and displayed in a configurable container.
 | **`data-url`** | – | info overlay | Source of data to show on overlay |
 | **`data-info`** | – | info overlay | Local source of data to show on overlay |
 | **`data-placement`** | right left top botoom | info overlay | Direct text to copy |
+| **`data-action="lightbox"`** | – | a, button, any | Opens full-screen image overlay |
+| **`data-src`** | – | lightbox | Full-size image URL (fallback: href, then first img src) |
+| **`data-gallery`** | – | lightbox | Group name for multi-image arrow navigation |
+| **`data-caption`** | – | lightbox | Caption text (fallback: img alt) |
+| **`data-action="modal"`** | – | a, button, any | Opens centered content overlay |
+| **`data-title`** | – | modal | Modal header title |
+| **`data-url`** | – | modal | URL to fetch modal body HTML from |
+| **`data-content`** | – | modal | Inline HTML for modal body (skips fetch) |
+| **`data-content-key`** | `content` | modal | Key inside response.payload to use as body |
+| **`data-close-modal`** | – | any inside modal | Closes the modal when clicked |
 ---
 
 ## 🧩 Events

@@ -280,6 +280,9 @@ export function createActionBinder({
     }
   }
 
+  // Action values handled by external modules — actions.js must not intercept these.
+  const EXTERNAL_ACTIONS = new Set(['lightbox', 'modal']);
+
   return function bindDelegatedActions(root) {
     const base = root || document;
 
@@ -287,6 +290,7 @@ export function createActionBinder({
       const t = e.target.closest('[data-action]');
       if (!t || !base.contains(t)) return;
       if (t.tagName.toLowerCase() === 'form') return;
+      if (EXTERNAL_ACTIONS.has(t.dataset.action)) return;
       handleActionTrigger(e, t);
     });
 

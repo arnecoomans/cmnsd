@@ -10,7 +10,7 @@ import { createLoader } from './loader.js';
 const state = {
   config: {
     baseURL: '',
-    headers: {},
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
     csrftoken: null,
     credentials: 'same-origin',
     debug: false,
