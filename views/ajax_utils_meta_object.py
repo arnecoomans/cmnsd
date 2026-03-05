@@ -70,6 +70,7 @@ class meta_object():
     if identifiers and qs:
       try:
         self.obj = qs.get(**identifiers)
+        self.obj.request = self.request
         return self.obj
       except qs.model.MultipleObjectsReturned:
         raise ValueError(_("multiple objects were found for the given arguments: {}".format(identifiers)).capitalize())
