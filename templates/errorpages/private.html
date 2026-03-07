@@ -1,0 +1,12 @@
+{% extends 'errorpages/base_error.html' %}
+{% load i18n %}
+
+{% block title %}{% translate "not available"|capfirst %}{% endblock %}
+{% block error_code %}🔒{% endblock %}
+{% block error_heading %}{% translate "this content is not available to you"|capfirst %}{% endblock %}
+{% block error_body %}{% translate "this page exists but is private or restricted to specific people."|capfirst %}{% endblock %}
+
+{% block error_actions %}
+  <a href="/" class="err-btn err-btn--primary">{% translate "go to homepage"|capfirst %}</a>
+  <a href="javascript:history.back()" class="err-btn err-btn--secondary">{% translate "go back"|capfirst %}</a>
+{% endblock %}

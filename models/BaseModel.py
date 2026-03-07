@@ -7,19 +7,30 @@ from django.core.exceptions import ValidationError
 import string, secrets
 from inspect import getmembers, isfunction
 
-''' Base functions '''
+# ================================================================
+# Base Function:
+# Generate public id (token)
+# Creates a short, URL-safe token using letters and digits.
+# ================================================================
 def generate_public_id(length=10):
     """Generate a short, URL-safe public ID (not guessable)."""
     alphabet = string.ascii_letters + string.digits
     return ''.join(secrets.choice(alphabet) for _ in range(length))
 
-''' BaseModel
-    Abstract base model with common fields and methods
-    for all models in the project.
-'''
-class BaseModel(models.Model):
-  """Abstract base model with a secure token and metadata fields."""
+# ================================================================
+# BaseModel:
+# Abstract base model with common fields and methods for all models.
+# ================================================================
 
+class BaseModel(models.Model):
+  # Exposed as a class attribute so migrations referencing
+  # cmnsd.models.BaseModel.generate_public_id resolve correctly
+  # (cmnsd.models.BaseModel resolves to this class, not the module).
+  generate_public_id = generate_public_id
+
+  # ================================================================
+  # BaseModel Fields:
+  # ================================================================
   token = models.CharField(
     max_length=20,
     unique=True,
@@ -52,8 +63,9 @@ class BaseModel(models.Model):
     related_name="%(class)s_created_by",
   )
 
-  # ---------- Helpers ----------
-
+  # ================================================================
+  # Internal Methods
+  # ================================================================
   def _generate_unique_public_id(self):
     """Try multiple times to avoid collisions."""
     for _ in range(10):
@@ -62,12 +74,24 @@ class BaseModel(models.Model):
         return pid
     return generate_public_id(15)
 
+  # ================================================================
+  # Model Methods
+  # ================================================================
+  class Meta:
+    abstract = True
+  
   def save(self, *args, **kwargs):
     """Automatically assign a unique token if missing."""
     if not self.token:
       self.token = self._generate_unique_public_id()
     super().save(*args, **kwargs)
-  
+    
+  def __str__(self):
+    return getattr(self, 'name', f"{self.__class__.__name__} ({self.pk})")
+
+  # ================================================================
+  # Utility Methods: Ajax URL
+  # ================================================================
   @property
   def ajax_slug(self):
     """Return a combined identifier for AJAX routes."""
@@ -85,14 +109,16 @@ class BaseModel(models.Model):
       'cmnsd:dispatch_object_by_id_and_slug',
       args=[self.__class__.__name__.lower(), self.id, getattr(self, 'slug', self.token)],
     )
-
+  # ================================================================
+  # Permissions and Access Control
+  # ================================================================
   @property
   def disallow_access_fields(self):
     return ['id', 'slug', 'date_created', 'date_modified']
 
-  def __str__(self):
-    return getattr(self, 'name', f"{self.__class__.__name__} ({self.pk})")
-
+  # ================================================================
+  # Class Methods for Querysets and Searchable Fields
+  # ================================================================
   @classmethod
   def get_optimized_queryset(cls):
     """
@@ -125,5 +151,18 @@ class BaseModel(models.Model):
     ]
     return fields + functions
   
-  class Meta:
-    abstract = True
+  # ================================================================
+  # Class Methods for Status Filtering
+  # ================================================================
+  @classmethod
+  def filter_status(cls, queryset, request=None):
+    if request and request.user.is_authenticated:
+      if request.user.is_staff:
+        # Staff can see Published, Concept, and Revoked
+        return queryset.filter(models.Q(status='p') | models.Q(status='c') | models.Q(status='r'))
+      else:
+        # Authenticated non-staff can see Published and their own Concept
+        return queryset.filter(models.Q(status='p') | models.Q(status='c', user=request.user))
+    else:
+      # Unauthenticated users can only see Published
+      return queryset.filter(status='p')

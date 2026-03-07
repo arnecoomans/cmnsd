@@ -5,7 +5,8 @@ from django.utils.text import slugify
 
 from django.urls import reverse_lazy
 
-from .cmnsd_basemodel import BaseModel, VisibilityModel
+from .BaseModel import BaseModel
+from .VisibilityModel import VisibilityModel
 
 class Tag(BaseModel):
   slug                = models.CharField(max_length=64, unique=True, help_text=f"{ _('Identifier in URL') } ({ _('automatically generated') })")

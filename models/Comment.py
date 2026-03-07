@@ -5,16 +5,18 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.utils.translation import gettext_lazy as _
 
-from cmnsd.models.cmnsd_basemodel import BaseModel
+from cmnsd.models.BaseModel import BaseModel
+from cmnsd.models.VisibilityModel import VisibilityModel
 
 
-class BaseComment(BaseModel):
+class BaseComment(BaseModel, VisibilityModel):
   """
   Reusable comment model that supports attaching comments to *any* model
   through a GenericForeignKey.
 
   Features:
   - inherits BaseModel (token, status, timestamps, user)
+  - inherits VisibilityModel (visibility field and filtering)
   - content_object points to any Django model
   - safe to use with cmnsd AJAX dispatch
   - no migrations needed in project apps
@@ -26,7 +28,7 @@ class BaseComment(BaseModel):
     on_delete=models.CASCADE,
     related_name="comments",
   )
-  object_id = models.PositiveIntegerField()
+  object_id = models.PositiveBigIntegerField()
   content_object = GenericForeignKey("content_type", "object_id")
 
   text = models.TextField(
@@ -54,15 +56,16 @@ class BaseComment(BaseModel):
 
   def get_title(self):
     """
-    Return the title of the comment, or a default if none is set.
+    Return the title of the comment, or a truncated preview of the text.
     """
     if self.title:
       return self.title
-    return _("Comment #{pk} on {object}").format(pk=self.pk, object=self.content_object)
+    preview = self.text.strip()[:60]
+    return _("Comment: {preview}…").format(preview=preview) if len(self.text.strip()) > 60 else preview
 
   def __str__(self):
     return self.get_title()
-  
+
   # ----------------------------
   # AJAX helpers
   # ----------------------------
@@ -73,6 +76,7 @@ class BaseComment(BaseModel):
     """
     return ["text", "title", "visibility"]
 
+  @property
   def disallow_access_fields(self):
     """
     Prevent AJAX from touching internal keys.

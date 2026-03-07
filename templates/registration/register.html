@@ -1,0 +1,204 @@
+{% extends 'index.html' %}
+{% load i18n %}
+
+{% block title %}{% translate "create account"|capfirst %}{% endblock %}
+
+{% block template_css %}
+<style>
+  .auth-wrap {
+    display: flex;
+    justify-content: center;
+    padding: 32px 0;
+  }
+  .auth-card {
+    width: 100%;
+    max-width: 420px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    box-shadow: 0 8px 24px rgba(17,24,39,.08);
+    padding: 32px;
+  }
+  .auth-card__title {
+    margin: 0 0 6px;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: #111827;
+  }
+  .auth-card__sub {
+    font-size: 13px;
+    color: #6b7280;
+    margin-bottom: 24px;
+  }
+  .auth-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .auth-field {
+    margin-bottom: 16px;
+  }
+  .auth-field label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 6px;
+  }
+  .auth-field input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    font: inherit;
+    font-size: 15px;
+    color: #111827;
+    background: #f9fafb;
+    outline: none;
+    transition: border-color .15s;
+  }
+  .auth-field input:focus {
+    border-color: #9ca3af;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(156,163,175,.2);
+  }
+  .auth-field__errors {
+    margin-top: 5px;
+    font-size: 12px;
+    color: #b91c1c;
+  }
+  .auth-alert {
+    margin-bottom: 18px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 13px;
+    border: 1px solid #fca5a5;
+    background: #fef2f2;
+    color: #b91c1c;
+  }
+  .auth-hint {
+    margin-top: 4px;
+    font-size: 12px;
+    color: #6b7280;
+  }
+  .auth-btn {
+    width: 100%;
+    padding: 11px 16px;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    background: #374151;
+    color: #fff;
+    font: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s;
+    margin-top: 4px;
+  }
+  .auth-btn:hover { background: #1f2937; }
+  .auth-footer {
+    margin-top: 18px;
+    text-align: center;
+    font-size: 13px;
+    color: #6b7280;
+  }
+  .auth-footer a { color: #374151; font-weight: 600; }
+  .auth-field--auto input { color: #6b7280; }
+  .auth-field--auto input:focus { color: #111827; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="auth-wrap">
+  <div class="auth-card">
+    <h1 class="auth-card__title">{% translate "create account"|capfirst %}</h1>
+    {% if site_name %}<div class="auth-card__sub">{{ site_name }}</div>{% endif %}
+
+    {% if form.non_field_errors %}
+      <div class="auth-alert">
+        {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+      </div>
+    {% endif %}
+
+    <form method="post">
+      {% csrf_token %}
+      {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+
+      <div class="auth-field">
+        {% translate form.email.label_tag %}
+        {{ form.email }}
+        {% if form.email.errors %}<div class="auth-field__errors">{% for e in form.email.errors %}{{ e }}{% endfor %}</div>{% endif %}
+      </div>
+
+      <div class="auth-row">
+        <div class="auth-field">
+          {% translate form.first_name.label_tag %}
+          {{ form.first_name }}
+          {% if form.first_name.errors %}<div class="auth-field__errors">{% for e in form.first_name.errors %}{{ e }}{% endfor %}</div>{% endif %}
+        </div>
+        <div class="auth-field">
+          {% translate form.last_name.label_tag %}
+          {{ form.last_name }}
+          {% if form.last_name.errors %}<div class="auth-field__errors">{% for e in form.last_name.errors %}{{ e }}{% endfor %}</div>{% endif %}
+        </div>
+      </div>
+
+      <div class="auth-field auth-field--auto">
+        {% translate form.username.label_tag %}
+        {{ form.username }}
+        <div class="auth-hint">{% translate "auto-generated from your name — you can change it"|capfirst %}</div>
+        {% if form.username.errors %}<div class="auth-field__errors">{% for e in form.username.errors %}{{ e }}{% endfor %}</div>{% endif %}
+      </div>
+
+      <div class="auth-field">
+        {% translate form.password1.label_tag %}
+        {{ form.password1 }}
+        {% if form.password1.help_text %}<div class="auth-hint">{{ form.password1.help_text }}</div>{% endif %}
+        {% if form.password1.errors %}<div class="auth-field__errors">{% for e in form.password1.errors %}{{ e }}{% endfor %}</div>{% endif %}
+      </div>
+
+      <div class="auth-field">
+        {% translate form.password2.label_tag %}
+        {{ form.password2 }}
+        {% if form.password2.errors %}<div class="auth-field__errors">{% for e in form.password2.errors %}{{ e }}{% endfor %}</div>{% endif %}
+      </div>
+
+      <button type="submit" class="auth-btn">{% translate "create account"|capfirst %}</button>
+    </form>
+
+    <div class="auth-footer">
+      {% translate "already have an account"|capfirst %}? <a href="{% url 'login' %}">{% translate "sign in"|capfirst %}</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scriptfooter %}
+<script>
+(function () {
+  const first = document.getElementById('id_first_name');
+  const last  = document.getElementById('id_last_name');
+  const user  = document.getElementById('id_username');
+  if (!first || !last || !user) return;
+
+  function toUsername(str) {
+    return str
+      .toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // strip accents
+      .replace(/[^a-z0-9]/g, '');                        // strip non-alphanumeric
+  }
+
+  let userEdited = user.value !== '';
+  user.addEventListener('input', () => { userEdited = true; });
+
+  function update() {
+    if (userEdited) return;
+    user.value = toUsername(first.value) + toUsername(last.value);
+  }
+
+  first.addEventListener('input', update);
+  last.addEventListener('input', update);
+})();
+</script>
+{% endblock %}

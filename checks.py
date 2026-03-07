@@ -56,6 +56,7 @@ def check_cmnsd_config(app_configs, **kwargs):
         "AJAX_ALLOW_RELATED_CREATION_MODELS",
         "AJAX_MAX_DEPTH_RECURSION",
         "AJAX_MODES",
+        "EMAIL_BACKEND",
     ]
     for setting in required_settings:
         if not hasattr(settings, setting):

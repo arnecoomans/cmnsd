@@ -26,10 +26,58 @@ class VisibilityModel(models.Model):
       'q': 0,
     }
   
+  ''' Visibility Filtering (queryset) '''
+  @classmethod
+  def filter_visibility(cls, queryset, request=None):
+    if request and request.user.is_authenticated:
+      user = request.user
+      return queryset.filter(
+      models.Q(visibility='p') |                                  # Public is always visible
+      models.Q(visibility='c') |                                  # Community is visible to authenticated users
+        models.Q(visibility='f', user=user) |                     # Family is visible to the owner
+        models.Q(visibility='f', user__preferences__family=user) |# Family is visible to their family (reverse relation)
+        models.Q(visibility='q', user=user)                       # Private is only visible to the owner
+      )
+    else:
+      return queryset.filter(visibility='p')
+
+  ''' Visibility Checking (instance) '''
+  def is_visible_to(self, user=None):
+    """
+    Check whether this object is visible to a given user without an extra
+    queryset call. Mirrors filter_visibility() but evaluates in Python on
+    the already-loaded instance. Use this in detail views.
+
+    Args:
+      user: A User instance or None (anonymous).
+
+    Returns:
+      bool: True if the user may see this object.
+    """
+    if self.visibility == 'p':
+      return True
+
+    if user is None or not user.is_authenticated:
+      return False
+
+    if self.visibility == 'c':
+      return True
+
+    if self.visibility == 'f':
+      if self.user_id == user.pk:
+        return True
+      # Uses prefetch cache if user__preferences__family was prefetched;
+      # falls back to one query otherwise.
+      return user in self.user.preferences.family.all()
+
+    if self.visibility == 'q':
+      return self.user_id == user.pk
+
+    return False
+
   ''' Visibility Helpers '''
   @property
   def is_private(self):
-    print(f"Checking if visibility '{self.visibility}' is private")
     return self.visibility == 'q'
   @property
   def is_family(self):

@@ -1,0 +1,7 @@
+{% extends 'errorpages/base_error.html' %}
+{% load i18n %}
+
+{% block title %}400 – {% translate "bad request"|capfirst %}{% endblock %}
+{% block error_code %}400{% endblock %}
+{% block error_heading %}{% translate "bad request"|capfirst %}{% endblock %}
+{% block error_body %}{% translate "the server could not understand this request."|capfirst %}{% endblock %}

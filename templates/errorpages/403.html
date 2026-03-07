@@ -1,0 +1,16 @@
+{% extends 'errorpages/base_error.html' %}
+{% load i18n %}
+
+{% block title %}403 – {% translate "access denied"|capfirst %}{% endblock %}
+{% block error_code %}403{% endblock %}
+{% block error_heading %}{% translate "access denied"|capfirst %}{% endblock %}
+{% block error_body %}{% translate "you don't have permission to view this page."|capfirst %}{% endblock %}
+
+{% block error_actions %}
+  {% if not request.user.is_authenticated %}
+    <a href="{{ login_url }}?next={{ request.path }}" class="err-btn err-btn--primary">{% translate "sign in"|capfirst %}</a>
+    <a href="/" class="err-btn err-btn--secondary">{% translate "go to homepage"|capfirst %}</a>
+  {% else %}
+    <a href="/" class="err-btn err-btn--primary">{% translate "go to homepage"|capfirst %}</a>
+  {% endif %}
+{% endblock %}

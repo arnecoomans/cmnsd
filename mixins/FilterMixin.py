@@ -88,57 +88,38 @@ class FilterStatusVisibilityMixin(FilterBaseMixin):
   """Provides status and visibility filtering."""
 
   def filter_status(self, queryset, allow_staff=False, request=None):
-    """Filter queryset by publication status."""
+    """Filter queryset by publication status.
+    Delegates to the model's filter_status() classmethod when available.
+    """
     request = request or getattr(self, 'request', None)
     user = getattr(request, 'user', None) if request else None
-    
+
     if allow_staff and user and user.is_staff:
       return queryset.distinct()
-    
-    if "status" in [f.name for f in queryset.model._meta.get_fields()]:
+
+    model = queryset.model
+    if hasattr(model, 'filter_status'):
+      return model.filter_status(queryset, request=request)
+
+    if "status" in [f.name for f in model._meta.get_fields()]:
       return queryset.filter(status="p").distinct()
-    
+
     return queryset.distinct()
 
   def filter_visibility(self, queryset, allow_staff=False, request=None):
-    """
-    Filter objects based on the current user's visibility level.
-
-    Visibility codes:
-      'p' = public
-      'c' = community (all authenticated users)
-      'f' = family (same-family or owner)
-      'q' = private (owner only)
+    """Filter objects based on the current user's visibility level.
+    Delegates to the model's filter_visibility() classmethod when available.
     """
     request = request or getattr(self, 'request', None)
-    user = getattr(request, 'user', None) if request else None
+
     model = queryset.model
+    if hasattr(model, 'filter_visibility'):
+      return model.filter_visibility(queryset, request=request)
 
     if "visibility" not in [f.name for f in model._meta.get_fields()]:
       return queryset.distinct()
 
-    if not user or not user.is_authenticated:
-      return queryset.filter(visibility="p").distinct()
-
-    filters = Q(visibility="p") | Q(visibility="c") | Q(visibility="q", user=user)
-
-    try:
-      profile = getattr(user, "profile", None)
-      if profile:
-        family_attr = getattr(profile, "family", None)
-        # ManyToManyField
-        if hasattr(family_attr, "all") and callable(family_attr.all):
-          family_ids = list(family_attr.all().values_list("id", flat=True))
-          if family_ids:
-            filters |= Q(visibility="f", user__profile__family__in=family_ids)
-        # ForeignKey
-        elif family_attr:
-          filters |= Q(visibility="f", user__profile__family=family_attr)
-    except Exception:
-      pass
-
-    filters |= Q(visibility="f", user=user)
-    return queryset.filter(filters).distinct()
+    return queryset.filter(visibility="p").distinct()
 
 
 # ---------------------------------------------------------------------------
