@@ -20,7 +20,22 @@ class BaseComment(BaseModel, VisibilityModel):
   - content_object points to any Django model
   - safe to use with cmnsd AJAX dispatch
   - no migrations needed in project apps
+
+  To enable creation via cmnsd AJAX dispatch, override content_type_map in
+  the concrete subclass:
+
+    content_type_map = {'location': 'locations.location'}
+
+  The client sends content_for=<key> and content_token=<token> (or content_id=<id>).
+  The dispatch resolves the ContentType and object_id server-side — the client
+  never touches raw ContentType IDs.
   """
+
+  # Map of allowed content types for creation via AJAX dispatch.
+  # Key   = string sent by the client (e.g. 'location')
+  # Value = Django app_label.model_name string (e.g. 'locations.location')
+  # Override in concrete subclass to enable dispatch-based creation.
+  content_type_map = {}
 
   # Generic relation: content_object = any Django model instance
   content_type = models.ForeignKey(

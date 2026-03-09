@@ -9,12 +9,14 @@ from .ajax_utils_meta_field import meta_field
 class CrudUpdate(CrudUtil):
 
   def crud__update(self):
-    # Retrieve payload data and map this to object usable fields 
+    # Retrieve payload data and map this to object usable fields
     # (field__subfield is mapped to field)
     self.update_results = []
     payload = self._get_payload()
     # Get the object referenced by the request
     obj = self._get_obj()
+    # Resolve GenericForeignKey for models that declare content_type_map
+    self.__resolve_generic_relation(obj)
     actions = self._get_actions(obj, payload)
     if getattr(settings, 'DEBUG', False):
       print("UPDATE OBJECT:", self.obj, "of model", self.model)
@@ -40,6 +42,77 @@ class CrudUpdate(CrudUtil):
     self.modes = self.guess_modes()
     return self.crud__read()
     
+  def __resolve_generic_relation(self, obj):
+    """
+    Pre-populate GenericForeignKey fields on a *new* object using request
+    parameters validated against the model's content_type_map.
+
+    Only runs when:
+      - the object has not yet been saved (obj.exists() is False), and
+      - the model declares a non-empty content_type_map class attribute.
+
+    The client sends:
+      content_for=<key>           — must match a key in content_type_map
+      content_token=<token>       — preferred: looks up target by token field
+      content_id=<pk>             — fallback: looks up target by primary key
+
+    The dispatch resolves the actual ContentType and object_id server-side.
+    The client never sends raw ContentType IDs or arbitrary object_ids.
+
+    Raises:
+      ValueError: if content_for is missing, invalid, or the target cannot be found.
+    """
+    # Only applies to new (unsaved) objects
+    if obj.exists():
+      return
+
+    content_type_map = getattr(self.model.model, 'content_type_map', None)
+    if not content_type_map:
+      return
+
+    content_for = self.get_value_from_request('content_for', silent=True)
+    if not content_for:
+      raise ValueError(
+        _("'content_for' is required when creating a {}").format(self.model.name).capitalize()
+      )
+
+    if content_for not in content_type_map:
+      raise ValueError(
+        _("'{}' is not an allowed content type for {}").format(content_for, self.model.name).capitalize()
+      )
+
+    from django.apps import apps
+    from django.contrib.contenttypes.models import ContentType as DjangoContentType
+
+    target_model = apps.get_model(content_type_map[content_for])
+
+    content_token = self.get_value_from_request('content_token', silent=True)
+    content_id = self.get_value_from_request('content_id', silent=True)
+
+    target = None
+    if content_token and hasattr(target_model, 'token'):
+      try:
+        target = target_model.objects.get(token=content_token)
+      except target_model.DoesNotExist:
+        raise ValueError(
+          _("no {} with token '{}' found").format(content_for, content_token).capitalize()
+        )
+    elif content_id:
+      try:
+        target = target_model.objects.get(pk=content_id)
+      except target_model.DoesNotExist:
+        raise ValueError(
+          _("no {} with id '{}' found").format(content_for, content_id).capitalize()
+        )
+
+    if not target:
+      raise ValueError(
+        _("'content_token' or 'content_id' is required when 'content_for' is set").capitalize()
+      )
+
+    obj.obj.content_type = DjangoContentType.objects.get_for_model(target_model)
+    obj.obj.object_id = target.pk
+
   def _get_payload(self, max_depth=3):
     """
     Build a structured payload dictionary from request data, 
@@ -182,6 +255,9 @@ class CrudUpdate(CrudUtil):
     try:
       # Instantiate the model safely
       instance = self.model.model()
+      # Auto-assign authenticated user if the model has a user field
+      if hasattr(instance, 'user') and self.request.user.is_authenticated:
+        instance.user = self.request.user
 
       # Wrap the instance inside a meta_object
       obj = meta_object(self.model, obj=instance)
