@@ -237,6 +237,12 @@ export function createActionBinder({
       dbg('action:request', { method, url, params, hasBody: !!body });
       const res = await request(method, url, { params, data: body });
 
+      // Clear has-change on the form's submit button after a successful submit
+      const submittedForm = el.tagName.toLowerCase() === 'form' ? el : el.closest('form[data-action]');
+      if (submittedForm) {
+        submittedForm.querySelector('[type="submit"]')?.classList.remove('has-change');
+      }
+
       const msgs = normalizeMessages(res);
       if (msgs.length) {
         dbg('action:messages', { count: msgs.length });
@@ -304,6 +310,18 @@ export function createActionBinder({
       }
       handleActionTrigger(e, form);
     });
+
+    // Mark the submit button with has-change when any field in a data-action form changes.
+    // Uses both 'input' (text/textarea — fires while typing) and 'change'
+    // (select/checkbox/radio — fires on commit). Scoped per form so multiple
+    // forms on the same page each track their own state independently.
+    function markFormChanged(e) {
+      const form = e.target.closest('form[data-action]');
+      if (!form || !base.contains(form)) return;
+      form.querySelector('[type="submit"]')?.classList.add('has-change');
+    }
+    base.addEventListener('input', markFormChanged);
+    base.addEventListener('change', markFormChanged);
 
     dbg('actions:bound', { root: base === document ? 'document' : base });
   };
