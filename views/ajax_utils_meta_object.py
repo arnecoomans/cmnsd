@@ -1,10 +1,8 @@
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings
 from django.core.exceptions import PermissionDenied # , ObjectDoesNotExist, FieldDoesNotExist
-# from django.db import models
 from django.db.models.query import QuerySet
 
-# from .ajax_utils import JsonUtil
 from .ajax_utils_meta_model import meta_model
 
 class meta_object():

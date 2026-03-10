@@ -6,11 +6,10 @@ from markdown import markdown
 
 
 ''' Import Utilities '''
-from .utils__messages import MessageMixin
-from .utils__request import RequestMixin
-from .utils__response import ResponseMixin
-
-from .cmnsd_filter import FilterMixin
+from cmnsd.mixins import MessageMixin
+from cmnsd.mixins import RequestMixin
+from cmnsd.mixins import ResponseMixin
+from cmnsd.mixins import FilterMixin
 
 class JsonUtil(RequestMixin, FilterMixin, ResponseMixin, MessageMixin, View):
 
