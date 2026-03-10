@@ -43,6 +43,7 @@ class MessagesClass(object):
       if msg['level'] == 'debug':
         msg['level'] = 'secondary'
         msg['message'] = 'DEBUG: ' + msg['message']
+        print(f"Debug message: {msg['message']}")  # Log debug messages to console
       elif msg['level'] == 'error':
         msg['level'] = 'danger'
     return messages
