@@ -91,3 +91,11 @@ def prepend(value, arg):
     Usage: {{ value|prepend:"string_to_prepend" }}
     """
     return str(arg) + str(value)
+
+@register.filter(name="get_item")
+def get_item(dictionary, key):
+  """
+  Get an item from a dictionary using a key.
+  Usage: {{ my_dict|get_item:"my_key" }}
+  """
+  return dictionary.get(key, '')
