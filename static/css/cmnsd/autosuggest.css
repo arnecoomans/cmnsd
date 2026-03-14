@@ -17,6 +17,7 @@
   top: 100%; /* directly below input */
   left: 0;
   right: 0;
+  min-width: 280px;
   z-index: 3001;
   max-height: 250px;   /* limit height */
   overflow-y: auto;    /* scroll if too tall */
