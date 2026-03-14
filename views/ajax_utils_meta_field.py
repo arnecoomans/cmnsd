@@ -594,6 +594,9 @@ class meta_field:
     # Check for related model
     if not self.related_model():
       raise ValueError(_("cannot update {}'s related field '{}' with value '{}' because related model could not be determined").capitalize().format(self.obj().name, self.field_name, str(related_identifiers)))
+    # Reverse FK (o2m) — create or delete the related object, never add/remove on manager
+    if isinstance(self.__field, models.ManyToOneRel):
+      return self.__update_reverse_fk(related_identifiers)
     # Find related object based on related_identifiers
     related_obj = self.__get_related_object(related_identifiers)
     # Check if related object has field changes
@@ -654,6 +657,98 @@ class meta_field:
       except Exception as e:
         staff_message = ': ' + str(e) if getattr(settings, 'DEBUG', False) or self.request.user.is_superuser else ''
         return ValueError(_("unable to add value of {} to {}{}").capitalize().format(str(self.field_name), str(related_obj), staff_message))
+    return True
+
+  def __update_reverse_fk(self, related_identifiers):
+    """
+    Handle update for reverse FK (o2m) relations.
+
+    Unlike M2M, the related object *belongs* to the parent — it cannot exist
+    without it and cannot be reassigned via .add()/.remove(). Instead:
+      - If the object already belongs to this parent and has changed fields → update and save.
+      - If the object already belongs to this parent and nothing changed → delete it (toggle off).
+      - If the object exists but belongs to a different parent → reassign its FK to this parent.
+      - If the object does not exist → create it with the parent FK injected.
+
+    Args:
+      related_identifiers (dict): Field values identifying or describing the related object.
+
+    Returns:
+      bool: True on success.
+    """
+    # Lookup fields used only for identification, never compared as "changed"
+    lookup_fields = {'id', 'slug', 'token'}
+    fk_field_name = self.__field.field.name  # e.g. 'location'
+
+    related_obj = self.__get_related_object(related_identifiers)
+
+    if related_obj:
+      # Check whether this object already belongs to the current parent
+      already_belongs = getattr(related_obj, fk_field_name, None) == self.obj.obj
+
+      if already_belongs:
+        # Check for non-lookup field changes
+        changes_made = False
+        for field in related_identifiers:
+          if field in lookup_fields:
+            continue
+          if hasattr(related_obj, field):
+            new_value = related_identifiers[field]
+            current_value = getattr(related_obj, field, None)
+            if str(new_value) != str(current_value):
+              try:
+                setattr(related_obj, field, new_value)
+              except Exception as e:
+                staff_message = ': ' + str(e) if getattr(settings, 'DEBUG', False) or self.request.user.is_superuser else ''
+                return ValueError(_("unable to update field '{}' on related object '{}'{}").capitalize().format(field, str(related_obj), staff_message))
+              self.obj.report_change({
+                'object': str(self.obj.obj),
+                'related_object': str(related_obj),
+                'field': f"{self.field_name}.{field}",
+                'old_value': str(current_value),
+                'new_value': str(new_value),
+              })
+              changes_made = True
+        if changes_made:
+          related_obj.save()
+          return True
+        # Already belongs, no field changes → toggle off (delete)
+        try:
+          self.obj.report_change({
+            'field': self.field_name,
+            'old_value': str(related_obj),
+            'new_value': None,
+            'description': _("deleted '{}' '{}'").capitalize().format(str(related_obj._meta.verbose_name), str(related_obj)),
+          })
+          related_obj.delete()
+        except Exception as e:
+          staff_message = ': ' + str(e) if getattr(settings, 'DEBUG', False) or self.request.user.is_superuser else ''
+          return ValueError(_("unable to delete '{}' '{}'{}").capitalize().format(str(related_obj._meta.verbose_name), str(related_obj), staff_message))
+        return True
+
+      else:
+        # Belongs to a different parent — reassign FK to this location
+        try:
+          old_parent = getattr(related_obj, fk_field_name, None)
+          setattr(related_obj, fk_field_name, self.obj.obj)
+          related_obj.save()
+          self.obj.report_change({
+            'field': self.field_name,
+            'old_value': str(old_parent),
+            'new_value': str(self.obj.obj),
+            'description': _("reassigned '{}' '{}' to '{}' '{}'").capitalize().format(
+              str(related_obj._meta.verbose_name), str(related_obj),
+              str(self.obj.model._meta.verbose_name), str(self.obj.obj),
+            ),
+          })
+        except Exception as e:
+          staff_message = ': ' + str(e) if getattr(settings, 'DEBUG', False) or self.request.user.is_superuser else ''
+          return ValueError(_("unable to reassign '{}' '{}'{}").capitalize().format(str(related_obj._meta.verbose_name), str(related_obj), staff_message))
+        return True
+
+    # Object not found — create it, injecting the parent FK
+    related_identifiers = {**related_identifiers, fk_field_name: self.obj.obj}
+    self.__create_related_object(related_identifiers)
     return True
 
   ''' Foreign Key / Related Object Handling '''
