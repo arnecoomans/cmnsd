@@ -60,10 +60,18 @@ class ResponseMixin(object):
         response_data[key] = value
     ''' Add meta information to response if user is staff '''
     if self.request.user.is_staff:
+      model = None
+      if hasattr(self, 'model'):
+        if hasattr(self.model, 'name'):
+          model = str(self.model.name)
+      obj = None
+      if hasattr(self, 'obj'):
+        if hasattr(self.obj, 'is_found') and callable(self.obj.is_found) and self.obj.is_found():
+          obj = self.obj
       response_data["__meta"] = {
-        "model": str(self.model.name if hasattr(self, 'model') else None),
-        "object": str(self.obj) if hasattr(self, 'obj') and self.obj.is_found() else None,
-        "fields": str(self.obj.fields) if hasattr(self, 'obj') and self.obj.is_found() else None,
+        "model": str(model) if model else None,
+        "object": str(obj) if obj else None,
+        "fields": str(obj.fields) if obj and hasattr(obj, 'fields') else None,
         "mode": str(self.modes) if hasattr(self, 'modes') else False,
         "debug": settings.DEBUG,
         "request_user": {
