@@ -14,15 +14,20 @@ register = template.Library()
 '''
 
 @register.simple_tag
-def update_query_params(request, add=None, remove=None, to=None, replace=None, active_filters=[]):
+def update_query_params(request, add=None, remove=None, to=None, replace=None, clear=None, active_filters=[]):
     query_params = request.GET.copy()
-    
+
     # Return the current query parameters if no modifications are specified
-    if not add and not remove and not replace:
+    if not add and not remove and not replace and not clear:
         return len(query_params) > 0 and f"?{ query_params.urlencode() }" or ''
     # Ensure the 'to' argument is provided (the parameter to modify)
     if not to:
       raise ValueError("You must provide a 'to' argument specifying which query parameter to modify.")
+
+    # Handle clearing a parameter entirely (remove the key regardless of its current value)
+    if clear:
+      query_params.pop(to, None)
+      return len(query_params) > 0 and f"?{ query_params.urlencode() }" or '?'
 
     # Handle adding a value to the specified parameter (e.g., 'tags' or 'category')
     if add:

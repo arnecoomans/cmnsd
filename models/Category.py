@@ -7,7 +7,7 @@ from django.urls import reverse_lazy
 
 from django.contrib.auth.models import User
 
-from .cmnsd_basemodel import BaseModel, VisibilityModel
+from .BaseModel import BaseModel
 
 ''' Category model
 '''

@@ -5,7 +5,7 @@ from django.core.exceptions import ValidationError
 
 from django.urls import reverse_lazy
 
-from .cmnsd_basemodel import BaseModel
+from .BaseModel import BaseModel
 
 class TagModel(BaseModel):
   slug                = models.CharField(max_length=64, unique=True, help_text=f"{ _('Identifier in URL') } ({ _('automatically generated') })")

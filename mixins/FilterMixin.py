@@ -110,17 +110,22 @@ class FilterStatusVisibilityMixin(FilterBaseMixin):
     """Filter objects based on the current user's visibility level.
     Delegates to the model's filter_visibility() classmethod when available.
     """
+    model = queryset.model
+    if "visibility" not in [f.name for f in model._meta.get_fields()]:
+      # Model has no field visibility.
+      return queryset.distinct()
+    
     request = request or getattr(self, 'request', None)
 
-    model = queryset.model
     if hasattr(model, 'filter_visibility'):
       return model.filter_visibility(queryset, request=request)
-
-    if "visibility" not in [f.name for f in model._meta.get_fields()]:
-      return queryset.distinct()
-
+    # Fallback to default visibility filtering: only show public items (visibility="p")
+    if getattr(settings, "DEBUG", False):
+      print(f"Filter_visibility called on model { str(model) }, but model has no classmethod filter_visibility. Falling back to public visibility.")
     return queryset.filter(visibility="p").distinct()
 
+  def filter_visibility_fallback(self, queryset, request=None):
+    pass
 
 # ---------------------------------------------------------------------------
 # SEARCH MIXIN — field, free text, and exclusion search
@@ -365,11 +370,20 @@ class FilterSearchMixin(FilterBaseMixin):
         queryset = self.__search_queryset(queryset.model, queryset, field, value)
     return queryset.distinct()
 
+  _RANGE_LOOKUPS = {'lte', 'gte', 'lt', 'gt', 'in', 'isnull'}
+
   def __search_queryset(self, model, queryset, field_name, value):
     """Internal helper that filters queryset for a single field path and value."""
     last_field_name = field_name.split("__")[-1]
     if not self.__field_is_secure(last_field_name):
       return queryset.none()
+
+    # Range/comparison lookup short-circuit (e.g. coord_lat__gte, price__lte)
+    if last_field_name in self._RANGE_LOOKUPS:
+      try:
+        return queryset.filter(**{field_name: value})
+      except (ValueError, TypeError):
+        return queryset
 
     # Resolve the base model in the lookup chain
     base_field = model
@@ -441,14 +455,17 @@ class FilterSearchMixin(FilterBaseMixin):
     # --- Callable or pseudo-field fallback ---------------------------------
     results = []
     try:
+      request = getattr(self, 'request', None)
       for obj in queryset:
+        # Make request available to @searchable_function methods that rely on self.request
+        if request and not hasattr(obj, 'request'):
+          obj.request = request
         attr = getattr(obj, last_field_name, None)
 
         # If it's a @searchable_function method, call it
         if callable(attr) and getattr(attr, "is_searchable", False):
           import inspect
           sig = inspect.signature(attr)
-          request = getattr(self, 'request', None)
           if "request" in sig.parameters:
             attr = attr(request=request)
           elif not sig.parameters:
