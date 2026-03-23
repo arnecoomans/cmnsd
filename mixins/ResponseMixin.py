@@ -74,6 +74,7 @@ class ResponseMixin(object):
         "fields": str(obj.fields) if obj and hasattr(obj, 'fields') else None,
         "mode": str(self.modes) if hasattr(self, 'modes') else False,
         "debug": settings.DEBUG,
+        
         "request_user": {
           "id": self.request.user.id,
           "username": self.request.user.username,
