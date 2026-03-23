@@ -101,4 +101,4 @@ class BaseComment(BaseModel, VisibilityModel):
   # Optional: make comments searchable
   @classmethod
   def get_searchable_fields(cls):
-    return ["text", "title", "user__username"]
+    return super().get_searchable_fields() + ["text", "title", "user__username"]
