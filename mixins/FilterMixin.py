@@ -218,13 +218,17 @@ class FilterSearchMixin(FilterBaseMixin):
   def _get_search_fields(self, model, mapping={}):
     if not hasattr(self, '_get_search_fields_cache'):
       request_fields = self._get_searched_fields_from_request()
-      if hasattr(model, "get_searchable_fields"):
-        model_fields = model.get_searchable_fields()
-      elif hasattr(model, "get_model_fields"):
-        model_fields = model.get_model_fields()
+      # Always start with all concrete fields (includes inherited fields from abstract bases)
+      if hasattr(model, "get_model_fields"):
+        model_fields = list(model.get_model_fields())
       else:
         model_fields = [f.name for f in model._meta.get_fields()]
-      model_fields = [f.replace(".", "__") for f in request_fields if f.split("__")[0] in model_fields]
+      # Layer get_searchable_fields() on top (adds @searchable_function names and custom entries)
+      if hasattr(model, "get_searchable_fields"):
+        for f in model.get_searchable_fields():
+          if f not in model_fields:
+            model_fields.append(f)
+      model_fields = [f.replace(".", "__") for f in request_fields if f.split("__")[0] in model_fields and f not in mapping]
       # Add mapped fields from request if they exist in the model
       for key, value in mapping.items():
         if key in request_fields:
@@ -381,6 +385,8 @@ class FilterSearchMixin(FilterBaseMixin):
     # Range/comparison lookup short-circuit (e.g. coord_lat__gte, price__lte)
     if last_field_name in self._RANGE_LOOKUPS:
       try:
+        if last_field_name == 'isnull':
+          value = str(value).lower() not in ('false', '0', 'no', '')
         return queryset.filter(**{field_name: value})
       except (ValueError, TypeError):
         return queryset
