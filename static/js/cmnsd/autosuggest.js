@@ -44,7 +44,7 @@ function getOverlayRoot() {
     overlay.style.left = '0';
     overlay.style.width = '100%';
     overlay.style.height = '0';
-    overlay.style.zIndex = '3000';
+    overlay.style.zIndex = '10000';
     overlay.style.pointerEvents = 'none';
     document.body.appendChild(overlay);
   }

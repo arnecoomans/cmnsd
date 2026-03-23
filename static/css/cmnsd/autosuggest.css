@@ -8,7 +8,7 @@
   left: 0;
   width: 100%;
   pointer-events: none; /* allows clicks to pass through when no dropdown */
-  z-index: 3000;
+  z-index: 10000;
 }
 
 /* Container for suggestions (portal list element) */
@@ -18,7 +18,7 @@
   left: 0;
   right: 0;
   min-width: 280px;
-  z-index: 3001;
+  z-index: 10001;
   max-height: 250px;   /* limit height */
   overflow-y: auto;    /* scroll if too tall */
   border: 1px solid rgba(0,0,0,0.15);
