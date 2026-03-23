@@ -89,7 +89,7 @@ class meta_object():
       self.obj.save()
     except Exception as e:
       staff_message = ': ' + str(e) if getattr(settings, 'DEBUG', False) or self.request.user.is_superuser else ''
-      raise ValueError(_("error committing changes to {} '{}': {}{}".format(self.model.name, self.obj, str(e), staff_message)).capitalize())
+      raise ValueError(_("error committing changes to {} '{}': {}{}".format(self.model._meta.verbose_name, self.obj, str(e), staff_message)).capitalize())
     return True
   
   ''' Manage Change Logging '''
@@ -103,9 +103,9 @@ class meta_object():
     # Create a structured representation of the changes
     structured_changes = []
     if self.count_changes() == 1:
-      structured_changes.append(str(_('succesfully updated {} with the following change:'.capitalize().format(self.model.name))))
+      structured_changes.append(str(_('succesfully updated {} with the following change:'.capitalize().format(self.model._meta.verbose_name))))
     elif self.count_changes() > 1:
-      structured_changes.append(str(_('succesfully updated {} with the following {} changes:'.capitalize().format(self.model.name, str(self.count_changes())))))
+      structured_changes.append(str(_('succesfully updated {} with the following {} changes:'.capitalize().format(self.model._meta.verbose_name, str(self.count_changes())))))
     structured_changes.append('<ul>')
     for change in self.__changes:
       if 'description' in change:
