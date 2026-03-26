@@ -6,7 +6,7 @@
 # Restarts the application with supervisorctl
 # based on the directory name (first part before the first dot)
 # Author: Arne Coomans
-# Version: 1.2.1
+# Version: 1.2.2
 
 # Change to the repository root
 cd "$(git rev-parse --show-toplevel)" || {
@@ -34,8 +34,9 @@ else
   echo "Changes detected in the main repository."
 fi
 
-# Quick check for local cmnsd submodule (manual pull safeguard)
-if [ -d "cmnsd/.git" ]; then
+# Quick check for local cmnsd directory (manual pull safeguard)
+# Skip if cmnsd is already managed as a submodule via .gitmodules
+if [ -d "cmnsd/.git" ] && ! grep -q 'path = cmnsd' .gitmodules 2>/dev/null; then
   echo "Detected local submodule 'cmnsd'. Pulling latest changes..."
   (
     cd cmnsd || exit
