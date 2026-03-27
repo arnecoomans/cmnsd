@@ -59,6 +59,13 @@ def update_query_params(request, add=None, remove=None, to=None, replace=None, c
     return len(query_params) > 0 and f"?{ query_params.urlencode() }" or '?'
     
 @register.simple_tag
-def copy_query_params(request):
+def copy_query_params(request, prepend=''):
     query_params = request.GET.copy()
+    if prepend:
+        from django.http import QueryDict
+        prefixed = QueryDict(mutable=True)
+        for key, values in request.GET.lists():
+            for value in values:
+                prefixed.appendlist(prepend + key, value)
+        query_params = prefixed
     return len(query_params) > 0 and f"?{ query_params.urlencode() }" or ''
