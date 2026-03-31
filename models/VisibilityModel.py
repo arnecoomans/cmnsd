@@ -75,6 +75,10 @@ class VisibilityModel(models.Model):
 
     return False
 
+  @property
+  def available_visibilities(self):
+    return dict(self.visibility_choices)
+
   ''' Visibility Helpers '''
   @property
   def is_private(self):
