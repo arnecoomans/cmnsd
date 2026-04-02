@@ -26,6 +26,7 @@ if [ $? -ne 0 ]; then
 fi
 
 echo "Git pull complete."
+echo "$git_output"
 
 # Check if there were any updates
 if echo "$git_output" | grep -q 'Already up to date'; then
@@ -36,8 +37,10 @@ fi
 
 # Quick check for local cmnsd directory (manual pull safeguard)
 # Skip if cmnsd is already managed as a submodule via .gitmodules
-if [ -d "cmnsd/.git" ] && ! grep -q 'path = cmnsd' .gitmodules 2>/dev/null; then
-  echo "Detected local submodule 'cmnsd'. Pulling latest changes..."
+if grep -q 'path = cmnsd' .gitmodules 2>/dev/null; then
+  echo "cmnsd is a registered submodule — will be handled via .gitmodules."
+elif [ -f "cmnsd/.git" ] || [ -d "cmnsd/.git" ]; then
+  echo "Detected local cmnsd repository. Pulling latest changes..."
   (
     cd cmnsd || exit
     git_output_cmnsd=$(git pull 2>&1)
@@ -46,10 +49,10 @@ if [ -d "cmnsd/.git" ] && ! grep -q 'path = cmnsd' .gitmodules 2>/dev/null; then
       echo "$git_output_cmnsd"
       exit 1
     fi
-    echo "cmnsd submodule updated successfully."
+    echo "cmnsd updated successfully."
   )
 else
-  echo "No local cmnsd submodule found. Skipping direct cmnsd update."
+  echo "No cmnsd directory found. Skipping."
 fi
 
 # Check for submodules defined in .gitmodules
@@ -60,14 +63,11 @@ if [ -f .gitmodules ]; then
   # Ensure submodules track their configured branch (default to main)
   git submodule foreach --recursive 'git checkout $(git config -f $toplevel/.gitmodules submodule.$name.branch || echo main)'
 
-  # Update submodules to the latest commit on their tracked branch
-  git submodule update --remote --merge
-
-  # Detect changes in submodules
+  # Capture diff before updating to detect actual changes
   submodule_changes=$(git diff --submodule=log)
 
-  # Reinitialize to ensure consistency
-  git submodule update --init --recursive
+  # Update submodules to the latest commit on their tracked branch
+  git submodule update --remote --merge
 
   if [ -z "$submodule_changes" ]; then
     echo "No updates detected in submodules."
