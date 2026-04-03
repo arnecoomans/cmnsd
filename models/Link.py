@@ -2,7 +2,7 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
 from django.utils.translation import gettext_lazy as _
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qs
 
 from cmnsd.models import BaseModel
 
@@ -49,10 +49,9 @@ class BaseLink(BaseModel):
         domain = domain[4:]
       # Special Cases
       if domain.lower() in ['google.com', 'google.nl', 'google.co.uk']:
-        search_query = parsed.query
-        if 'q=' in search_query:
-          query = search_query.split('q=')[1].split('&')[0]
-          return f'{query} on Google'
+        params = parse_qs(parsed.query)
+        if 'q' in params:
+          return f'{params["q"][0]} on Google'
       elif domain.lower() == 'blootkompas.nl':
         path_parts = parsed.path.strip('/').split('/')
         if len(path_parts) >= 2 and path_parts[0] == 'locaties':
