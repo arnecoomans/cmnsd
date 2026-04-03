@@ -233,6 +233,11 @@ export function createActionBinder({
     const shouldDisable = el.hasAttribute('data-disable');
     if (shouldDisable) el.disabled = true;
 
+    const submitBtn = el.tagName.toLowerCase() === 'form' && el.hasAttribute('data-disable-on-submit')
+      ? el.querySelector('[type="submit"]')
+      : null;
+    if (submitBtn) submitBtn.disabled = true;
+
     try {
       dbg('action:request', { method, url, params, hasBody: !!body });
       const res = await request(method, url, { params, data: body });
@@ -283,6 +288,7 @@ export function createActionBinder({
       cfg.onError && cfg.onError(err);
     } finally {
       if (shouldDisable) el.disabled = false;
+      if (submitBtn) submitBtn.disabled = false;
     }
   }
 
