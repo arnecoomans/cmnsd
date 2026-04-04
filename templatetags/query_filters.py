@@ -34,9 +34,9 @@ def update_query_params(request, add=None, remove=None, to=None, replace=None, c
       existing_values = query_params.get(to, '').split(',')
       if add not in existing_values:
         if existing_values == ['']:  # Handle the case where the list is empty
-          existing_values = [add]
+          existing_values = [str(add)]
         else:
-          existing_values.append(add)
+          existing_values.append(str(add))
         query_params[to] = ','.join(existing_values)
     
     # Handle removing a value from the specified parameter
