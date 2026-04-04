@@ -515,7 +515,6 @@ class FilterMixin(
       queryset = self._filter_by_restrict_access(queryset)
       queryset = self.filter_status(queryset, request=request)
       queryset = self.filter_visibility(queryset, request=request)
-      print(f"After access/status/visibility filters: {queryset.count()} items")
       if not suppress_search:
         queryset = self.search(queryset, 
                                suppress_search=suppress_search, 
