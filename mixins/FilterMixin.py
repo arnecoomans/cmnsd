@@ -87,15 +87,12 @@ class FilterAccessMixin(FilterBaseMixin):
 class FilterStatusVisibilityMixin(FilterBaseMixin):
   """Provides status and visibility filtering."""
 
-  def filter_status(self, queryset, allow_staff=False, request=None):
+  def filter_status(self, queryset, request=None):
     """Filter queryset by publication status.
     Delegates to the model's filter_status() classmethod when available.
     """
     request = request or getattr(self, 'request', None)
     user = getattr(request, 'user', None) if request else None
-
-    if allow_staff and user and user.is_staff:
-      return queryset.distinct()
 
     model = queryset.model
     if hasattr(model, 'filter_status'):
@@ -106,7 +103,7 @@ class FilterStatusVisibilityMixin(FilterBaseMixin):
 
     return queryset.distinct()
 
-  def filter_visibility(self, queryset, allow_staff=False, request=None):
+  def filter_visibility(self, queryset, request=None):
     """Filter objects based on the current user's visibility level.
     Delegates to the model's filter_visibility() classmethod when available.
     """
@@ -148,7 +145,7 @@ class FilterSearchMixin(FilterBaseMixin):
 
   # --- Search entrypoint ----------------------------------------------------
 
-  def search(self, queryset, suppress_search=False, allow_staff=False, mapping={}):
+  def search(self, queryset, suppress_search=False, mapping={}):
     """Main search entry point."""
     model = queryset.model
     # If search is supressed, do not apply search filters, just return distinct queryset
@@ -507,7 +504,7 @@ class FilterMixin(
 ):
   """Unified, backward-compatible filtering entry point."""
 
-  def filter(self, queryset, request=None, suppress_search=False, allow_staff=False, mapping={}):
+  def filter(self, queryset, request=None, suppress_search=False, mapping={}):
     """Apply all available filters (access, visibility, status, and search)."""
     request = request or getattr(self, 'request', None)
     if not hasattr(self, 'request') and request:
@@ -516,12 +513,12 @@ class FilterMixin(
     # model = queryset.model
     try:
       queryset = self._filter_by_restrict_access(queryset)
-      queryset = self.filter_status(queryset, request=request, allow_staff=allow_staff)
-      queryset = self.filter_visibility(queryset, request=request, allow_staff=allow_staff)
+      queryset = self.filter_status(queryset, request=request)
+      queryset = self.filter_visibility(queryset, request=request)
+      print(f"After access/status/visibility filters: {queryset.count()} items")
       if not suppress_search:
         queryset = self.search(queryset, 
                                suppress_search=suppress_search, 
-                               allow_staff=allow_staff, 
                                mapping=mapping)
     except Exception as e:
       if getattr(settings, 'DEBUG', False):
