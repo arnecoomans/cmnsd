@@ -51,15 +51,18 @@ def filter_by_visibility(queryset, user):
 
 @register.filter
 def without(queryset, exclude_object):
-  ''' Exclude objects from a queryset '''
+  ''' Exclude objects from a queryset or list '''
+  if isinstance(queryset, list):
+    if isinstance(exclude_object, QuerySet):
+      exclude_ids = set(exclude_object.values_list('id', flat=True))
+      return [o for o in queryset if o.id not in exclude_ids]
+    elif isinstance(exclude_object, models.Model):
+      return [o for o in queryset if o.id != exclude_object.id]
+    return queryset
   if isinstance(exclude_object, QuerySet):
     queryset = queryset.exclude(id__in=exclude_object.values_list('id', flat=True))
-    # for object in exclude_object:
-    #   queryset = queryset.exclude(id=object.id)
   elif isinstance(exclude_object, models.Model):
     queryset = queryset.exclude(id=exclude_object.id)
-  else:
-    pass
   return queryset
 
 @register.filter
