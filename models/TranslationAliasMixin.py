@@ -3,42 +3,6 @@ from django.utils.text import capfirst
 from django.utils.translation import gettext_lazy as _
 
 
-class TranslationAliasAdminMixin:
-  """Admin mixin that adds aliases as a collapsed read-only section.
-
-  Use alongside TranslationAliasMixin on any ModelAdmin:
-
-    @admin.register(Category)
-    class CategoryAdmin(TranslationAliasAdminMixin, BaseModelAdmin):
-        ...
-  """
-
-  def get_readonly_fields(self, request, obj=None):
-    readonly = list(super().get_readonly_fields(request, obj))
-    if 'aliases' not in readonly:
-      readonly.append('aliases')
-    return tuple(readonly)
-
-  def get_fieldsets(self, request, obj=None):
-    fieldsets = list(super().get_fieldsets(request, obj))
-    already_included = any(
-      'aliases' in (fields.get('fields') or ())
-      for _, fields in fieldsets
-    )
-    if not already_included:
-      fieldsets.append((
-        capfirst(_('translation aliases')), {
-          'fields': ('aliases',),
-          'classes': ('collapse',),
-          'description': capfirst(_(
-            'auto-populated from .po translations on save. '
-            'run update_translation_aliases after compilemessages.'
-          )),
-        }
-      ))
-    return fieldsets
-
-
 class TranslationAliasMixin(models.Model):
   """Mixin that adds an `aliases` field and auto-populates it with translations.
 
