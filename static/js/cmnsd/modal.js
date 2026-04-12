@@ -2,16 +2,22 @@
 // Binds to [data-action="modal"] elements.
 //
 // Attributes on trigger element:
-//   data-title        Header title text (optional).
-//   data-url          Remote URL to load body content from.
-//   data-content      Inline HTML for body (skips fetch if set).
-//   data-content-key  Key inside response.payload to use as body HTML.
-//                     Defaults to 'content', fallback to first key in payload.
+//   data-title          Header title text (optional).
+//   data-url            Remote URL to load body content from.
+//   data-content        Inline HTML for body (skips fetch if set).
+//   data-content-key    Key inside response.payload to use as body HTML.
+//                       Defaults to 'content', fallback to first key in payload.
+//   data-on-close-url   URL to fetch when the modal closes.
+//   data-on-close-map   JSON map of payload keys → DOM selectors to update after close.
+//                       Requires data-on-close-url.
+//                       Example: '{"topactions": "#topactions", "media": "#ordered_media"}'
+//                       On close, dispatches cmnsd:modal:closed with { url, map } so
+//                       core.js can call loadContent without a circular dependency.
 //
 // Attributes inside modal body:
-//   data-close-modal  Clicking this element closes the modal.
-//                     Place on a cancel button or a submit button that should
-//                     dismiss on success.
+//   data-close-modal    Clicking this element closes the modal.
+//                       Place on a cancel button or a submit button that should
+//                       dismiss on success.
 //
 // Keyboard: Escape closes the modal.
 // Indentation: 2 spaces. Docs in English.
@@ -21,6 +27,8 @@ import { api } from './http.js';
 const Z = 3500;
 let modalEl = null;
 let bound = false;
+let _onCloseUrl = null;
+let _onCloseMap = null;
 
 function injectStyles() {
   if (document.getElementById('cmnsd-modal-styles')) return;
@@ -142,6 +150,14 @@ export function closeModal() {
   const body = modalEl.querySelector('#cmnsd-modal-body');
   if (body) body.innerHTML = '';
   document.body.style.overflow = '';
+
+  if (_onCloseUrl && _onCloseMap) {
+    document.dispatchEvent(new CustomEvent('cmnsd:modal:closed', {
+      detail: { url: _onCloseUrl, map: _onCloseMap }
+    }));
+  }
+  _onCloseUrl = null;
+  _onCloseMap = null;
 }
 
 document.addEventListener('keydown', e => {
@@ -154,6 +170,15 @@ async function handleTrigger(e, el) {
   e.preventDefault();
   const title = el.dataset.title || '';
   const localContent = el.dataset.content;
+
+  // Store on-close refresh config from trigger
+  _onCloseUrl = el.dataset.onCloseUrl || null;
+  try {
+    _onCloseMap = el.dataset.onCloseMap ? JSON.parse(el.dataset.onCloseMap) : null;
+  } catch (err) {
+    console.warn('[cmnsd:modal] invalid data-on-close-map JSON', el.dataset.onCloseMap);
+    _onCloseMap = null;
+  }
 
   if (localContent) {
     openModal(title, localContent);

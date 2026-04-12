@@ -46,6 +46,14 @@ const actionBinder = createActionBinder({
   getConfig: () => state.config
 });
 
+// Refresh page sections after modal closes
+document.addEventListener('cmnsd:modal:closed', (e) => {
+  const { url, map } = e.detail || {};
+  if (url && map && typeof map === 'object') {
+    loader.loadContent({ url, map });
+  }
+});
+
 export function init(config = {}) {
   state.config = {
     ...state.config,
