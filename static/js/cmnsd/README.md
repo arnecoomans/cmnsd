@@ -249,6 +249,36 @@ Inside the rendered form, use standard `data-action` for submission. Add `data-c
 </button>
 ```
 
+#### Example: Refresh page sections after modal closes
+
+Use `data-on-close-url` and `data-on-close-map` to re-fetch and update one or more page sections when the modal closes. The URL is fetched once and its payload is distributed to the mapped selectors — the same mechanism as `loadContent()`.
+
+```html
+<button
+  data-action="modal"
+  data-url="/ajax/location/42/visit/form/"
+  data-title="Add visit"
+  data-on-close-url="/json/location/42-my-location/topactions/"
+  data-on-close-map='{"topactions": "#topactions"}'>
+  Mark as visited
+</button>
+```
+
+Multiple sections can be refreshed from a single URL if the response payload contains multiple keys:
+
+```html
+<button
+  data-action="modal"
+  data-url="/ajax/location/42/media/"
+  data-title="Manage media"
+  data-on-close-url="/json/location/42-my-location/ordered_media/"
+  data-on-close-map='{"ordered_media": "#ordered_media"}'>
+  Manage photos
+</button>
+```
+
+The refresh only fires if the modal was opened with both attributes set. If the modal is dismissed without a submission, the refresh still fires — callers should ensure the endpoint is idempotent (GET).
+
 ---
 
 ### 5. Messages
@@ -323,6 +353,8 @@ Server messages are normalized and displayed in a configurable container.
 | **`data-content`** | – | modal | Inline HTML for modal body (skips fetch) |
 | **`data-content-key`** | `content` | modal | Key inside response.payload to use as body |
 | **`data-close-modal`** | – | any inside modal | Closes the modal when clicked |
+| **`data-on-close-url`** | – | modal trigger | URL to fetch when the modal closes |
+| **`data-on-close-map`** | – | modal trigger | JSON map of payload keys → DOM selectors to update after close. Requires `data-on-close-url`. Example: `'{"topactions": "#topactions"}'` |
 ---
 
 ## 🧩 Events
@@ -334,6 +366,7 @@ Server messages are normalized and displayed in a configurable container.
 | `cmnsd:autosuggest:shown` | Suggestions rendered | `{ host }` |
 | `cmnsd:autosuggest:hidden` | Suggestions cleared | `{ host }` |
 | `cmnsd:autosuggest:positioned` | Dropdown repositioned | `{ host }` |
+| `cmnsd:modal:closed` | Modal closes (only when `data-on-close-url` + `data-on-close-map` are set) | `{ url: string, map: object }` |
 
 ---
 
