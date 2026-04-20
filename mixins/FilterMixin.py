@@ -347,6 +347,8 @@ class FilterSearchMixin(FilterBaseMixin):
       key, value = key.strip(), value.strip()
       if not key:
         continue
+      if not self.__field_is_secure(key.split("__")[-1]):
+        continue
       try:
         queryset = queryset.exclude(**{key: value})
       except Exception:
