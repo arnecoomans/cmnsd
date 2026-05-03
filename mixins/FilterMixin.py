@@ -178,39 +178,61 @@ class FilterSearchMixin(FilterBaseMixin):
     return queryset.distinct()
 
   # -- Build Active Filters for Context ------------------------------------------------
+  def _normalize_search_value(self, value):
+    """Normalize AND/OR operator tokens to canonical && / || form."""
+    return (
+      str(value)
+      .replace('__and__', '&&')
+      .replace(' and ', '&&')
+      .replace('__or__', '||')
+      .replace(' or ', '||')
+    )
+
+  def _split_search_value(self, value):
+    """Normalize and split a search value into individual terms.
+
+    Returns a list, always — even for a single value.
+    Splits on && (AND) and || (OR).
+    """
+    import re
+    normalized = self._normalize_search_value(value)
+    return [p.strip() for p in re.split(r'\&\&|\|\|', normalized) if p.strip()]
+
   def _store_search_data_for_context(self, key=None, value=None, keys=None, mapping={}):
     ''' For a given search key and possibly value, store the search query in a dict.
         This dict can then be used in the template to show active filters and their values.
         by calling
         context['active_filters'] = self.get_search_data_for_context()
+        Values are always stored as a list of individual terms.
     '''
     if not hasattr(self, '_search_data_for_context'):
       self._search_data_for_context = {}
     if keys:
       for k in keys:
         if k in mapping.values():
-          # Key is a mapped field, find the original request key to fetch the value from request
           for mk, mv in mapping.items():
             if k == mv:
               k = mk
               break
-        # Try fetching the value from request for this key
         v = self._get_value_from_request(k, default=None, silent=True)
         if v:
-          # Store the value in context under the original key (not the mapped field name)
-          self._search_data_for_context[k] = v
+          self._search_data_for_context[k] = self._split_search_value(v)
     elif key and value is not None:
-      self._search_data_for_context[key] = value
+      self._search_data_for_context[key] = self._split_search_value(value)
     elif key:
       v = self._get_value_from_request(key, default=None, silent=True)
       if v:
-        self._search_data_for_context[key] = v
+        self._search_data_for_context[key] = self._split_search_value(v)
     return self._search_data_for_context
   
   def get_search_data_for_context(self):
-    return getattr(self, '_search_data_for_context', {})
+    ''' Get the stored search data for context, which can be used in templates to show active filters and their values.
+        Returns a dict where keys are filter names and values are lists of individual search terms.
+    ''' 
+    if not hasattr(self, '_search_data_for_context'):
+      return {}
+    return self._search_data_for_context
   
-
   # --- Get searchable fields ------------------------------------------------
   def _get_search_fields(self, model, mapping={}):
     if not hasattr(self, '_get_search_fields_cache'):
@@ -326,7 +348,7 @@ class FilterSearchMixin(FilterBaseMixin):
 
   # --- Exclusion filtering -------------------------------------------------
 
-  def exclude_results(self, queryset, exclude_character=None, **kwargs):
+  def exclude_results(self, queryset, exclude_character=None):
     logger = logging.getLogger(__name__)
     request = getattr(self, 'request', None)
     if not request:
@@ -423,7 +445,16 @@ class FilterSearchMixin(FilterBaseMixin):
         lookup = f"{field_name}__{lookup_type}"
         filters = Q()
 
-        for v in [x.strip() for x in str(value).split(",") if x.strip()]:
+        normalized = (
+          str(value)
+          .replace('__and__', '&&')
+          .replace(' and ', '&&')
+        )
+        if '&&' in normalized:
+          for v in [x.strip() for x in normalized.split('&&') if x.strip()]:
+            queryset = queryset.filter(**{lookup: v})
+          return queryset
+        for v in [x.strip() for x in normalized.split(",") if x.strip()]:
           filters |= Q(**{lookup: v})
 
       # --- Include parent lookup if applicable (on the base related model) ---
@@ -431,7 +462,7 @@ class FilterSearchMixin(FilterBaseMixin):
         parent_field = base_field._meta.get_field("parent")
         if getattr(parent_field, "is_relation", False):
           if "__" in field_name:
-            prefix, _last = field_name.rsplit("__", 1)
+            prefix = field_name.rsplit("__", 1)[0]
             parent_path = f"{prefix}__parent__{last_field_name}"
           else:
             parent_path = f"parent__{last_field_name}"
