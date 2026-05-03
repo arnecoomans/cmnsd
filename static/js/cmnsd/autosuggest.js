@@ -291,6 +291,21 @@ function setupInput(host) {
     list.style.display = 'block';
   }
 
+  function filterLocal(q) {
+    let data;
+    try { data = JSON.parse(localSource); } catch { return; }
+    if (q) {
+      const lower = q.toLowerCase();
+      data = data.filter(item =>
+        displayFields.some(f => String(item[f] ?? '').toLowerCase().includes(lower))
+      );
+    }
+    if (!data.length) { clearList(true); return; }
+    renderSuggestions(data);
+  }
+
+  const suggest = localSource ? filterLocal : fetchSuggestions;
+
   host.addEventListener('keydown', e => {
     if (list.style.display !== 'block' || !itemsRef.length) return;
     if (e.key === 'ArrowDown') {
@@ -318,17 +333,17 @@ function setupInput(host) {
     updateValidity();
 
     if (q.length < minChars) {
-      if (minChars === 0) fetchSuggestions('');
+      if (minChars === 0) suggest('');
       else clearList();
       return;
     }
 
     if (debounceTimer) clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => fetchSuggestions(q), debounceMs);
+    debounceTimer = setTimeout(() => suggest(q), debounceMs);
   });
 
   host.addEventListener('focus', () => {
-    if (minChars === 0) fetchSuggestions('');
+    if (minChars === 0) suggest('');
   });
 
   host.addEventListener('blur', () => {
