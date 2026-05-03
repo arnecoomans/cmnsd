@@ -1,4 +1,6 @@
 "{{ category.slug }}": {
+  "id": {{ category.id }},
   "slug": "{{ category.slug }}",
+  "category": "{{ category.slug }}",
   "name": "{% if category.parent %}{% translate category.parent.name context 'category'%}: {% endif %}{% translate category.name context 'category' %}"
 }

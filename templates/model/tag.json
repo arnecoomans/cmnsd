@@ -1,6 +1,7 @@
 "{{ tag.slug }}": {
   "id": {{ tag.id }},
   "slug": "{{ tag.slug }}",
+  "tag": "{{ tag.slug }}",
   "name": "{% if tag.parent %}{{ tag.parent.name|title|highlight:query|safe }}: {% endif %}{{ tag.name|title|highlight:query|safe }}",
   "description": "{{ tag.description|highlight:query|safe }}"
 }
