@@ -1,6 +1,12 @@
+import json
+import re
 from django import template
 
 register = template.Library()
+
+@register.filter
+def tojson(value):
+    return json.dumps(value)
 
 ''' Update Query Params 
     Allows to add and remove qyery parameters from the current URL
@@ -31,24 +37,21 @@ def update_query_params(request, add=None, remove=None, to=None, replace=None, c
 
     # Handle adding a value to the specified parameter (e.g., 'tags' or 'category')
     if add:
-      existing_values = query_params.get(to, '').split(',')
+      existing_values = [v for v in re.split(r'__and__|,', query_params.get(to, '')) if v]
       if add not in existing_values:
-        if existing_values == ['']:  # Handle the case where the list is empty
-          existing_values = [str(add)]
-        else:
-          existing_values.append(str(add))
-        query_params[to] = ','.join(existing_values)
-    
+        existing_values.append(str(add))
+      query_params[to] = '__and__'.join(existing_values)
+
     # Handle removing a value from the specified parameter
     if remove:
-      existing_values = query_params.get(to, '').split(',')
-      if not type(remove) == list:
+      existing_values = [v for v in re.split(r'__and__|,', query_params.get(to, '')) if v]
+      if not isinstance(remove, list):
         remove = [remove]
       for r in remove:
         if r in existing_values:
           existing_values.remove(r)
       if existing_values:
-        query_params[to] = ','.join(existing_values)
+        query_params[to] = '__and__'.join(existing_values)
       else:
         query_params.pop(to)
     
