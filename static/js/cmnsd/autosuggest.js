@@ -261,7 +261,8 @@ function setupInput(host) {
         e.stopPropagation();
 
         if (followMode && item.url) {
-          window.location.href = item.url;
+          const ev = new CustomEvent('autosuggest:follow', { detail: { url: item.url }, bubbles: true, cancelable: true });
+          if (host.dispatchEvent(ev)) window.location.href = item.url;
           return;
         }
 
@@ -293,7 +294,7 @@ function setupInput(host) {
 
   function filterLocal(q) {
     let data;
-    try { data = JSON.parse(localSource); } catch { return; }
+    try { data = JSON.parse(host.dataset.localSource ?? localSource); } catch { return; }
     if (q) {
       const lower = q.toLowerCase();
       data = data.filter(item =>
