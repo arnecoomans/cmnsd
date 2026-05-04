@@ -39,6 +39,9 @@ mkdir -p "$LOCAL_PATH/$MEDIA_ROOT"
 echo "Syncing media files ($MEDIA_ROOT)..."
 rsync -chavzP --stats "$REMOTE_HOST:$REMOTE_PATH/$MEDIA_ROOT/" "$LOCAL_PATH/$MEDIA_ROOT/"
 
+echo "Flushing local database..."
+cd "$LOCAL_PATH" && .venv/bin/python manage.py flush --no-input
+
 echo "Loading fixtures into local database..."
 cd "$LOCAL_PATH" && .venv/bin/python manage.py loaddata fixtures/data.json
 
