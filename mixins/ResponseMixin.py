@@ -200,6 +200,7 @@ class ResponseMixin(object):
     ''' Build template names to try to render '''
     template_names = [
       f'object/{ self.model.name.lower() }_{ field }.{ format }',
+      f'object/{ self.model.name.lower() }/{ field }.{ format }',
     ]
     if self.model.has_function(field):
       template_names += [
