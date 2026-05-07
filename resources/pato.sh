@@ -20,7 +20,7 @@ source "$PATO_FILE"
 echo "Starting sync from $REMOTE_HOST:$REMOTE_PATH"
 
 echo "Generating fixtures on remote..."
-ssh "$REMOTE_HOST" "mkdir -p $REMOTE_PATH/fixtures && cd $REMOTE_PATH && .venv/bin/python manage.py dumpdata --natural-foreign --natural-primary --indent 2 > fixtures/data.json"
+ssh "$REMOTE_HOST" "mkdir -p $REMOTE_PATH/fixtures && cd $REMOTE_PATH && .venv/bin/python manage.py dumpdata --natural-foreign --natural-primary --indent 2 > fixtures/prod_data.json"
 
 if [ $? -ne 0 ]; then
   echo "Error: fixture generation failed on remote."
@@ -39,11 +39,14 @@ mkdir -p "$LOCAL_PATH/$MEDIA_ROOT"
 echo "Syncing media files ($MEDIA_ROOT)..."
 rsync -chavzP --stats "$REMOTE_HOST:$REMOTE_PATH/$MEDIA_ROOT/" "$LOCAL_PATH/$MEDIA_ROOT/"
 
+echo "Create a backup of the local database before flushing..."
+cd "$LOCAL_PATH" && .venv/bin/python manage.py dumpdata --natural-foreign --natural-primary --indent 2 > fixtures/local_backup.json
+
 echo "Flushing local database..."
 cd "$LOCAL_PATH" && .venv/bin/python manage.py flush --no-input
 
 echo "Loading fixtures into local database..."
-cd "$LOCAL_PATH" && .venv/bin/python manage.py loaddata fixtures/data.json
+cd "$LOCAL_PATH" && .venv/bin/python manage.py loaddata fixtures/prod_data.json
 
 if [ $? -ne 0 ]; then
   echo "Error: loaddata failed."
