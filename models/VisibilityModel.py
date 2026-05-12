@@ -28,16 +28,34 @@ class VisibilityModel(models.Model):
   
   ''' Visibility Filtering (queryset) '''
   @classmethod
+  def _lookup_path_exists(cls, model, path):
+    """Return True if every step of a __ lookup path resolves on the given model."""
+    from django.core.exceptions import FieldDoesNotExist
+    current = model
+    for part in path.split('__'):
+      try:
+        field = current._meta.get_field(part)
+        current = getattr(field, 'related_model', None)
+        if current is None:
+          return False
+      except FieldDoesNotExist:
+        return False
+    return True
+
+  @classmethod
   def filter_visibility(cls, queryset, request=None):
     if request and request.user.is_authenticated:
       user = request.user
-      return queryset.filter(
-      models.Q(visibility='p') |                                  # Public is always visible
-      models.Q(visibility='c') |                                  # Community is visible to authenticated users
-        models.Q(visibility='f', user=user) |                     # Family is visible to the owner
-        models.Q(visibility='f', user__preferences__family=user) |# Family is visible to their family (reverse relation)
-        models.Q(visibility='q', user=user)                       # Private is only visible to the owner
+      q = (
+        models.Q(visibility='p') |
+        models.Q(visibility='c') |
+        models.Q(visibility='f', user=user) |
+        models.Q(visibility='q', user=user)
       )
+      family_lookup = getattr(settings, 'VISIBILITY_FAMILY_LOOKUP', 'user__preferences__family')
+      if family_lookup and cls._lookup_path_exists(queryset.model, family_lookup):
+        q |= models.Q(visibility='f', **{family_lookup: user})
+      return queryset.filter(q)
     else:
       return queryset.filter(visibility='p')
 
