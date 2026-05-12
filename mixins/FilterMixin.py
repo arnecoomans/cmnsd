@@ -395,7 +395,9 @@ class FilterSearchMixin(FilterBaseMixin):
         queryset = self.__search_queryset(queryset.model, queryset, field, value)
     return queryset.distinct()
 
-  _RANGE_LOOKUPS = {'lte', 'gte', 'lt', 'gt', 'in', 'isnull'}
+  _RANGE_LOOKUPS = {'lte', 'gte', 'lt', 'gt', 'in', 'isnull',
+                    'year', 'month', 'day', 'week', 'week_day', 'iso_week_day', 'quarter',
+                    'hour', 'minute', 'second'}
 
   def __search_queryset(self, model, queryset, field_name, value):
     """Internal helper that filters queryset for a single field path and value."""
