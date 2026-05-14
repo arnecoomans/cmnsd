@@ -138,7 +138,7 @@ function render() {
   const counter = document.getElementById('cmnsd-lightbox-counter');
 
   if (img) img.src = item.src;
-  if (caption) caption.textContent = item.caption || '';
+  if (caption) caption.innerHTML = item.caption || '';
 
   const multiple = current.items.length > 1;
   if (prev) prev.style.display = multiple ? '' : 'none';
