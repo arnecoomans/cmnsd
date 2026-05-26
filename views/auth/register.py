@@ -3,26 +3,29 @@ from django.contrib.auth import login
 from django.contrib.auth.models import Group
 from django.core.mail import send_mail
 from django.shortcuts import redirect, render
+from django.apps import apps
 
 from cmnsd.forms import RegistrationForm
 
 
 def _on_registration(user):
   # Assign default groups (read + contribute; stack to allow downgrade by removing community-member)
-  for group_name in ('community-member-read', 'community-member'):
+  for group_name in getattr(settings, 'REGISTER_DEFAULT_GROUPS', []):
     try:
       user.groups.add(Group.objects.get(name=group_name))
     except Group.DoesNotExist:
       pass
 
   # Create preferences
-  from locations.models.Preferences import UserPreferences
-  UserPreferences.objects.get_or_create(user=user)
+  for model in apps.get_models():
+    if model.__name__ in ('Preferences', 'UserPreferences'):
+      model.objects.get_or_create(user=user)
+      break
 
   # Notify admin (optional)
   notify_email = getattr(settings, 'REGISTRATION_NOTIFY_EMAIL', None)
   if notify_email:
-    site_name = getattr(settings, 'SITE_NAME', 'cmpng')
+    site_name = getattr(settings, 'SITE_NAME', 'cmnsd')
     try:
       send_mail(
         subject=f'[{site_name}] New registration: {user.username}',
