@@ -1,6 +1,6 @@
 import os
 from django.conf import settings
-from django.core.checks import register, Warning
+from django.core.checks import register, Warning, Error
 
 
 @register()
@@ -56,7 +56,6 @@ def check_cmnsd_config(app_configs, **kwargs):
         "AJAX_ALLOW_RELATED_CREATION_MODELS",
         "AJAX_MAX_DEPTH_RECURSION",
         "AJAX_MODES",
-        "EMAIL_BACKEND",
     ]
     for setting in required_settings:
         if not hasattr(settings, setting):
@@ -81,3 +80,29 @@ def check_cmnsd_config(app_configs, **kwargs):
         )
 
     return warnings
+
+@register()
+def check_mailers(app_configs, **kwargs):
+    errors = []
+    mailers = getattr(settings, "MAILERS", None)
+
+    if not mailers:
+        errors.append(Error(
+            "MAILERS setting is missing or empty.",
+            hint="Define MAILERS with at least a 'default' entry, e.g. "
+                 "MAILERS = {'default': {'BACKEND': '...'}}",
+            id="fmly.E001",
+        ))
+    elif "default" not in mailers:
+        errors.append(Error(
+            "MAILERS has no 'default' entry.",
+            hint="Every mailer config needs a 'default' key.",
+            id="fmly.E002",
+        ))
+    elif "BACKEND" not in mailers["default"]:
+        errors.append(Error(
+            "MAILERS['default'] is missing a 'BACKEND' key.",
+            id="fmly.E003",
+        ))
+
+    return errors
