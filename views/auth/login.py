@@ -10,6 +10,8 @@ logger = logging.getLogger(__name__)
 
 
 class RedirectAuthenticatedLoginView(LoginView):
+  template_name = 'auth/login.html'
+
   def dispatch(self, request, *args, **kwargs):
     if request.user.is_authenticated:
       messages.info(request, _('You are already signed in.'))

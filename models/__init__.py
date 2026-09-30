@@ -1,5 +1,4 @@
-from .BaseModel import BaseModel, generate_public_id
-from .VisibilityModel import VisibilityModel
-from .TranslationAliasMixin import TranslationAliasMixin
-from .Tag import *
-from .BaseMethods import *
+from .BaseTag import BaseTag
+from .BaseComment import BaseComment
+from .BasePreferences import BasePreferences
+from .Page import Page
