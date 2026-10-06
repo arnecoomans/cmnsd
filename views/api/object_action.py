@@ -1,38 +1,14 @@
-import json
-
 import minify_html
 
-from django.conf import settings
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.http import Http404, JsonResponse
-from django.shortcuts import get_object_or_404
+from django.http import Http404
+from django.utils.translation import gettext as _
 from django.template import TemplateDoesNotExist
 from django.template.loader import select_template
-from django.views.decorators.http import require_http_methods
 
-from cmnsd.api.filtering import visible_queryset
-
-from .object_fields import _messages_block, _resolve_model, object_fields
-
-
-def _request_data(request):
-  """JSON body, or form fields - cmnsd.js sends JSON; a plain form post
-  works too."""
-  if request.content_type == 'application/json':
-    data = json.loads(request.body or b'{}')
-    if not isinstance(data, dict):
-      raise ValueError("Expected a JSON object.")
-    return data
-  return request.POST.dict()
-
-
-def _error(status, message, entry=None, obj=None, **extra):
-  response = {'ok': False, 'error': message, **extra}
-  if entry is not None:
-    response['model'] = entry['name']
-  if obj is not None:
-    response['token'] = obj.token
-  return JsonResponse(response, status=status)
+from .lookup import get_visible_object, resolve_model
+from .request import request_data
+from .response import api_response
 
 
 def object_action(request, model, identifier, action):
@@ -50,34 +26,32 @@ def object_action(request, model, identifier, action):
   a dict. The response packs the rendered <model>/actions/<action>.html
   (falling back to actions/<action>.html) with context {<model>: obj,
   'result': <that dict>, 'request'} as `html` - so the JS only inserts
-  markup, the same as fields (docs/cmnsd_api_design.md #Actions)."""
-  model_cls, entry = _resolve_model(model)
+  markup, the same as fields (docs/api.md #Actions)."""
+  model_cls, entry = resolve_model(model)
   config = entry['actions'].get(action)
   if config is None:
     raise Http404(f"'{action}' is not an action of '{entry['name']}'.")
   if config.get('requires_auth', True) and not request.user.is_authenticated:
-    return _error(403, "Sign in to do this.", entry)
+    return api_response(request, status=403, entry=entry, error=_("Sign in to do this."), errors={'permission': 'sign_in'})
 
-  lookup = {'pk': identifier} if settings.DEBUG and identifier.isdigit() else {'token': identifier}
-  obj = get_object_or_404(visible_queryset(model_cls, entry, request), **lookup)
+  obj = get_visible_object(request, model_cls, entry, identifier)
 
   try:
-    data = _request_data(request)
+    data = request_data(request)
     result = getattr(obj, action)(request=request, data=data) or {}
   except PermissionDenied as error:
-    return _error(403, str(error) or "Not allowed.", entry, obj)
+    return api_response(request, status=403, entry=entry, obj=obj, error=str(error) or _("Not allowed."), errors={'permission': True})
   except ValidationError as error:
-    return _error(400, ' '.join(error.messages), entry, obj, errors=error.messages)
+    return api_response(request, status=400, entry=entry, obj=obj, error=' '.join(error.messages), errors={'validation': error.messages})
   except ValueError as error:  # malformed body
-    return _error(400, str(error), entry, obj)
+    return api_response(request, status=400, entry=entry, obj=obj, error=str(error), errors={'request': str(error)})
 
-  response = {'ok': True, 'model': entry['name'], 'token': obj.token, 'action': action}
+  payload = {'action': action}
   template = _action_template(entry, action)
   if template:
     context = {entry['name']: obj, 'result': result, 'request': request}
-    response['html'] = minify_html.minify(template.render(context, request), minify_js=True, minify_css=True)
-  response['messages'] = _messages_block(request)
-  return JsonResponse(response)
+    payload['html'] = minify_html.minify(template.render(context, request), minify_js=True, minify_css=True)
+  return api_response(request, entry=entry, obj=obj, **payload)
 
 
 def _action_template(entry, action):
@@ -87,12 +61,3 @@ def _action_template(entry, action):
     return select_template([f"{entry['name']}/actions/{action}.html", f"actions/{action}.html"])
   except TemplateDoesNotExist:
     return None
-
-
-@require_http_methods(['GET', 'POST'])
-def object_endpoint(request, model, identifier, field):
-  """api/<model>/<token>/<name>/ - GET reads a field (object_fields),
-  POST calls an action (object_action). One URL shape, split by method."""
-  if request.method == 'POST':
-    return object_action(request, model, identifier, field)
-  return object_fields(request, model, identifier, field)

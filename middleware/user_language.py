@@ -1,5 +1,5 @@
 from django.core.exceptions import ObjectDoesNotExist
-from django.utils.translation import activate
+from django.utils.translation import override
 
 
 class UserLanguageMiddleware:
@@ -14,11 +14,18 @@ class UserLanguageMiddleware:
     self.get_response = get_response
 
   def __call__(self, request):
+    language = ''
     if request.user.is_authenticated:
       try:
         language = request.user.preferences.language
       except ObjectDoesNotExist:
         language = ''
-      if language:
-        activate(language)
-    return self.get_response(request)
+    if not language:
+      return self.get_response(request)
+    # For this request only (override, not activate): a thread serves other
+    # requests next, which must not inherit this user's language.
+    with override(language):
+      response = self.get_response(request)
+      if hasattr(response, 'render') and not getattr(response, 'is_rendered', True):
+        response.render()   # a lazy TemplateResponse: rendered in this language
+      return response

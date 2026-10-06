@@ -1,0 +1,10 @@
+{% load edit_mode %}
+{% comment %}
+  A child relation's records on the page (cmnsd object_children): each
+  through cmnsd/edit/child.html, then "+ add" (edit mode, permission).
+  {% include 'cmnsd/edit/children.html' with model='content' obj=content relation='transcripts' children=transcripts %}
+  Context: model, obj (also under its model name), relation, children, request.
+{% endcomment %}
+{% child_permissions obj relation as perms_child %}
+{% for child in children %}{% include 'cmnsd/edit/child.html' %}{% endfor %}
+{% include 'cmnsd/edit/child_add.html' %}

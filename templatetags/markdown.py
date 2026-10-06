@@ -10,17 +10,30 @@ import nh3
 
 register = template.Library()
 
-DEFAULT_MARKDOWN_EXTENSIONS = ['fenced_code', 'nl2br', 'tables']
+# cmnsd_autolink: bare http(s):// addresses become links (cmnsd/markdown/autolink.py);
+# cmnsd_external_links: links to other sites open in a new tab
+# (cmnsd/markdown/external_links.py).
+DEFAULT_MARKDOWN_EXTENSIONS = [
+  'fenced_code', 'nl2br', 'tables',
+  'cmnsd.markdown.autolink:AutolinkExtension', 'cmnsd.markdown.external_links:ExternalLinksExtension',
+]
 
 # nh3's default allowlist has no entry for <code>'s class attribute, which
 # fenced_code needs for its language-xxx class. Allow it, but only tokens
 # matching language-xxx - anything else on the attribute is stripped so a
 # language class can't be used to smuggle an arbitrary extra class in.
-_SANITIZE_ATTRIBUTES = {**nh3.ALLOWED_ATTRIBUTES, 'code': {'class'}}
+_SANITIZE_ATTRIBUTES = {
+  **nh3.ALLOWED_ATTRIBUTES, 'code': {'class'},
+  # target="_blank" on external links (cmnsd/markdown/external_links.py) - nothing
+  # else as a target (_attribute_filter).
+  'a': {*nh3.ALLOWED_ATTRIBUTES.get('a', set()), 'target'},
+}
 _LANGUAGE_CLASS_RE = re.compile(r'^language-[\w-]+$')
 
 
 def _attribute_filter(tag, attr, value):
+  if tag == 'a' and attr == 'target':
+    return value if value == '_blank' else None
   if tag == 'code' and attr == 'class':
     kept = [c for c in value.split() if _LANGUAGE_CLASS_RE.match(c)]
     return ' '.join(kept) or None

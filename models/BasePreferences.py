@@ -16,6 +16,7 @@ class BasePreferences(TimestampMixin, models.Model):
   project using cmnsd - which is also why this is named Preferences and not
   Profile: "profile" more naturally describes account/identity info, not
   settings, and the class name and related_name should match, not mix.
+  ui_state is the second exception, for the same reason (cmnsd/ui/state.py).
   """
   user = models.OneToOneField(
     settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='preferences',
@@ -24,6 +25,13 @@ class BasePreferences(TimestampMixin, models.Model):
     max_length=10, choices=settings.LANGUAGES, blank=True,
     help_text=_("Leave blank to fall back to browser/site default language detection"),
   )
+  # Small remembered UI choices, e.g. which page sections are closed
+  # ({'sections': {'person.relationships': False}}) and list sort orders
+  # ({'sorts': {'person.content': 'date'}}) - read and written through
+  # cmnsd/ui/state.py only. Signed-in users only; visitors always get the
+  # defaults and nothing is stored. Like language, it's here because
+  # cmnsd's own code reads it.
+  ui_state = models.JSONField(default=dict, blank=True)
 
   class Meta:
     abstract = True

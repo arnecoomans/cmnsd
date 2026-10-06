@@ -1,6 +1,8 @@
 import datetime
 
+from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils.dates import MONTHS_3
 from django.utils.translation import gettext_lazy as _
 
 MONTHS = [
@@ -39,6 +41,30 @@ class PartialDateMixin(models.Model):
   class Meta:
     abstract = True
 
+  def clean(self):
+    """A partial date that can exist: a month needs a year, a day needs a
+    month, a full date must be a real one (no 31 February), the year at
+    least 1. Without a year the qualifier means nothing - back to exact.
+    A model with its own clean() must call super().clean()."""
+    super().clean()
+    errors = {}
+    if self.year is not None and self.year < 1:
+      errors['year'] = _("Enter a year from 1 onwards.")
+    if self.month is not None and self.year is None:
+      errors['month'] = _("A month needs a year.")
+    if self.day is not None:
+      if self.month is None:
+        errors['day'] = _("A day needs a month.")
+      elif self.year is not None and not errors:
+        try:
+          datetime.date(self.year, self.month, self.day)
+        except ValueError:
+          errors['day'] = _("That date doesn't exist.")
+    if errors:
+      raise ValidationError(errors)
+    if self.year is None:
+      self.date_qualifier = self.DateQualifier.EXACT
+
   def is_exact_date(self):
     return self.date_qualifier == self.DateQualifier.EXACT
 
@@ -58,15 +84,19 @@ class PartialDateMixin(models.Model):
     return f"{prefix} {self.year}" if prefix else str(self.year)
 
   def partial_date_display(self):
-    """'5-7-1968', '7-1968', '1968' - only the known parts - with the
-    qualifier in front: 'ca. 1950', 'before 1950', 'after 1943'. '' when
+    """'5 Jul 1968', 'Jul 1968', '1968' - only the known parts, the month
+    by name (Django's short month names, in the active language: 'mrt' in
+    Dutch) so the day and month can't be mixed up and the year stands out
+    - with the qualifier in front: 'ca. 1950', 'before Mar 1950'. '' when
     there's no year (a day without a month isn't shown either)."""
     if not self.year:
       return ''
-    parts = [str(self.day)] if self.day and self.month else []
+    parts = []
     if self.month:
-      parts.append(str(self.month))
-    text = '-'.join([*parts, str(self.year)])
+      if self.day:
+        parts.append(str(self.day))
+      parts.append(str(MONTHS_3[self.month]).capitalize())
+    text = ' '.join([*parts, str(self.year)])
     prefix = self._qualifier_prefix()
     return f"{prefix} {text}" if prefix else text
 

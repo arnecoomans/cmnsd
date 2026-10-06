@@ -13,9 +13,13 @@
 // thumbnails) show that item instead of navigating. Without JS: no
 // buttons, and those thumbnails are plain links.
 
+import { closest, once } from './dom.js';
+import { dbg } from './context.js';
+
 const SELECTOR = '[data-cmnsd-gallery]';
 
-function bindGallery(gallery, dbg) {
+function bindGallery(gallery) {
+  if (!once(gallery, 'gallery')) return;
   const data = gallery.querySelector('script[type="application/json"]');
   if (!data) return;
   let items;
@@ -54,7 +58,7 @@ function bindGallery(gallery, dbg) {
   gallery.querySelector('[data-gallery-next]')?.addEventListener('click', () => show(current + 1));
   document.addEventListener('keydown', (event) => {
     // Not while typing (the comment form); target may be the document itself.
-    if (event.target.closest && event.target.closest('input, textarea, select, [contenteditable]')) return;
+    if (closest(event, 'input, textarea, select, [contenteditable]')) return;
     if (event.key === 'ArrowLeft') show(current - 1);
     if (event.key === 'ArrowRight') show(current + 1);
   });
@@ -68,6 +72,6 @@ function bindGallery(gallery, dbg) {
   if (nav) nav.hidden = false;
 }
 
-export function bindGalleries(root, dbg) {
-  root.querySelectorAll(SELECTOR).forEach((gallery) => bindGallery(gallery, dbg));
+export function bindGalleries(root) {
+  root.querySelectorAll(SELECTOR).forEach((gallery) => bindGallery(gallery));
 }

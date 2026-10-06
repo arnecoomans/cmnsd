@@ -8,72 +8,65 @@
 // response's `html` into the target, and updates the page URL so a
 // reload or shared link shows the same filtered list. Without JS the
 // form still submits normally and the page renders server-side.
+//
+// data-cmnsd-list-url="<address>" instead of data-cmnsd-list: the same,
+// but asking that address (with the query string) - a page that searches
+// more than one model (e.g. a site search) and answers its own JSON
+// request with the same `html` shape.
 
-import { loadFields } from './fields.js';
-import { bindFilters } from './filter.js';
-import { bindSorts } from './sort.js';
+import { apiUrl, latest, request } from './api.js';
+import { once } from './dom.js';
+import { enhance } from './enhance.js';
+import { config, dbg } from './context.js';
 
-const SELECTOR = 'form[data-cmnsd-list][data-cmnsd-target]';
+const SELECTOR = 'form[data-cmnsd-list][data-cmnsd-target], form[data-cmnsd-list-url][data-cmnsd-target]';
 const DELAY = 250;
 
-function bindForm(form, config, dbg) {
+function bindForm(form) {
+  if (!once(form, 'list')) return;
   const target = document.querySelector(form.dataset.cmnsdTarget);
   if (!target) {
     dbg('list target not found', form.dataset.cmnsdTarget);
     return;
   }
-  let timer = null;
-  let controller = null;
 
-  async function run() {
-    // Only the latest request counts - abort one still in flight.
-    if (controller) controller.abort();
-    controller = new AbortController();
-
+  // Only the latest search counts (api.js latest: waits DELAY while
+  // typing, aborts the request before).
+  const run = latest(async (signal) => {
     const params = new URLSearchParams(new FormData(form));
     [...params.keys()].forEach((key) => { if (!params.get(key)) params.delete(key); });
-    const query = params.toString();
-    const url = `${config.apiRoot}${encodeURIComponent(form.dataset.cmnsdList)}/${query ? `?${query}` : ''}`;
+    const own = form.dataset.cmnsdListUrl;
+    const url = own
+      ? `${own}${params.toString() ? `?${params}` : ''}`
+      : apiUrl(config.apiRoot, [form.dataset.cmnsdList], params);
     dbg('GET', url);
     try {
-      const res = await fetch(url, {
-        credentials: 'same-origin',
-        signal: controller.signal,
-        headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-      });
-      const data = await res.json();
+      const { data } = await request(url, { signal });
       if (data.html != null) {
         target.innerHTML = data.html;
-        // The swapped-in HTML may hold its own deferred placeholders,
-        // filter pills and sort switch - bind them (the page-load binding
-        // only saw the old ones).
-        loadFields(target, config, dbg);
-        bindFilters(target, dbg);
-        bindSorts(target, config, dbg);
+        // The new results may hold deferred fields, filter pills, a sort
+        // switch, ... - enhance them (enhance.js).
+        enhance(target);
         // Keep other parameters already in the address (e.g. a filter pill's
         // ?kind=), only this form's fields change.
-        const url = new URL(window.location.href);
-        new FormData(form).forEach((_value, key) => url.searchParams.delete(key));
-        params.forEach((value, key) => url.searchParams.set(key, value));
-        history.replaceState(history.state, '', url);
+        const address = new URL(window.location.href);
+        new FormData(form).forEach((_value, key) => address.searchParams.delete(key));
+        params.forEach((value, key) => address.searchParams.set(key, value));
+        history.replaceState(history.state, '', address);
       }
       if (data.errors) dbg('errors', data.errors);
     } catch (err) {
       if (err.name !== 'AbortError') dbg('request failed', url, err);
     }
-  }
+  }, DELAY);
 
-  form.addEventListener('input', () => {
-    clearTimeout(timer);
-    timer = setTimeout(run, DELAY);
-  });
+  form.addEventListener('input', () => run());
   form.addEventListener('submit', (event) => {
     event.preventDefault();
-    clearTimeout(timer);
-    run();
+    run.now();
   });
 }
 
-export function bindLists(root, config, dbg) {
-  root.querySelectorAll(SELECTOR).forEach((form) => bindForm(form, config, dbg));
+export function bindLists(root) {
+  root.querySelectorAll(SELECTOR).forEach((form) => bindForm(form));
 }

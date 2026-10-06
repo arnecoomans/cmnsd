@@ -30,5 +30,6 @@ dev_*
 *.old
 *.dev
 
-# Claude
-docs/claude-session-*.md
+# Development notes: designs, decisions, Claude sessions - local only.
+# The documentation that ships is in documentation/.
+/docs/

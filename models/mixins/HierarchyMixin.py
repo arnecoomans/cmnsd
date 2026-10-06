@@ -32,6 +32,12 @@ class HierarchyMixin(models.Model):
       raise ValidationError({
         'name': _("Name must not contain the parent/child separator '%(compounder)s' - use the parent field instead.") % {'compounder': compounder},
       })
+    # No loops: not its own parent, nor below one of its own descendants.
+    node = self.parent
+    while node is not None:
+      if self.pk is not None and node.pk == self.pk:
+        raise ValidationError({'parent': _("This would make it its own ancestor.")})
+      node = node.parent
 
   def _split_compounded_name(self):
     if self.parent:
@@ -52,16 +58,18 @@ class HierarchyMixin(models.Model):
   def display_name(self, compounder=None) -> str:
     if compounder is None:
       compounder = getattr(settings, 'CMNSD_PARENT_COMPOUNDER', ': ')
-    if self.parent:
-      return compounder.join([self.parent.display_name(), self.name])
-    return self.name
+    return compounder.join(node.name for node in self.ancestors())
 
   def ancestors(self):
     """Root-to-self chain, e.g. [Nederlandsch-Indië, Java, Batavia] - for
     tagging/displaying at any level of the hierarchy, not just the leaf."""
-    chain = []
+    chain, seen = [], set()
     node = self
-    while node:
+    # Stops at a loop (a row saved around clean(), e.g. by an import): a
+    # broken hierarchy shows wrong, it doesn't crash every page it's on.
+    while node and node.pk not in seen:
+      if node.pk is not None:
+        seen.add(node.pk)
       chain.append(node)
       node = node.parent
     return list(reversed(chain))

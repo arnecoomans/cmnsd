@@ -1,0 +1,26 @@
+{% load edit_mode %}
+{% comment %}
+  An editable block of fields (edit mode): <model>/blocks/<block>.html as
+  the page shows it, plus - for someone who may change the object, with
+  edit mode on - a pencil that swaps the block for its form (cmnsd.js
+  edit.js; GET/POST cmnsd_api:object_form). The API renders this same
+  template after a save, so the page and the response match.
+  `choice` (a choice block, cmnsd/edit/choices.html): no pencil - it saves
+  on click. `block_class`: an extra class on the wrapper (the block's form
+  class says the same as `block_class`, for the version after a save).
+  `dialog` (optional, a title): the form opens in a dialog instead of in
+  place (cmnsd.js edit.js) - for a form that needs room. Pass the same from
+  the form class (dialog_title) for the version after a save.
+  data-cmnsd-edit-name: the block's name - ?open=<name>,<name> opens those
+  blocks' forms when the page loads (cmnsd.js edit.js).
+  Context: model (API name), obj, block, request - and the object under
+  its own model name (e.g. `content`) for the block template.
+{% endcomment %}
+{% with block_template=model|add:'/blocks/'|add:block|add:'.html' %}
+<div class="edit-block{% if block_class %} {{ block_class }}{% endif %}{% if edit_mode and obj|can_edit:request %}{% if choice %} edit-block--choice{% else %} edit-block--editable{% endif %}{% endif %}" data-cmnsd-edit-block data-cmnsd-edit-name="{{ block }}"{% if dialog %} data-cmnsd-edit-dialog="{{ dialog }}"{% endif %} id="edit-block-{{ model }}-{{ block }}">
+  {% include block_template %}
+  {% if edit_mode and obj|can_edit:request and not choice %}
+    <button type="button" class="edit-block__open" data-cmnsd-edit-open data-cmnsd-edit-url="{% url 'cmnsd_api:object_form' model obj.token block %}" title="{% translate 'edit'|capfirst %}" aria-label="{% translate 'edit'|capfirst %}"><i class="bi bi-pencil"></i></button>
+  {% endif %}
+</div>
+{% endwith %}

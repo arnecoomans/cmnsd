@@ -1,0 +1,17 @@
+{% load edit_mode %}
+{% comment %}
+  "+ add" for a child relation (cmnsd object_children) - edit mode, with
+  the child model's add permission. Its form opens in place (edit.js);
+  after a save the new child and a fresh "+ add" replace this block.
+  Context: model, obj, relation, perms_child, request.
+{% endcomment %}
+{% if edit_mode and perms_child.add %}
+  {% child_urls model obj relation as urls %}
+  <div class="edit-block edit-child-add" data-cmnsd-edit-block id="edit-child-{{ model }}-{{ relation }}-new">
+    {% if urls.add_page %}
+      <a class="edit-child-add__open" href="{{ urls.add_page }}"><i class="bi bi-plus-lg"></i> {% child_add_label obj relation %}</a>
+    {% else %}
+      <button type="button" class="edit-child-add__open" data-cmnsd-edit-open data-cmnsd-edit-url="{{ urls.add }}"><i class="bi bi-plus-lg"></i> {% child_add_label obj relation %}</button>
+    {% endif %}
+  </div>
+{% endif %}

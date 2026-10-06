@@ -5,15 +5,16 @@ import minify_html
 from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import FieldDoesNotExist
-from django.http import Http404, HttpResponse, JsonResponse
-from django.shortcuts import get_object_or_404
+from django.http import HttpResponse
 from django.template import TemplateDoesNotExist
 from django.template.loader import get_template
 from django.utils.html import conditional_escape
 from django.views.decorators.http import require_GET
 
-from cmnsd.api.filtering import visible_queryset
 from cmnsd.api.registry import API_REGISTRY
+
+from .lookup import get_visible_object, resolve_model
+from .response import api_response, api_view
 
 # Label for whichever extension a matching template was found under - not
 # a fixed list the API is limited to (see _render_field/object_fields),
@@ -24,17 +25,6 @@ _CONTENT_TYPES = {
   'txt': 'text/plain',
   'md': 'text/markdown',
 }
-
-
-def _resolve_model(model_name):
-  """API_REGISTRY is keyed by model class, but the URL only has the
-  registered name string - reverse-lookup by entry['name']. Small
-  registry, linear scan is fine; switch to a name-keyed index only if
-  this ever shows up in profiling."""
-  for model_cls, entry in API_REGISTRY.items():
-    if entry['name'] == model_name:
-      return model_cls, entry
-  raise Http404(f"'{model_name}' is not an API-registered model.")
 
 
 def _raw_value(obj, name, request):
@@ -91,7 +81,7 @@ def _find_template(model_cls, model_name, field_name, ext):
   app with more than one model). Returns None rather than raising, so
   callers fall back instead of branching on TemplateDoesNotExist
   themselves - "check if it exists, fall back to the model's response
-  if it doesn't" (docs/cmnsd_api_design.md #Rendering)."""
+  if it doesn't" (docs/api.md #Rendering)."""
   namespace = _template_namespace(model_cls, field_name)
   try:
     return get_template(f'{model_name}/{namespace}/{field_name}.{ext}')
@@ -103,20 +93,6 @@ def _debug_block(entry, obj, names):
   return {'model': entry['name'], 'object': str(obj), 'fields': names}
 
 
-def _messages_block(request):
-  """Placeholder: nothing in this read-only (v1) view queues a message
-  itself yet - there's no write path here to say "saved" about. This
-  just picks up and serializes whatever django.contrib.messages already
-  has queued (e.g. carried over from a prior request in the same
-  session), mirroring the {% if messages %} template tag, so the JS
-  layer has a real place to look once a write path exists to actually
-  push something into it. get_messages() also marks them read/consumed,
-  same as rendering them in a template does - a message shows up in
-  exactly one response, not every one until the session expires."""
-  return [
-    {'text': str(m), 'level': m.level_tag, 'tags': m.tags}
-    for m in messages.get_messages(request)
-  ]
 
 
 def _render_context(entry, obj, field_name, request, debug_names):
@@ -130,17 +106,18 @@ def _render_context(entry, obj, field_name, request, debug_names):
   return context
 
 
+@api_view
 @require_GET
 def object_fields(request, model, identifier, field=None):
   """GET api/<model>/<identifier>/ (all exposed fields) or
   GET api/<model>/<identifier>/<field>/ (one, or a comma-separated few) -
-  one view for both, per docs/cmnsd_api_design.md ("URL shape"): the
+  one view for both, per docs/api.md ("URL shape"): the
   field-scoped URL is the same lookup + permission check as the
   all-fields one, just narrowed by an optional kwarg, not a different
-  operation. Read-only (v1 scope) - see docs/cmnsd_api_design.md #Writing
+  operation. Read-only (v1 scope) - see docs/api.md #Writing
   for why writes aren't handled here yet.
 
-  <identifier> is the object's token (docs/cmnsd_api_design.md
+  <identifier> is the object's token (docs/api.md
   #Identification) - except in DEBUG, where an all-digits value is tried
   as a raw pk instead, purely so a token doesn't have to be looked up by
   hand while manually testing in a browser. Never in production, and
@@ -150,14 +127,13 @@ def object_fields(request, model, identifier, field=None):
   Rendering: each field is packed into the JSON response as a rendered
   HTML fragment if <model>/fields/<field>.html or
   <model>/functions/<field>.html exists (see _template_namespace), else
-  as its plain value - see docs/cmnsd_api_design.md #Rendering.
+  as its plain value - see docs/api.md #Rendering.
   ?format=<ext> on a single-field request instead returns that field's
   own template raw (not JSON-wrapped) if one exists for that extension;
   otherwise it's ignored and the normal JSON response is returned - no
   fixed set of supported extensions."""
-  model_cls, entry = _resolve_model(model)
-  lookup = {'pk': identifier} if settings.DEBUG and identifier.isdigit() else {'token': identifier}
-  obj = get_object_or_404(visible_queryset(model_cls, entry, request), **lookup)
+  model_cls, entry = resolve_model(model)
+  obj = get_visible_object(request, model_cls, entry, identifier)
 
   unknown = []
   if field:
@@ -178,11 +154,11 @@ def object_fields(request, model, identifier, field=None):
       # Same shape as the 200 case below (model/token/fields present,
       # just empty), not a different one-off error format - a client
       # shouldn't need to branch on status code to parse this.
-      return JsonResponse({
-        'model': entry['name'], 'token': obj.token, 'fields': {},
-        'errors': {'unknown_fields': unknown},
-        'messages': _messages_block(request),
-      }, status=400)
+      return api_response(
+        request, status=400, entry=entry, obj=obj, fields={},
+        error=f"Unknown or unexposed field(s): {', '.join(unknown)}",
+        errors={'unknown_fields': unknown},
+      )
   else:
     names = list(entry['fields'].keys())
 
@@ -240,19 +216,16 @@ def object_fields(request, model, identifier, field=None):
         value = conditional_escape(value)
       fields[name] = value
 
-  response = {
-    'model': entry['name'], 'token': obj.token, 'fields': fields,
-    'messages': _messages_block(request),
-  }
+  # Partial success: an unknown name next to known ones is reported, not
+  # fatal (ok stays true).
+  errors = None
   if unknown:
     # A partial mix, not all-or-nothing: an unknown field name isn't
     # sensitive (it's readable straight out of the templates/JS that call
     # this), so there's no reason to withhold the fields that *did*
     # resolve just because one name in the list was wrong - see
-    # docs/cmnsd_api_design.md #Response. Centralized under 'errors' (not
+    # docs/api.md #Response. Centralized under 'errors' (not
     # a top-level 'unknown_fields') so any future error category has one
     # place to live, not a growing list of one-off top-level keys.
-    response['errors'] = {'unknown_fields': unknown}
-  if settings.DEBUG:
-    response['debug'] = _debug_block(entry, obj, names)
-  return JsonResponse(response)
+    errors = {'unknown_fields': unknown}
+  return api_response(request, entry=entry, obj=obj, fields=fields, errors=errors, debug=_debug_block(entry, obj, names))

@@ -1,0 +1,28 @@
+{% load edit_mode %}
+{% comment %}
+  One child record (cmnsd object_children) as the page shows it:
+  <model>/children/<relation>.html, plus - in edit mode, with the child
+  model's permissions - a pencil (its form in place, edit.js) and a remove
+  button that asks first. The API renders this same template after a save.
+  Context: model, obj (the owner, also under its model name), relation,
+  child, perms_child ({add, change, delete}), request.
+{% endcomment %}
+{% with child_template=model|add:'/children/'|add:relation|add:'.html' %}
+{% child_urls model obj relation child as urls %}
+<div class="edit-block edit-child{% if edit_mode and perms_child.change %} edit-block--editable{% endif %}" data-cmnsd-edit-block id="edit-child-{{ model }}-{{ relation }}-{{ child.pk }}">
+  {% include child_template %}
+  {% if edit_mode and perms_child.change %}
+    {% if urls.edit_page %}
+      {# Edited on a page of its own (the relation's 'page') - e.g. the transcribe page. #}
+      <a class="edit-block__open" href="{{ urls.edit_page }}" title="{% translate 'edit'|capfirst %}" aria-label="{% translate 'edit'|capfirst %}"><i class="bi bi-pencil"></i></a>
+    {% else %}
+      <button type="button" class="edit-block__open" data-cmnsd-edit-open data-cmnsd-edit-url="{{ urls.edit }}" title="{% translate 'edit'|capfirst %}" aria-label="{% translate 'edit'|capfirst %}"><i class="bi bi-pencil"></i></button>
+    {% endif %}
+  {% endif %}
+  {% if edit_mode and perms_child.delete %}
+    <form class="edit-child__delete" data-cmnsd-edit-form action="{{ urls.delete }}" method="post">
+      <button type="submit" class="edit-block__open edit-child__delete-button" data-cmnsd-confirm="{% blocktranslate with item=child %}Remove “{{ item }}”?{% endblocktranslate %}" title="{% translate 'remove'|capfirst %}" aria-label="{% translate 'remove'|capfirst %}"><i class="bi bi-trash"></i></button>
+    </form>
+  {% endif %}
+</div>
+{% endwith %}

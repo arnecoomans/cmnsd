@@ -12,9 +12,11 @@
 //
 // data-cmnsd-sort-save="<key>" on the container: the chosen data-sort-key
 // is POSTed as {key, value} to config.sortStateUrl, so the project can
-// remember it (fmly: core/ui_state.py) and render that order next time.
+// remember it (cmnsd/ui/state.py) and render that order next time.
 
-import { csrfToken } from './csrf.js';
+import { request } from './api.js';
+import { once } from './dom.js';
+import { config, dbg } from './context.js';
 
 const SELECTOR = '[data-cmnsd-sort]';
 
@@ -33,18 +35,15 @@ function sortItems(target, key, direction) {
   items.forEach(({ el }) => target.appendChild(el));
 }
 
-function saveChoice(bar, value, config, dbg) {
+function saveChoice(bar, value) {
   const key = bar.dataset.cmnsdSortSave;
   if (!key || !config.sortStateUrl) return;
-  fetch(config.sortStateUrl, {
-    method: 'POST',
-    credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
-    body: JSON.stringify({ key, value }),
-  }).catch((err) => dbg('saving sort failed', err));
+  request(config.sortStateUrl, { method: 'POST', json: { key, value } })
+    .catch((err) => dbg('saving sort failed', err));
 }
 
-function bindSort(bar, config, dbg) {
+function bindSort(bar) {
+  if (!once(bar, 'sort')) return;
   const target = document.querySelector(bar.dataset.cmnsdSort);
   if (!target) {
     dbg('sort target not found', bar.dataset.cmnsdSort);
@@ -54,7 +53,7 @@ function bindSort(bar, config, dbg) {
   buttons.forEach((button) => {
     button.addEventListener('click', () => {
       sortItems(target, button.dataset.sortKey, button.dataset.sortDirection || 'asc');
-      saveChoice(bar, button.dataset.sortKey, config, dbg);
+      saveChoice(bar, button.dataset.sortKey);
       buttons.forEach((other) => {
         const active = other === button;
         other.classList.toggle('is-active', active);
@@ -65,6 +64,6 @@ function bindSort(bar, config, dbg) {
   bar.hidden = false;
 }
 
-export function bindSorts(root, config, dbg) {
-  root.querySelectorAll(SELECTOR).forEach((bar) => bindSort(bar, config, dbg));
+export function bindSorts(root) {
+  root.querySelectorAll(SELECTOR).forEach((bar) => bindSort(bar));
 }

@@ -9,13 +9,17 @@
 // display-ready content, so a returned value is inserted as-is; no value
 // means nothing to do.
 
+import { apiUrl, request } from './api.js';
+import { enhance } from './enhance.js';
+import { config, dbg } from './context.js';
+
 const SELECTOR = '[data-load-on-ready="true"][data-model][data-field]';
 
-function groupByObject(elements, dbg) {
+function groupByObject(elements) {
   const groups = new Map();
   elements.forEach((el) => {
     const { model, objectToken: token, field } = el.dataset;
-    // Token only - see docs/cmnsd_api_design.md #Identification.
+    // Token only - see docs/api.md #Identification.
     if (!token) {
       dbg('skipped, no data-object-token', el);
       return;
@@ -29,19 +33,18 @@ function groupByObject(elements, dbg) {
   return groups;
 }
 
-async function loadGroup({ model, token, fields }, config, dbg) {
+async function loadGroup({ model, token, fields }) {
   const names = [...fields.keys()];
-  const url = `${config.apiRoot}${encodeURIComponent(model)}/${encodeURIComponent(token)}/${names.map(encodeURIComponent).join(',')}/`;
+  const url = apiUrl(config.apiRoot, [model, token, names.join(',')]);
   dbg('GET', url);
   try {
-    const res = await fetch(url, {
-      credentials: 'same-origin',
-      headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-    });
-    const data = await res.json();
+    const { data } = await request(url);
     Object.entries(data.fields || {}).forEach(([name, value]) => {
       if (value == null) return;
-      (fields.get(name) || []).forEach((el) => { el.innerHTML = value; });
+      (fields.get(name) || []).forEach((el) => {
+        el.innerHTML = value;
+        enhance(el);   // the field's HTML may hold its own pills, pickers, ...
+      });
     });
     if (data.errors) dbg('errors', data.errors);
   } catch (err) {
@@ -49,8 +52,11 @@ async function loadGroup({ model, token, fields }, config, dbg) {
   }
 }
 
-export function loadFields(root, config, dbg) {
-  const elements = root.querySelectorAll(SELECTOR);
-  const groups = groupByObject(elements, dbg);
-  return Promise.all([...groups.values()].map((group) => loadGroup(group, config, dbg)));
+export function loadFields(root) {
+  // Marked as requested, so loading again (enhance.js on a root that's
+  // partly loaded) doesn't fetch a field twice.
+  const elements = [...root.querySelectorAll(SELECTOR)];
+  elements.forEach((el) => { el.dataset.loadOnReady = 'loading'; });
+  const groups = groupByObject(elements);
+  return Promise.all([...groups.values()].map((group) => loadGroup(group)));
 }

@@ -58,11 +58,15 @@ def filterable_fields(model_cls, entry):
   return names
 
 
-def filter_queryset(model_cls, entry, queryset, params):
+def filter_queryset(model_cls, entry, queryset, params, request=None):
   """Narrow queryset by params (a QueryDict, e.g. request.GET).
 
   - ?<search character>=jan bakker: every whitespace-separated term must
-    match (icontains) at least one of the model's search_fields.
+    match (icontains) at least one of the model's search_fields - or the
+    model's own api_search_q(term, request), if it defines one: an opt-in
+    for searching related data the model vets itself (e.g. an event by the
+    names of the people the viewer may see). It's the model's job to only
+    search what the viewer may see.
   - ?<field>=value: exact match on an @api_field-exposed stored field,
     value converted via the field's own to_python(), and checked against
     the field's choices if it has any. An empty value means no filter.
@@ -76,12 +80,17 @@ def filter_queryset(model_cls, entry, queryset, params):
 
   if query:
     search_fields = entry.get('search_fields') or []
-    if search_fields:
+    extra = getattr(model_cls, 'api_search_q', None)
+    if search_fields or extra:
       for term in query.split():
         term_q = Q()
         for field in search_fields:
           term_q |= Q(**{f'{field}__icontains': term})
+        if extra:
+          term_q |= extra(term, request)
         queryset = queryset.filter(term_q)
+      if extra:
+        queryset = queryset.distinct()   # related lookups can repeat a row
     else:
       errors['search'] = f"'{entry['name']}' is not searchable."
 
@@ -125,7 +134,7 @@ def build_list(model_cls, request, queryset=None, params=None):
   Returns dict(objects, query, errors)."""
   entry = API_REGISTRY[model_cls]
   qs = visible_queryset(model_cls, entry, request, queryset)
-  qs, query, errors = filter_queryset(model_cls, entry, qs, request.GET if params is None else params)
+  qs, query, errors = filter_queryset(model_cls, entry, qs, request.GET if params is None else params, request)
   objects = qs.for_list() if hasattr(qs, 'for_list') else qs
   return {'objects': objects, 'query': query, 'errors': errors}
 

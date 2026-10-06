@@ -1,0 +1,39 @@
+{% comment %}
+  A choice block (edit mode): the field's label and its choices - a row of
+  buttons, the current one pressed, each a submit button carrying its
+  value; or (style 'select') a dropdown that saves on change. Saved on
+  click through cmnsd object_form like any block form (cmnsd.js edit.js);
+  a value with a question (data-cmnsd-confirm) asks first.
+  An action block (the form defines actions(user)) shows the current value
+  as text and buttons named after what they do ("Publish", "Revoke").
+  Context (cmnsd.templatetags.edit_mode.edit_choices): url, field,
+  choices [{value, label, current, confirm, hint}], current_label, style,
+  modified, modified_field.
+{% endcomment %}
+<form class="edit-choices" data-cmnsd-edit-form action="{{ url }}" method="post">
+  <input type="hidden" name="{{ modified_field }}" value="{{ modified }}">
+  <span class="edit-choices__label" id="{{ field.auto_id }}-label">{{ field.label|capfirst }}</span>
+  {% if current_label %}
+    {# An action block reads as a flow: steps back, the current value, steps forward. #}
+    <span class="edit-choices__options edit-choices__flow" role="group" aria-labelledby="{{ field.auto_id }}-label">
+      {% for choice in choices %}{% if choice.before %}
+        <button type="submit" name="{{ field.html_name }}" value="{{ choice.value }}" class="choice-btn choice-btn--back"{% if choice.confirm %} data-cmnsd-confirm="{{ choice.confirm }}"{% endif %}><i class="bi bi-arrow-left"></i> {{ choice.label|capfirst }}</button>
+      {% endif %}{% endfor %}
+      <span class="choice-btn is-active edit-choices__current" aria-current="true">{{ current_label|capfirst }}</span>
+      {% for choice in choices %}{% if not choice.before %}
+        <button type="submit" name="{{ field.html_name }}" value="{{ choice.value }}" class="choice-btn{% if choice.confirm %} choice-btn--careful{% endif %}"{% if choice.confirm %} data-cmnsd-confirm="{{ choice.confirm }}"{% endif %}>{{ choice.label|capfirst }}{% if not choice.confirm %} <i class="bi bi-arrow-right"></i>{% endif %}</button>
+      {% endif %}{% endfor %}
+    </span>
+  {% elif style == 'select' %}
+    <select name="{{ field.html_name }}" data-cmnsd-autosubmit aria-labelledby="{{ field.auto_id }}-label">
+      {% for choice in choices %}<option value="{{ choice.value }}"{% if choice.current %} selected{% endif %}>{{ choice.label|capfirst }}</option>{% endfor %}
+    </select>
+  {% else %}
+    <span class="edit-choices__options" role="group" aria-labelledby="{{ field.auto_id }}-label">
+      {% for choice in choices %}
+        <button type="submit" name="{{ field.html_name }}" value="{{ choice.value }}" class="choice-btn{% if choice.current %} is-active{% endif %}" aria-pressed="{{ choice.current|yesno:'true,false' }}"{% if choice.hint %} title="{{ choice.hint }}"{% endif %}{% if choice.confirm %} data-cmnsd-confirm="{{ choice.confirm }}"{% endif %}>{{ choice.label|capfirst }}</button>
+      {% endfor %}
+    </span>
+  {% endif %}
+  <p class="edit-form__error" data-cmnsd-error hidden></p>
+</form>

@@ -8,6 +8,7 @@ from .PartialDateMixin import PartialDateMixin, MONTHS
 from .HierarchyMixin import HierarchyMixin
 from .TranslationAliasMixin import TranslationAliasMixin
 from .SlugMixin import SlugMixin
+from .EditableRelationsMixin import EditableRelationsMixin
 
 __all__ = [
   'TimestampMixin',
@@ -22,4 +23,5 @@ __all__ = [
   'HierarchyMixin',
   'TranslationAliasMixin',
   'SlugMixin',
+  'EditableRelationsMixin',
 ]

@@ -17,9 +17,13 @@
 // visit starts on "all". Not remembered beyond the address on purpose: a
 // filter is a task, and a silently remembered one hides things.
 
+import { once } from './dom.js';
+import { dbg } from './context.js';
+
 const SELECTOR = '[data-cmnsd-filter]';
 
-function bindFilter(bar, dbg) {
+function bindFilter(bar) {
+  if (!once(bar, 'filter')) return;
   const target = document.querySelector(bar.dataset.cmnsdFilter);
   if (!target) {
     dbg('filter target not found', bar.dataset.cmnsdFilter);
@@ -55,6 +59,6 @@ function bindFilter(bar, dbg) {
   bar.hidden = false;
 }
 
-export function bindFilters(root, dbg) {
-  root.querySelectorAll(SELECTOR).forEach((bar) => bindFilter(bar, dbg));
+export function bindFilters(root) {
+  root.querySelectorAll(SELECTOR).forEach((bar) => bindFilter(bar));
 }

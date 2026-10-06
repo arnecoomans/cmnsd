@@ -1,0 +1,27 @@
+{% comment %}
+  The generic form of an editable block (cmnsd object_form) - a model can
+  give a block its own template as <model>/forms/<block>.html. Carries
+  the object's date_modified (modified_field) so a save over someone
+  else's newer edit is refused. Submitted by cmnsd.js edit.js; Esc or
+  Cancel puts the block back unchanged, Ctrl/Cmd+Enter saves.
+  Context: form, form_action (where it posts), modified, modified_field -
+  plus obj/model/block for a block, or obj/relation/child for a child record.
+{% endcomment %}
+<form class="edit-form" data-cmnsd-edit-form action="{{ form_action }}" method="post" novalidate>
+  <input type="hidden" name="{{ modified_field }}" value="{{ modified }}">
+  {% if form.non_field_errors %}<p class="edit-form__error">{{ form.non_field_errors|join:' ' }}</p>{% endif %}
+  {% for field in form %}
+    <div class="edit-form__field">
+      <label for="{{ field.id_for_label }}">{{ field.label|capfirst }}</label>
+      {{ field }}
+      {% if field.help_text %}<small class="edit-form__help">{{ field.help_text }}</small>{% endif %}
+      {% for error in field.errors %}<p class="edit-form__error">{{ error }}</p>{% endfor %}
+    </div>
+  {% endfor %}
+  <p class="edit-form__error" data-cmnsd-error hidden></p>
+  <div class="edit-form__actions">
+    <button type="submit" class="btn btn--primary btn--sm">{% translate "save"|capfirst %}</button>
+    <button type="button" class="btn btn--secondary btn--sm" data-cmnsd-edit-cancel>{% translate "cancel"|capfirst %}</button>
+    <span class="edit-form__hint">{% translate "Esc to cancel · Ctrl+Enter to save" %}</span>
+  </div>
+</form>
