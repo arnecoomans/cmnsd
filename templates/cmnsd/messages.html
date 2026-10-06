@@ -1,0 +1,16 @@
+{% comment %}
+  The message area: Django messages (django.contrib.messages) queued for
+  this page load, and - through cmnsd.js messages.js - the messages API
+  responses carry (e.g. "Tag added" after an edit-mode action). Always
+  rendered, empty or not, so the JS has a place to put them. Success and
+  info fade after a few seconds; warnings and errors stay until closed.
+  Styles: cmnsd.css/messages.css.
+{% endcomment %}
+<div class="cmnsd-messages" data-cmnsd-messages aria-live="polite">
+  {% for message in messages %}
+    <div class="cmnsd-message cmnsd-message--{{ message.level_tag|default:'info' }}"{% if message.level_tag == 'error' %} role="alert"{% endif %}>
+      <span class="cmnsd-message__text">{{ message }}</span>
+      <button type="button" class="cmnsd-message__close" data-cmnsd-message-close aria-label="{% translate 'close'|capfirst %}"><i class="bi bi-x-lg"></i></button>
+    </div>
+  {% endfor %}
+</div>

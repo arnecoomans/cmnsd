@@ -1,0 +1,67 @@
+{% load ui_state %}
+{% comment %}
+  A collapsible page section - accordion-style, each section on its own.
+  Open/closed is remembered per section for the whole site (not per page)
+  in the signed-in user's Preferences: cmnsd/ui/state.py, saved by
+  cmnsd.js sections.js on toggle (to cmnsd_ui:section_state). Default open.
+  Markup only - the look (page-section classes) is the project's CSS.
+
+  Signed-out visitors get the default, always: a plain section, open and
+  fully rendered - no toggle, nothing stored, no lazy loading.
+
+  A closed section isn't rendered: its body is an empty placeholder that
+  cmnsd.js fills through the API (<model>/<token>/<field>/) when it's
+  opened - so a closed section costs only its count. With
+  CMNSD_LOAD_ON_READY off (the JS kill switch), every body is rendered
+  server-side instead and <details> still opens and closes natively.
+
+  A section with nothing in it (count 0) shows its header with 0 but no
+  toggle, and records nothing: closing an empty section here must not
+  hide that section on every other page. With `empty_body` it renders
+  its body anyway and stays foldable like a section with content - for a
+  body that's useful while empty, like the comment form under a thread
+  with no comments yet (folding it closes that section on every page,
+  as for any section).
+
+  Context: `key` (e.g. 'person.content'), `title`, `count`, `body` (the
+  template to include), `model` + `token` + `field` (the API field that
+  renders `body`), `request`, plus whatever `body` itself needs.
+  Optional: `count_list` + `count_items` - keep the count right after an
+  API action changes the list on the page (e.g. a comment added or
+  deleted): cmnsd.js recounts the `count_items` inside `count_list`
+  (actions.js, data-cmnsd-count). `empty_body` (see above); `eager` - render the body even when
+  closed (just folded), for a cheap body that other parts of the page use
+  (the content page's parts: the gallery's thumbnails). No API field needed then.
+  `unfold_sections` in the page's context: every section plain and open,
+  whatever is remembered - for a page to be inspected in full (fmly: a
+  deleted item, checked before it's purged). Nothing is stored.
+{% endcomment %}
+{% section_open key as is_open %}
+{% sections_collapsible as collapsible %}
+{% if not collapsible or unfold_sections %}
+  {% if count or empty_body %}
+    <section class="page-section">
+      <h2 class="section-title">{{ title }} <span class="page-section__count"{% if count_list %} data-cmnsd-count="{{ count_list }}" data-cmnsd-count-items="{{ count_items }}"{% endif %}>{{ count|default:0 }}</span></h2>
+      <div class="page-section__body">{% include body %}</div>
+    </section>
+  {% else %}
+    <div class="page-section page-section--empty">
+      <h2 class="section-title">{{ title }} <span class="page-section__count">0</span></h2>
+    </div>
+  {% endif %}
+{% elif count or empty_body %}
+  <details class="page-section" data-cmnsd-section="{{ key }}"{% if is_open %} open{% endif %}>
+    <summary class="page-section__header">
+      <h2 class="section-title">{{ title }} <span class="page-section__count"{% if count_list %} data-cmnsd-count="{{ count_list }}" data-cmnsd-count-items="{{ count_items }}"{% endif %}>{{ count|default:0 }}</span></h2>
+    </summary>
+    {% if is_open or not load_on_ready or eager %}
+      <div class="page-section__body">{% include body %}</div>
+    {% else %}
+      <div class="page-section__body" data-model="{{ model }}" data-object-token="{{ token }}" data-field="{{ field }}" data-load-on-open="true"></div>
+    {% endif %}
+  </details>
+{% else %}
+  <div class="page-section page-section--empty">
+    <h2 class="section-title">{{ title }} <span class="page-section__count">0</span></h2>
+  </div>
+{% endif %}

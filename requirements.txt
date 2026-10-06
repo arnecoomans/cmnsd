@@ -1,0 +1,10 @@
+# Django
+Django >= 6.0.4
+
+# HTML Output
+beautifulsoup4 >= 4.14.3
+minify-html >= 0.16.4
+
+# Markdown
+markdown >= 3.5.4
+nh3 >= 0.2.18

@@ -1,12 +1,24 @@
 #!/bin/bash
-# Update script for Django applications with submodule support
-# Runs a git pull and updates submodules if necessary
-# If updates are detected, it activates the virtual environment,
-# installs new requirements, runs migrations, and collects static files
-# Restarts the application with supervisorctl
-# based on the directory name (first part before the first dot)
+# Update script for Django applications with submodule support.
+# Pulls the repository and its submodules, then - with the project's
+# virtual environment - installs requirements when a requirements file
+# changed, and always runs migrations and collectstatic (both idempotent
+# and cheap when nothing changed; a skipped collectstatic breaks pages
+# with hashed static file names). Then the project's own .post_update.sh,
+# if there is one, and a restart with supervisorctl, the program named
+# after the directory (the first part before the first dot).
+#
+# .post_update.sh (optional, executable, in the project root, versioned
+# with the project): site-specific steps, run with the virtual environment
+# active, just before the restart. It gets UPDATE_CHANGED=1 when the pull
+# brought changes (in the repository or a submodule), else 0.
+#
+# Changes are detected by commit, not by reading git's output: the
+# repository's and each submodule's commit before and after, and the files
+# that changed between them.
+#
 # Author: Arne Coomans
-# Version: 1.2.2
+# Version: 1.3.0
 
 # Change to the repository root
 cd "$(git rev-parse --show-toplevel)" || {
@@ -14,122 +26,111 @@ cd "$(git rev-parse --show-toplevel)" || {
   exit 1
 }
 
-# Pull latest changes from Git
+# --- The repository -------------------------------------------------------
+
+before=$(git rev-parse HEAD)
 echo "Pulling latest changes from Git..."
 git_output=$(git pull 2>&1)
-
-# Check if git pull was successful
 if [ $? -ne 0 ]; then
   echo "Error during git pull:"
   echo "$git_output"
   exit 1
 fi
-
-echo "Git pull complete."
 echo "$git_output"
+after=$(git rev-parse HEAD)
 
-# Check if there were any updates
-if echo "$git_output" | grep -q 'Already up to date'; then
-  echo "No changes detected. Checking for submodule updates..."
+changed_files=""
+if [ "$before" != "$after" ]; then
+  changed_files=$(git diff --name-only "$before" "$after")
+  echo "Changes in the repository: $(echo "$changed_files" | wc -l | tr -d ' ') file(s)."
 else
-  echo "Changes detected in the main repository."
+  echo "No changes in the repository."
 fi
 
-# Quick check for local cmnsd directory (manual pull safeguard)
-# Skip if cmnsd is already managed as a submodule via .gitmodules
-if grep -q 'path = cmnsd' .gitmodules 2>/dev/null; then
-  echo "cmnsd is a registered submodule — will be handled via .gitmodules."
-elif [ -f "cmnsd/.git" ] || [ -d "cmnsd/.git" ]; then
-  echo "Detected local cmnsd repository. Pulling latest changes..."
-  (
-    cd cmnsd || exit
-    git_output_cmnsd=$(git pull 2>&1)
-    if [ $? -ne 0 ]; then
-      echo "Error during git pull in cmnsd:"
-      echo "$git_output_cmnsd"
-      exit 1
-    fi
-    echo "cmnsd updated successfully."
-  )
-else
-  echo "No cmnsd directory found. Skipping."
+# --- A local cmnsd checkout that isn't a submodule (manual pull safeguard) --
+
+if ! grep -q 'path = cmnsd' .gitmodules 2>/dev/null && { [ -f "cmnsd/.git" ] || [ -d "cmnsd/.git" ]; }; then
+  echo "Detected a local cmnsd repository. Pulling latest changes..."
+  cmnsd_before=$(git -C cmnsd rev-parse HEAD)
+  if ! git -C cmnsd pull; then
+    echo "Error during git pull in cmnsd."
+    exit 1
+  fi
+  cmnsd_after=$(git -C cmnsd rev-parse HEAD)
+  if [ "$cmnsd_before" != "$cmnsd_after" ]; then
+    changed_files="$changed_files
+$(git -C cmnsd diff --name-only "$cmnsd_before" "$cmnsd_after" | sed 's#^#cmnsd/#')"
+  fi
 fi
 
-# Check for submodules defined in .gitmodules
+# --- Submodules -------------------------------------------------------------
+
 if [ -f .gitmodules ]; then
-  echo "Checking for submodule updates..."
+  echo "Updating submodules..."
   git submodule update --init --recursive
+  # Each submodule on its configured branch (default main).
+  git submodule foreach --quiet --recursive 'git checkout -q $(git config -f $toplevel/.gitmodules submodule.$name.branch || echo main)'
 
-  # Ensure submodules track their configured branch (default to main)
-  git submodule foreach --recursive 'git checkout $(git config -f $toplevel/.gitmodules submodule.$name.branch || echo main)'
-
-  # Capture diff before updating to detect actual changes
-  submodule_changes=$(git diff --submodule=log)
-
-  # Update submodules to the latest commit on their tracked branch
+  # Commits before, then the latest of each tracked branch, then after.
+  submodules_before=$(git submodule foreach --quiet --recursive 'echo "$displaypath $(git rev-parse HEAD)"')
   git submodule update --remote --merge
 
-  if [ -z "$submodule_changes" ]; then
-    echo "No updates detected in submodules."
-  else
-    echo "Submodule updates detected."
-  fi
+  while read -r path old; do
+    [ -z "$path" ] && continue
+    new=$(git -C "$path" rev-parse HEAD)
+    if [ "$old" != "$new" ]; then
+      echo "Submodule $path updated."
+      changed_files="$changed_files
+$(git -C "$path" diff --name-only "$old" "$new" | sed "s#^#$path/#")"
+    else
+      echo "Submodule $path: no changes."
+    fi
+  done <<< "$submodules_before"
 else
   echo "No .gitmodules file found. Skipping submodule updates."
 fi
 
-# Combine changes from main repo and submodules
-all_changes="$git_output
-$submodule_changes"
+changed_files=$(echo "$changed_files" | sed '/^$/d')
+update_changed=0
+[ -n "$changed_files" ] && update_changed=1
 
-# Check if any relevant files have changed (migrations, static files, or requirements.txt)
-if echo "$all_changes" | grep -q -e 'migration' -e 'static' -e 'requirements.txt'; then
-  echo "Changes detected in requirements, migrations, static files, or submodules."
-  echo "Activating virtual environment..."
+# --- The application --------------------------------------------------------
 
-  # Activate virtual environment in .venv directory in the current directory
-  if [ -d ".venv/bin" ]; then
-    source .venv/bin/activate
-    echo "Virtual environment activated."
-  else
-    echo "Warning: .venv not found — skipping environment activation."
-  fi
-
-  # Install any new requirements
-  if echo "$all_changes" | grep -q 'requirements.txt'; then
-    echo "Installing new requirements..."
-    python -m pip install --upgrade pip
-    python -m pip install -r requirements.txt
-    echo "Requirements installed."
-  else
-    echo "No changes in requirements detected. Skipping requirement installation."
-  fi
-
-  # Run migrations if needed
-  if echo "$all_changes" | grep -q 'migration'; then
-    echo "Running migrations..."
-    python manage.py migrate
-    echo "Migrations complete."
-  else
-    echo "No changes in migrations detected. Skipping migration."
-  fi
-
-  # Collect static files if needed
-  if echo "$all_changes" | grep -q 'static'; then
-    echo "Collecting static files..."
-    python manage.py collectstatic --noinput
-    echo "Static files collected."
-  else
-    echo "No changes in static files detected. Skipping collectstatic."
-  fi
+if [ -d ".venv/bin" ]; then
+  source .venv/bin/activate
+  echo "Virtual environment activated."
 else
-  echo "No relevant changes detected. Skipping migrations and static collection."
+  echo "Warning: .venv not found - running with the system's Python."
 fi
 
-# Extract the first word from the current directory name, split by '.'
-pool_name=$(basename "$PWD" | cut -d. -f1)
+# Requirements: only when a requirements file changed (the slow step).
+if echo "$changed_files" | grep -q 'requirements.txt$'; then
+  echo "Installing requirements..."
+  python -m pip install --upgrade pip
+  python -m pip install -r requirements.txt
+else
+  echo "No requirements changed."
+fi
 
-# Restart the application with supervisor using the extracted pool name
-echo "Restarting application with supervisor for pool '$pool_name'..."
+# Migrations and static files: always - idempotent, and nothing gets missed.
+echo "Running migrations..."
+python manage.py migrate --noinput || exit 1
+echo "Collecting static files..."
+python manage.py collectstatic --noinput || exit 1
+
+# The project's own steps.
+if [ -x ".post_update.sh" ]; then
+  echo "Running .post_update.sh..."
+  UPDATE_CHANGED=$update_changed ./.post_update.sh || {
+    echo "Error: .post_update.sh failed - not restarting."
+    exit 1
+  }
+elif [ -f ".post_update.sh" ]; then
+  echo "Warning: .post_update.sh is not executable (chmod +x .post_update.sh) - skipped."
+fi
+
+# Restart with supervisor, the program named after the directory's first part.
+pool_name=$(basename "$PWD" | cut -d. -f1)
+echo "Restarting application with supervisor for '$pool_name'..."
 sudo supervisorctl restart "$pool_name"
-echo "Application restart for pool '$pool_name' complete."
+echo "Restart of '$pool_name' complete."

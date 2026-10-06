@@ -1,0 +1,48 @@
+/* The message area (cmnsd/messages.html, cmnsd.js messages.js): a stack
+   of small notices, top right under the header. Colours come from the
+   project's tokens where it has them, with neutral fallbacks. */
+
+.cmnsd-messages {
+  position: fixed;
+  top: 76px;
+  right: 16px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(380px, calc(100vw - 32px));
+  pointer-events: none;
+}
+.cmnsd-message {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 10px 10px 14px;
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--color-border, #ddd);
+  border-left-width: 4px;
+  background: var(--color-surface, #fff);
+  color: var(--color-ink, #222);
+  box-shadow: var(--shadow-modal, 0 6px 24px rgba(0, 0, 0, 0.12));
+  font-size: var(--text-sm, 14px);
+  line-height: 1.4;
+  transition: opacity 0.3s, transform 0.3s;
+}
+.cmnsd-message.is-leaving { opacity: 0; transform: translateX(12px); }
+.cmnsd-message__text { flex: 1; padding-top: 2px; }
+.cmnsd-message__close {
+  flex-shrink: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-ink-3, #888);
+  cursor: pointer;
+  padding: 2px 4px;
+  font-size: 12px;
+}
+.cmnsd-message__close:hover { color: var(--color-ink, #222); }
+.cmnsd-message--success { border-left-color: var(--color-complete-text, #2e7d4f); }
+.cmnsd-message--info    { border-left-color: var(--color-accent, #3a6ea5); }
+.cmnsd-message--warning { border-left-color: var(--color-draft-text, #b7791f); }
+.cmnsd-message--error   { border-left-color: var(--color-draft-text, #b3261e); background: var(--color-draft-soft, #fdecea); }
+.cmnsd-message--debug   { border-left-color: var(--color-ink-3, #888); font-family: monospace; font-size: 12px; }

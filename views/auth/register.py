@@ -1,9 +1,11 @@
 from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.models import Group
 from django.core.mail import send_mail
 from django.shortcuts import redirect, render
 from django.apps import apps
+from django.utils.translation import gettext as _
 
 from cmnsd.forms import RegistrationForm
 
@@ -29,7 +31,7 @@ def _on_registration(user):
     try:
       send_mail(
         subject=f'[{site_name}] New registration: {user.username}',
-        message=f'User {user.username} ({user.email}) has registered.',
+        message=f'User {user.username} ({user.email}) has registered to {site_name}.',
         from_email=settings.DEFAULT_FROM_EMAIL,
         recipient_list=[notify_email],
         fail_silently=True,
@@ -44,10 +46,19 @@ def register(request):
   if request.method == 'POST':
     form = RegistrationForm(request.POST)
     if form.is_valid():
-      user = form.save()
+      user = form.save(commit=False)
+      # CMNSD_REGISTRATION_REQUIRES_APPROVAL: gate new accounts behind
+      # is_active instead of the User model's own default of True - Django's
+      # own auth backends already refuse to authenticate an inactive user,
+      # so this needs no other enforcement to take effect.
+      user.is_active = not getattr(settings, 'CMNSD_REGISTRATION_REQUIRES_APPROVAL', False)
+      user.save()
       _on_registration(user)
-      login(request, user)
-      return redirect(request.POST.get('next') or '/')
+      if user.is_active:
+        login(request, user)
+        return redirect(request.POST.get('next') or '/')
+      messages.info(request, _('Thanks for registering - your account is pending approval before you can sign in.'))
+      return redirect('login')
   else:
     form = RegistrationForm()
-  return render(request, 'registration/register.html', {'form': form})
+  return render(request, 'auth/register.html', {'form': form})

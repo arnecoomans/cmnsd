@@ -1,0 +1,22 @@
+{% comment %}
+  The generic form for a new object in a dialog (cmnsd object_create,
+  cmnsd.js dialog.js) - a model can give it its own template as
+  <model>/forms/new.html. Submitted by dialog.js; Cancel or Esc closes the
+  dialog without saving. Context: form, form_action, model.
+{% endcomment %}
+<form class="edit-form edit-form--create" data-cmnsd-create-form action="{{ form_action }}" method="post" novalidate>
+  {% if form.non_field_errors %}<p class="edit-form__error">{{ form.non_field_errors|join:' ' }}</p>{% endif %}
+  {% for field in form %}
+    <div class="edit-form__field edit-form__field--{{ field.name }}">
+      <label for="{{ field.id_for_label }}">{{ field.label|capfirst }}</label>
+      {{ field }}
+      {% if field.help_text %}<small class="edit-form__help">{{ field.help_text }}</small>{% endif %}
+      {% for error in field.errors %}<p class="edit-form__error">{{ error }}</p>{% endfor %}
+    </div>
+  {% endfor %}
+  <p class="edit-form__error" data-cmnsd-error hidden></p>
+  <div class="edit-form__actions">
+    <button type="submit" class="btn btn--primary btn--sm">{% translate "add"|capfirst %}</button>
+    <button type="button" class="btn btn--secondary btn--sm" data-cmnsd-dialog-close>{% translate "cancel"|capfirst %}</button>
+  </div>
+</form>

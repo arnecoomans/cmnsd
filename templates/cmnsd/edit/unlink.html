@@ -1,0 +1,17 @@
+{% load viewer_name %}
+{% comment %}
+  Edit mode: the "×" that removes one link of a relation (EditableRelationsMixin
+  unlink) - put next to the chip, both inside a .chip-edit wrapper, which
+  disappears on success. The object itself stays.
+  The object's name as this viewer may see it (viewer_name - an event's
+  hidden people stay obfuscated, also in the tooltip).
+  Context: model, owner (the object whose relation it is), relation, object, request.
+  Optional `action` (default unlink) and `insert` (default remove), as
+  for cmnsd/edit/link_picker.html.
+{% endcomment %}
+<form class="chip-edit__remove" data-cmnsd-action="{{ action|default:'unlink' }}" data-model="{{ model }}" data-object-token="{{ owner.token }}"
+      data-cmnsd-target="closest:.chip-edit" data-cmnsd-insert="{{ insert|default:'remove' }}">
+  <input type="hidden" name="relation" value="{{ relation }}">
+  <input type="hidden" name="token" value="{{ object.token }}">
+  <button type="submit" {% with item=object|viewer_name:request %}title="{% blocktranslate %}remove “{{ item }}”{% endblocktranslate %}" aria-label="{% blocktranslate %}remove “{{ item }}”{% endblocktranslate %}"{% endwith %}><i class="bi bi-x"></i></button>
+</form>

@@ -1,0 +1,18 @@
+{% comment %}
+  cmnsd.forms.widgets.PickerInput: a field picker (cmnsd.js picker.js) - the
+  current choice by name, a search box whose results come from
+  api/<model>/?format=picker, and the field's hidden input that receives
+  the chosen token. The field's id goes on the search box, so its label
+  focuses it.
+{% endcomment %}
+<div class="picker picker--field" data-cmnsd-picker="{{ widget.model }}" data-picker-param="{{ widget.param }}"{% if widget.exclude %} data-picker-exclude="{{ widget.exclude }}"{% endif %}{% if widget.submit %} data-picker-submit{% endif %}{% if widget.create_label %} data-picker-create="{{ widget.create_label }}"{% endif %}>
+  <input type="hidden" name="{{ widget.name }}" value="{{ widget.value|default_if_none:'' }}" data-picker-value>
+  {% if widget.create_label %}<input type="hidden" name="{{ widget.new_name }}" value="" data-picker-new>{% endif %}
+  <div class="picker__chosen">
+    <span class="picker__chosen-name" data-picker-chosen>{% if widget.chosen %}{{ widget.chosen_label }}{% endif %}</span>
+    {% if not widget.chosen %}<span class="picker__chosen-empty">{{ widget.empty_label }}</span>{% endif %}
+    {% if widget.clear_label and widget.chosen %}<button type="button" class="btn btn--secondary btn--sm picker__clear" data-picker-clear>{{ widget.clear_label }}</button>{% endif %}
+  </div>
+  <input type="search" class="picker__input" data-picker-input autocomplete="off"{% if widget.attrs.id %} id="{{ widget.attrs.id }}"{% endif %}{% if widget.placeholder %} placeholder="{{ widget.placeholder }}"{% endif %}>
+  <div data-picker-results></div>
+</div>

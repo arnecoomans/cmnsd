@@ -1,0 +1,30 @@
+{% comment %}
+  Edit mode: "+ add" for a relation - a picker (cmnsd.js picker.js) that
+  links the chosen object (EditableRelationsMixin link) and appends the
+  returned chip to `target`. With `can_create`, a search without an exact
+  match offers to create it by name (the relation's `create` config; the
+  server checks the add permission again).
+  Context: model, owner, relation, picker_model (the related model's API
+  name), target (CSS selector of the chip list), label, placeholder,
+  can_create, exclude (comma-separated tokens already linked),
+  search_character. Optional, for a related model that's created
+  elsewhere (more fields than a name): new_url + new_param + new_label +
+  can_new - without an exact match the picker offers a link to new_url
+  with ?<new_param>=<the search>, in a new tab. Or `new_dialog` (a cmnsd
+  object_create URL, api/<model>/new/) instead of new_url: the form opens
+  in a dialog and what's made is chosen right away (cmnsd.js dialog.js).
+  Optional `action` (default link) and `insert` (default append): another
+  action taking {relation, token} - e.g. a person's add_relative, with
+  insert='reload' when the change reaches further than one chip.
+{% endcomment %}
+<form class="picker picker--inline" data-cmnsd-picker="{{ picker_model }}" data-picker-param="{{ search_character }}" data-picker-exclude="{{ exclude }}"{% if can_create %} data-picker-create="+ {% translate 'create'|capfirst %}"{% endif %}{% if can_new and new_dialog %} data-picker-new-dialog="{{ new_dialog }}" data-picker-new-param="{{ new_param }}" data-picker-new-label="+ {{ new_label }}"{% elif can_new and new_url %} data-picker-new-url="{{ new_url }}" data-picker-new-param="{{ new_param }}" data-picker-new-label="+ {{ new_label }}"{% endif %}
+      data-cmnsd-action="{{ action|default:'link' }}" data-model="{{ model }}" data-object-token="{{ owner.token }}" data-cmnsd-target="{{ target }}" data-cmnsd-insert="{{ insert|default:'append' }}">
+  <label class="picker__label"><span class="visually-hidden">{{ label }}</span>
+    <input type="search" data-picker-input autocomplete="off" placeholder="{{ placeholder }}">
+  </label>
+  <input type="hidden" name="relation" value="{{ relation }}">
+  <input type="hidden" name="token" value="" data-picker-value>
+  <input type="hidden" name="name" value="" data-picker-new>
+  <div data-picker-results></div>
+  <p class="picker__error" data-cmnsd-error hidden></p>
+</form>
