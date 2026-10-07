@@ -45,26 +45,37 @@ Not executable: skipped with a warning. Failing: no restart.
 
 ## pato.sh - production data in development
 
-Copies the production database and uploaded files into a local copy, to develop against real data. Run it on the development machine. Configure it in a `.pato` file next to the script - never committed:
+Copies the production database and uploaded files into the local copy, to develop against real data. Run it on the development machine, in the project root, through a link:
 
 ```sh
-REMOTE_HOST=www.example.org        # an ssh host
-REMOTE_PATH=/data/www/example.org
-LOCAL_PATH=~/code/example
-MEDIA_ROOT=public                  # the uploads folder, relative to both paths
+ln -s cmnsd/resources/pato.sh pato.sh
+./pato.sh
 ```
 
-It then:
-
-1. Runs `dumpdata` on the server into `fixtures/prod_data.json` (natural keys).
-2. Copies the fixtures and the media folder with `rsync`.
-3. Backs up the local database to `fixtures/local_backup.json`.
-4. **Flushes the local database** and loads the production data.
-
-Everything local is replaced. The backup in step 3 is the way back:
+Settings in `.pato` in the project root. `.gitignore` both `.pato` and `fixtures/` - the dumps hold every account with its password hash:
 
 ```sh
-python manage.py flush --no-input && python manage.py loaddata fixtures/local_backup.json
+REMOTE_HOST=web06                          # an ssh host
+REMOTE_PATH=/data/www/fmly.example.org     # the site on the server
+LOCAL_PATH=~/code/fmly                     # the local project
+MEDIA_ROOT=private                         # the uploads; several: "private other"
+MEDIA_EXCLUDE="cache/"                     # optional: not copied - here, generated thumbnails
+DUMP_EXCLUDE="thumbnail"                   # optional: also left out of the dump
 ```
 
-Production data in development is real people's data: keep `fixtures/` and the media folder out of git, and the copy on your own machine.
+Only uploads are copied. Static files (`public/static/`) come from the code: in development `runserver` serves them.
+
+In order, stopping at the first error:
+
+1. **The database:** `dumpdata` on the server, streamed straight into `fixtures/prod_data.json` - no copy stays on the server. Left out: `contenttypes` and `auth.permission` (`migrate` recreates them), `sessions` (production's session keys don't belong on a laptop), and `DUMP_EXCLUDE`.
+2. **The files:** `rsync` of each `MEDIA_ROOT`, without `--delete`.
+3. **Locally:** `migrate`, a backup of the local database (`fixtures/local_backup-<date>.json`), then **flush** and `loaddata`.
+4. **`.post_pato.sh`**, if there is one and it's executable: the project's own steps afterwards, with the virtual environment active - the counterpart of `.post_update.sh`.
+
+Everything local is replaced; the dated backup is the way back:
+
+```sh
+python manage.py flush --no-input && python manage.py loaddata fixtures/local_backup-<date>.json
+```
+
+A project with sorl-thumbnail leaves both its cache folder and its `thumbnail` table out: the copy then makes its own thumbnails, instead of pointing at cache files that weren't copied.

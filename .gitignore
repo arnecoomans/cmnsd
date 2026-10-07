@@ -24,6 +24,9 @@ custom_*.css
 .DS_Store
 */.DS_Store
 
+# pato.sh's settings, should one be kept next to the script
+.pato
+
 # Development
 old_*
 dev_*
