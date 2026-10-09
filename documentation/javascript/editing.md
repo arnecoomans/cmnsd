@@ -10,7 +10,7 @@ The client side of [Edit mode](../edit-mode.md): blocks that turn into forms, pi
 - **Cancel** or **Escape** puts the block back, without a request. **Ctrl/Cmd+Enter** saves.
 - **`?open=title,body`** in the address opens those blocks on load, focus in the first.
 - **Unsaved changes:** leaving the page with an open, changed form gets the browser's warning. A form marked `data-cmnsd-unsaved="<question>"` (such as the edit-mode switch) asks that question first.
-- **Choice blocks** (`cmnsd/edit/choices.html`): each button saves its own value; with `data-cmnsd-confirm` it asks first. The response may say `redirect` (the object is gone for this viewer) or `reload`.
+- **Choice blocks** (`cmnsd/edit/choices.html`): each button saves its own value; with `data-cmnsd-confirm` it asks first; with `data-cmnsd-prompt` it asks for an answer, posted along as `data-cmnsd-prompt-name` (`dom.js asked()` - cancelled or empty, nothing is saved). The response may say `redirect` (the object is gone for this viewer) or `reload`.
 
 After every save the response carries the object's new version, and edit.js puts it in the page's other open forms for the same object: saving two blocks in a row works, only someone else's change in between is refused.
 

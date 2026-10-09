@@ -38,7 +38,7 @@ The page includes each block:
 That renders `storyline/blocks/title.html` - the block as the page shows it - plus, in edit mode, a pencil. The pencil opens the form in place (`storyline/forms/title.html`, else the generic `cmnsd/edit/form.html`); Save posts it, and the saved block replaces the form. Escape cancels, Ctrl/Cmd+Enter saves.
 
 - **Changed meanwhile:** the form carries the object's `date_modified`; a save over a newer version is refused (409) with "changed by someone else - reload".
-- **Choice blocks:** for a field with fixed choices (status, visibility) the form class sets `choice = True` and the block template calls `{% edit_choices obj 'visibility' %}`: buttons that save on click, no pencil.
+- **Choice blocks:** for a field with fixed choices (status, visibility) the form class sets `choice = True` and the block template calls `{% edit_choices obj 'visibility' %}`: buttons that save on click, no pencil. `confirm = {value: question}` asks yes or no first; `prompt = {value: question}` asks for an answer instead - a reason - posted along as the form's `prompt_field` (cancelled or empty: nothing is saved).
 - **In a dialog:** `dialog="<title>"` on the include opens the form over the page, for a form that needs room.
 - **Opening on load:** `?open=title,body` in the address opens those blocks' forms.
 - **A related record:** a form class with `instance_for(obj)` edits a related row (an item's photo details), while history and the stale check stay on the object.

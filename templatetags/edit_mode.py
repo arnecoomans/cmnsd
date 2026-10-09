@@ -21,8 +21,11 @@ def edit_choices(context, obj, block, style='buttons'):
   block's one field (its form in the model's api_edit_forms, form class
   `choice = True`) as a row of buttons that save on click, or with
   style='select' a dropdown that saves on change (a longer list). Values
-  in the form class's `confirm` ask first; `choice_hints` ({value: text})
-  explain a choice (the button's tooltip), so everyone picks alike.
+  in the form class's `confirm` ask first; values in its `prompt`
+  ({value: question}) ask a question instead, whose answer is posted as the
+  form's `prompt_field` (e.g. a reason) - cancelled or empty, nothing
+  happens; `choice_hints` ({value: text}) explain a choice (the button's
+  tooltip), so everyone picks alike.
   Posted like any block form (cmnsd object_form, cmnsd.js edit.js)."""
   from cmnsd.api.registry import API_REGISTRY
   from cmnsd.views.api.object_form import MODIFIED_FIELD, _form_class, _modified, instance_for
@@ -31,7 +34,9 @@ def edit_choices(context, obj, block, style='buttons'):
   field = next(iter(form))
   model = API_REGISTRY[type(obj)]['name']
   current = '' if field.value() is None else str(field.value())
-  confirm = getattr(form_class, 'confirm', {}) or {}
+  prompt = getattr(form_class, 'prompt', {}) or {}
+  # A question with an answer is its own confirmation.
+  confirm = {value: question for value, question in (getattr(form_class, 'confirm', {}) or {}).items() if value not in prompt}
   hints = getattr(form_class, 'choice_hints', {}) or {}
   actions = getattr(form, 'actions', None)
   if actions:
@@ -43,6 +48,7 @@ def edit_choices(context, obj, block, style='buttons'):
     # (Back to draft) Published (Delete).
     choices = [
       {'value': str(action[0]), 'label': action[1], 'current': False, 'confirm': confirm.get(action[0], ''),
+       'prompt': prompt.get(action[0], ''),
        'before': len(action) > 2 and action[2] == 'before'}
       for action in actions(user)
     ]
@@ -50,7 +56,8 @@ def edit_choices(context, obj, block, style='buttons'):
   else:
     current_label = ''
     choices = [
-      {'value': str(value), 'label': label, 'current': str(value) == current, 'confirm': confirm.get(value, ''), 'hint': hints.get(value, '')}
+      {'value': str(value), 'label': label, 'current': str(value) == current, 'confirm': confirm.get(value, ''), 'hint': hints.get(value, ''),
+       'prompt': prompt.get(value, '')}
       for value, label in field.field.choices if str(value) != ''
     ]
     if style == 'select' and not field.field.required:
@@ -60,6 +67,7 @@ def edit_choices(context, obj, block, style='buttons'):
   return {
     'url': reverse('cmnsd_api:object_form', args=[model, obj.token, block]),
     'field': field, 'choices': choices, 'style': style, 'current_label': current_label,
+    'prompt_name': form.add_prefix(getattr(form_class, 'prompt_field', 'answer')),
     'modified': _modified(obj), 'modified_field': MODIFIED_FIELD,
   }
 

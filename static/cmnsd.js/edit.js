@@ -19,7 +19,9 @@
 //
 // Choice blocks (cmnsd/edit/choices.html): each button submits its own
 // value (the form's submitter); a button with data-cmnsd-confirm asks
-// first; a select marked data-cmnsd-autosubmit saves on change. The
+// first, one with data-cmnsd-prompt asks for an answer that's posted along
+// as data-cmnsd-prompt-name (dom.js asked - cancelled or empty: nothing
+// saved); a select marked data-cmnsd-autosubmit saves on change. The
 // response may say `redirect` (the object is gone for this viewer - e.g.
 // set to deleted) or `reload` (the change reaches further - an item's
 // kind); the messages are kept over that (messages.js). Before a reload,
@@ -33,7 +35,7 @@
 //   their own wording there).
 
 import { request } from './api.js';
-import { busy, closest, confirmed } from './dom.js';
+import { asked, busy, closest, confirmed } from './dom.js';
 import { enhance } from './enhance.js';
 import { formDialog } from './dialog.js';
 import { keepForReload, showError, showMessage, showMessages } from './messages.js';
@@ -146,8 +148,11 @@ function updateModified(action, modified) {
 
 async function save(form, submitter) {
   if (submitter && !confirmed(submitter)) return;
+  const answer = submitter ? asked(submitter) : null;   // data-cmnsd-prompt: a question whose answer goes along
+  if (answer === false) return;
   const block = form.closest('[data-cmnsd-edit-block]');
   const body = submitter ? new FormData(form, submitter) : new FormData(form);
+  if (answer) body.append(answer.name, answer.value);
   try {
     await busy(form.querySelectorAll('button'), async () => {
       dbg('POST', form.action);

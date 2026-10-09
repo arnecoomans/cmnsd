@@ -28,6 +28,18 @@ export function confirmed(el) {
   return !question || window.confirm(question);
 }
 
+// asked(el) - asks el's data-cmnsd-prompt question, if it has one, for an
+// answer that goes along as the field data-cmnsd-prompt-name (e.g. why
+// something is revoked). null: no question; false: cancelled or left
+// empty - the action doesn't go ahead; else {name, value}.
+export function asked(el) {
+  const question = el?.dataset?.cmnsdPrompt;
+  if (!question) return null;
+  const answer = window.prompt(question);
+  if (answer === null || !answer.trim()) return false;
+  return { name: el.dataset.cmnsdPromptName || 'answer', value: answer.trim() };
+}
+
 // busy(elements, fn) - disables the elements while fn's promise runs, and
 // enables them again after (those still on the page).
 export async function busy(elements, fn) {
