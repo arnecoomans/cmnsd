@@ -50,6 +50,7 @@ Every cmnsd module already enhances the HTML it puts on the page itself; `enhanc
 | [Actions and messages](actions.md) | `actions.js` - buttons and forms that call an API action; `messages.js`; `hints.js`; `toggles.js`; `menus.js` |
 | [Editing](editing.md) | `edit.js` - editable blocks; `picker.js`; `dialog.js`; `suggest.js`; `autosave.js` |
 | [Images and uploads](media.md) | `gallery.js`, `viewer.js`, `lightbox.js`, `upload.js` |
+| [Via](via.md) | `via.js` - how you got here: the tag, place or person you came through, highlighted |
 
 And the shared modules every other one uses:
 

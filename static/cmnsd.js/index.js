@@ -27,6 +27,7 @@ import { bindCreateButtons } from './dialog.js';
 import { bindUploads } from './upload.js';
 import { bindHints } from './hints.js';
 import { bindLightboxes } from './lightbox.js';
+import { bindVia } from './via.js';
 import { config, configure, dbg } from './context.js';
 
 function whenReady(fn) {
@@ -54,6 +55,7 @@ export function init(settings = {}) {
   registerEnhancer(bindAutosaves);
   registerEnhancer(bindUploads);
   registerEnhancer(bindHints);
+  registerEnhancer(bindVia);
   registerEnhancer(loadFields);
   whenReady(() => {
     // Delegated, once on the document: they work for HTML added later.
