@@ -11,7 +11,8 @@ What cmnsd ships for a project's templates: includes, template tag libraries and
 | `cmnsd/edit/*.html` | Edit mode: `block.html`, `form.html`, `choices.html`, `children.html`, `link_picker.html`, `unlink.html`, `create_form.html` ([Edit mode](edit-mode.md)) |
 | `cmnsd/widgets/picker.html`, `suggest.html` | The form widgets `PickerInput` and `SuggestInput` (`forms/widgets.py`) |
 | `auth/*.html` | Sign in, register, profile, password change and reset ([Accounts](accounts.md)) |
-| `errorpages/*.html` | 400, 403, 404, and `private.html` for a page that exists but isn't for this viewer |
+| `errorpages/*.html` | 400, 403, 404, 500 (standalone: works without the database), and `private.html` for a page that exists but isn't for this viewer |
+| `403_csrf.html` | A form open too long - Django's CSRF failure page, by its name |
 | `pages/page_detail.html` | A `Page` |
 
 Each template's comment explains its context. A project overrides one by putting a template with the same path in its own `templates/` folder.

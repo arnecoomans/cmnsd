@@ -1,0 +1,12 @@
+{% extends 'errorpages/base_error.html' %}
+{% load i18n %}
+{% comment %}
+  Server error (cmnsd.views.errors.server_error): rendered without the
+  request's context - no user, no context processors - so it works when
+  the database doesn't. Only site_name is passed.
+{% endcomment %}
+
+{% block title %}500 – {% translate "something went wrong"|capfirst %}{% endblock %}
+{% block error_code %}500{% endblock %}
+{% block error_heading %}{% translate "something went wrong"|capfirst %}{% endblock %}
+{% block error_body %}{% translate "The error has been logged. Try again in a moment - if it keeps happening, let the archive's staff know what you were doing." %}{% endblock %}

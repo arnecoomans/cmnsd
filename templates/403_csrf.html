@@ -1,0 +1,17 @@
+{% extends 'errorpages/base_error.html' %}
+{% load i18n %}
+{% comment %}
+  A form that failed Django's CSRF check (django.views.csrf.csrf_failure
+  renders a template of this name, without the request's context): open
+  too long, or signed in or out in another tab since. Not an attack, as a
+  rule - so a plain explanation and the way back.
+{% endcomment %}
+
+{% block title %}403 – {% translate "this page was open too long"|capfirst %}{% endblock %}
+{% block error_code %}403{% endblock %}
+{% block error_heading %}{% translate "this page was open too long"|capfirst %}{% endblock %}
+{% block error_body %}{% translate "A form only works for a while, and not after signing in or out somewhere else. Go back, reload the page and try again - what you typed may need to be entered again." %}{% endblock %}
+{% block error_actions %}
+  <a href="javascript:history.back()" class="err-btn err-btn--primary">{% translate "go back"|capfirst %}</a>
+  <a href="/" class="err-btn err-btn--secondary">{% translate "go to homepage"|capfirst %}</a>
+{% endblock %}

@@ -77,7 +77,10 @@ urlpatterns = [
 handler400 = 'cmnsd.views.errors.bad_request'
 handler403 = 'cmnsd.views.errors.permission_denied'
 handler404 = 'cmnsd.views.errors.page_not_found'
+handler500 = 'cmnsd.views.errors.server_error'
 ```
+
+`server_error` renders without the request's context - no user, no context processors - from a standalone template (inline CSS, no static files), so it works when the database or the static files are what failed. A form that fails Django's CSRF check (open too long, or signed in or out elsewhere) gets `403_csrf.html`, which Django picks up by its name.
 
 ## The base template
 
