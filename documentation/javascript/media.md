@@ -37,7 +37,7 @@ Step through a sequence of images in place - an item and its pages:
 <a href="{{ part.url }}" data-gallery-show="3">...</a>
 ```
 
-‹ and › and the arrow keys step through, wrapping round; the image, its link, the counter and the caption follow. `data-gallery-show="<n>"` elsewhere on the page shows item n instead of navigating. `[data-gallery-open]` links to the shown item's own page. Without JavaScript: no buttons, and the thumbnails are plain links.
+‹ and › and the arrow keys step through, wrapping round; the image, its link, the counter and the caption follow. `data-gallery-start="<n>"` on the container starts at item n - the one whose page this is (a part's page, in a sequence that begins with its whole); `[data-gallery-open]` stays hidden while that one shows. `data-gallery-show="<n>"` elsewhere on the page shows item n instead of navigating. `[data-gallery-open]` links to the shown item's own page. Without JavaScript: no buttons, and the thumbnails are plain links.
 
 ## Lightbox (lightbox.js)
 
