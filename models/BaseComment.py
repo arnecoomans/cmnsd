@@ -26,6 +26,11 @@ class BaseComment(TimestampMixin, TokenMixin, StatusMixin, OwnershipMixin, model
     abstract = True
     verbose_name = _("Comment")
     verbose_name_plural = _("Comments")
+    # An object's comments are looked up by both - target_id alone has no
+    # index (not a real FK), so without this every lookup scans them all.
+    indexes = [
+      models.Index(fields=['target_content_type', 'target_id'], name='%(app_label)s_%(class)s_target'),
+    ]
 
   def __str__(self) -> str:
     owner = self.user.username if self.user else _('Unknown')
