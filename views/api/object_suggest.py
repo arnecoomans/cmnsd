@@ -5,6 +5,7 @@ from django.utils.translation import gettext as _
 from django.views.decorators.http import require_GET
 
 from cmnsd.api.filtering import visible_queryset
+from cmnsd.models.search import contains
 
 from .lookup import resolve_model
 from .response import api_response, api_view
@@ -36,7 +37,7 @@ def object_suggest(request, model, name):
     return api_response(request, entry=entry, values=[])
   rows = (
     visible_queryset(model_cls, entry, request)
-    .filter(**{f'{path}__icontains': query})
+    .filter(**{contains(path): query})
     .exclude(**{path: ''})
     .values(path).annotate(uses=Count('pk', distinct=True))
     .order_by('-uses', path)[:LIMIT]

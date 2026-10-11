@@ -17,6 +17,7 @@ from django.core.exceptions import FieldDoesNotExist, ValidationError
 from django.db.models import Q
 
 from cmnsd.api.registry import API_REGISTRY
+from cmnsd.models.search import contains
 
 # Query parameters with a meaning of their own, never treated as filters.
 _RESERVED_PARAMS = {'format'}
@@ -62,7 +63,8 @@ def filter_queryset(model_cls, entry, queryset, params, request=None):
   """Narrow queryset by params (a QueryDict, e.g. request.GET).
 
   - ?<search character>=jan bakker: every whitespace-separated term must
-    match (icontains) at least one of the model's search_fields - or the
+    match (icontains, accents ignored where the database can -
+    cmnsd.models.search) at least one of the model's search_fields - or the
     model's own api_search_q(term, request), if it defines one: an opt-in
     for searching related data the model vets itself (e.g. an event by the
     names of the people the viewer may see). It's the model's job to only
@@ -85,7 +87,7 @@ def filter_queryset(model_cls, entry, queryset, params, request=None):
       for term in query.split():
         term_q = Q()
         for field in search_fields:
-          term_q |= Q(**{f'{field}__icontains': term})
+          term_q |= Q(**{contains(field): term})
         if extra:
           term_q |= extra(term, request)
         queryset = queryset.filter(term_q)

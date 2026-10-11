@@ -206,3 +206,23 @@ class UiStateResponseTests(TestCase):
     response = self.post('/ui/sort/', '{"key": "a", "value": "b"}', client=Client())
     self.assertEqual(response.status_code, 403)
     self.assertEqual(response.json()['errors'], {'permission': 'sign_in'})
+
+
+class ContainsLookupTests(TestCase):
+  """cmnsd.models.search.contains: accent-free on PostgreSQL, plain
+  icontains elsewhere (SQLite in development)."""
+
+  def test_plain_icontains_off_postgresql(self):
+    from cmnsd.models.search import contains
+    with mock.patch('cmnsd.models.search.connection') as conn:
+      conn.vendor = 'sqlite'
+      self.assertEqual(contains('last_name'), 'last_name__icontains')
+
+  def test_unaccent_on_postgresql(self):
+    from cmnsd.models.search import contains
+    with mock.patch('cmnsd.models.search.connection') as conn:
+      conn.vendor = 'postgresql'
+      self.assertEqual(contains('places__name'), 'places__name__unaccent__icontains')
+      # The lookup exists and wraps both sides in UNACCENT().
+      sql = str(get_user_model().objects.filter(**{contains('username'): 'riedé'}).query)
+      self.assertEqual(sql.count('UNACCENT('), 2)
