@@ -30,13 +30,19 @@ export function confirmed(el) {
 
 // asked(el) - asks el's data-cmnsd-prompt question, if it has one, for an
 // answer that goes along as the field data-cmnsd-prompt-name (e.g. why
-// something is revoked). null: no question; false: cancelled or left
-// empty - the action doesn't go ahead; else {name, value}.
+// something is revoked). null: no question; false: cancelled - the action
+// doesn't go ahead; else {name, value}. Left empty, it asks again, saying
+// an answer is needed (data-cmnsd-prompt-empty) - an empty answer isn't a
+// choice, and stopping silently looked like a broken button.
 export function asked(el) {
   const question = el?.dataset?.cmnsdPrompt;
   if (!question) return null;
-  const answer = window.prompt(question);
-  if (answer === null || !answer.trim()) return false;
+  const needed = el.dataset.cmnsdPromptEmpty;
+  let answer = window.prompt(question);
+  while (answer !== null && !answer.trim()) {
+    answer = window.prompt(needed ? `${needed}\n\n${question}` : question);
+  }
+  if (answer === null) return false;
   return { name: el.dataset.cmnsdPromptName || 'answer', value: answer.trim() };
 }
 

@@ -20,8 +20,9 @@
 // Choice blocks (cmnsd/edit/choices.html): each button submits its own
 // value (the form's submitter); a button with data-cmnsd-confirm asks
 // first, one with data-cmnsd-prompt asks for an answer that's posted along
-// as data-cmnsd-prompt-name (dom.js asked - cancelled or empty: nothing
-// saved); a select marked data-cmnsd-autosubmit saves on change. The
+// as data-cmnsd-prompt-name (dom.js asked - cancelled: nothing saved;
+// left empty: asked again); a select marked data-cmnsd-autosubmit saves
+// on change. The
 // response may say `redirect` (the object is gone for this viewer - e.g.
 // set to deleted) or `reload` (the change reaches further - an item's
 // kind); the messages are kept over that (messages.js). Before a reload,
