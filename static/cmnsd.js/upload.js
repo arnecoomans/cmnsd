@@ -16,6 +16,13 @@
 // that element as a link to it (its thumbnail, else its name) - a strip of
 // the latest, kept at data-upload-thumbs-max (if set) - so it shows
 // without a reload. XMLHttpRequest, not fetch: it reports upload progress.
+//
+// Inputs inside the container marked data-upload-param go along with every
+// file, by their name and value - e.g. <input type="hidden"
+// name="person" value="<token>" data-upload-param>: the project's upload
+// view decides what they mean (fmly: link the new item to that person).
+// A `duplicate` answered with `linked: true` means the project linked the
+// existing item instead (data-text-duplicate-linked).
 
 import { csrfToken } from './csrf.js';
 import { once } from './dom.js';
@@ -39,7 +46,7 @@ function link(url, text) {
   return a;
 }
 
-function send(url, file, item, labels) {
+function send(url, file, item, labels, params) {
   return new Promise((resolve) => {
     const status = item.querySelector('.upload-row__status');
     const progress = item.querySelector('.upload-row__progress');
@@ -64,7 +71,7 @@ function send(url, file, item, labels) {
         status.append(link(data.created.url, labels.added));
       } else if (xhr.status === 200 && data.duplicate) {
         item.classList.add('is-duplicate');
-        status.textContent = data.duplicate.deleted ? labels.duplicateDeleted : labels.duplicate;
+        status.textContent = data.duplicate.deleted ? labels.duplicateDeleted : data.duplicate.linked ? labels.duplicateLinked : labels.duplicate;
         if (data.duplicate.url) { status.append(' '); status.append(link(data.duplicate.url, data.duplicate.name)); }
       } else {
         item.classList.add('is-error');
@@ -74,6 +81,7 @@ function send(url, file, item, labels) {
     });
     const body = new FormData();
     body.append('file', file);
+    params.forEach(({ name, value }) => body.append(name, value));
     xhr.send(body);
   });
 }
@@ -87,6 +95,7 @@ function bindUpload(zone) {
     sending: zone.dataset.textSending || 'Sending…',
     added: zone.dataset.textAdded || 'Added - open',
     duplicate: zone.dataset.textDuplicate || 'Already in the archive:',
+    duplicateLinked: zone.dataset.textDuplicateLinked || 'Already in the archive - linked:',
     duplicateDeleted: zone.dataset.textDuplicateDeleted || 'Already in the archive (deleted - restore it in the admin).',
     tooLarge: zone.dataset.textTooLarge || 'Too large for the server.',
     failed: zone.dataset.textFailed || 'Not added',
@@ -120,7 +129,8 @@ function bindUpload(zone) {
     const byName = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
     [...files].sort((a, b) => byName.compare(a.name, b.name)).forEach((file) => {
       const item = row(list, file);
-      queue = queue.then(() => send(zone.dataset.cmnsdUpload, file, item, labels));
+      const params = [...zone.querySelectorAll('[data-upload-param]')].map((input) => ({ name: input.name, value: input.value }));
+      queue = queue.then(() => send(zone.dataset.cmnsdUpload, file, item, labels, params));
     });
     queue = queue.then(() => { if (done) done.hidden = false; });
   };
