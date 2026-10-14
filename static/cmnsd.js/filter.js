@@ -28,9 +28,17 @@
 //   <div data-cmnsd-filter="#grid" data-cmnsd-filter-key="type"
 //        data-cmnsd-filter-when="value=document" data-cmnsd-filter-param="type" hidden>...</div>
 // Bind order is page order: a second level comes after its first.
+//
+// data-cmnsd-filter-save="<key>" on the container (opt-in, unlike the
+// address above): a filter that's a preference, not a task - e.g. a
+// timeline with or without history. The choice is POSTed as {key, value}
+// to config.sortStateUrl, as sort.js does ("all" for ""), so the project
+// can remember it (cmnsd/ui/state.py get_sort) and render that button
+// .is-active next time.
 
 import { once } from './dom.js';
-import { dbg } from './context.js';
+import { config, dbg } from './context.js';
+import { request } from './api.js';
 
 const SELECTOR = '[data-cmnsd-filter]';
 const groups = new WeakMap();   // target element -> [bar state], the containers filtering it
@@ -44,6 +52,12 @@ function parseWhen(text) {
   if (!text) return null;
   const [key, value = ''] = text.split('=');
   return { key, value };
+}
+
+function save(state, value) {
+  if (!state.save || !config.sortStateUrl) return;
+  request(config.sortStateUrl, { method: 'POST', json: { key: state.save, value: value || 'all' } })
+    .catch((err) => dbg('saving filter failed', err));
 }
 
 function remember(state, value) {
@@ -90,6 +104,7 @@ function bindFilter(bar) {
     buttons,
     key: bar.dataset.cmnsdFilterKey || 'value',
     param: bar.dataset.cmnsdFilterParam,
+    save: bar.dataset.cmnsdFilterSave,
     when: parseWhen(bar.dataset.cmnsdFilterWhen),
     value: '',
   };
@@ -97,6 +112,7 @@ function bindFilter(bar) {
   buttons.forEach((button) => button.addEventListener('click', () => {
     state.value = button.dataset.filter;
     remember(state, state.value);
+    save(state, state.value);
     refresh(target);
   }));
   const fromUrl = state.param ? new URL(window.location.href).searchParams.get(state.param) : null;
