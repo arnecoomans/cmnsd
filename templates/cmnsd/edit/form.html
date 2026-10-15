@@ -11,7 +11,8 @@
   <input type="hidden" name="{{ modified_field }}" value="{{ modified }}">
   {% if form.non_field_errors %}<p class="edit-form__error">{{ form.non_field_errors|join:' ' }}</p>{% endif %}
   {% for field in form %}
-    <div class="edit-form__field">
+    {# edit-form__field--<name>: a project can style or hide one field (e.g. by another field's value, with :has()). #}
+    <div class="edit-form__field edit-form__field--{{ field.name }}">
       <label for="{{ field.id_for_label }}">{{ field.label|capfirst }}</label>
       {{ field }}
       {% if field.help_text %}<small class="edit-form__help">{{ field.help_text }}</small>{% endif %}

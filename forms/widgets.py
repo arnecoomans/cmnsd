@@ -50,8 +50,11 @@ class PickerInput(forms.HiddenInput):
   def is_hidden(self):
     return False
 
-  def __init__(self, model, *, label=None, placeholder='', empty_label='—', clear_label='', submit=True, exclude=(), create_label='', attrs=None):
+  def __init__(self, model, *, label=None, placeholder='', empty_label='—', clear_label='', submit=True, exclude=(), create_label='', empty_until_cleared=False, attrs=None):
+    # empty_until_cleared: on a form for something new, don't say "unknown"
+    # before anything was asked - only once a choice is removed.
     super().__init__(attrs)
+    self.empty_until_cleared = empty_until_cleared
     self.create_label = create_label
     self.model = model
     self.label = label
@@ -85,6 +88,7 @@ class PickerInput(forms.HiddenInput):
       'submit': self.submit,
       'exclude': ','.join(self.exclude),
       'create_label': self.create_label,
+      'empty_until_cleared': self.empty_until_cleared,
       'new_name': f'{name}__new',
     })
     return context

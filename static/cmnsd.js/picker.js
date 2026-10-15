@@ -39,7 +39,8 @@
 // into its [data-picker-value] (the field's hidden input) and its name
 // into [data-picker-chosen]. With data-picker-submit the surrounding form
 // is submitted (an edit block saves); [data-picker-clear] empties the
-// field the same way.
+// field the same way - shown only while something's chosen - and then
+// shows [data-picker-empty], what no choice means ("unknown").
 // Keys: Enter chooses the first result, ArrowDown moves into the results,
 // Escape clears. Without JS the picker isn't rendered usable: it's an
 // edit-mode control, and edit mode's fallback is the admin.
@@ -131,6 +132,10 @@ function bindPicker(picker) {
     // An action form always submits; a field picker only when asked to
     // (data-picker-submit) - else the choice waits for the form's own Save.
     if (form && (isForm || picker.hasAttribute('data-picker-submit'))) form.requestSubmit();
+    // A field picker's "remove": there while something's chosen - also one
+    // chosen just now in a form for something new.
+    const clear = picker.querySelector('[data-picker-clear]');
+    if (clear) clear.hidden = !(chosen && chosen.textContent);
     search.cancel();   // a search still in flight must not fill the results again
     input.value = '';
     results.innerHTML = '';
@@ -203,6 +208,8 @@ function bindPicker(picker) {
     if (value) value.value = '';
     if (fresh) fresh.value = '';
     if (chosen) chosen.textContent = '';
+    const empty = picker.querySelector('[data-picker-empty]');
+    if (empty) empty.hidden = false;   // now "unknown" means something: it was removed
     submit();
   });
   results.addEventListener('click', (event) => {
