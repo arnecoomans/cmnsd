@@ -15,7 +15,13 @@
 //   until a reload) also goes into the form's [data-cmnsd-error];
 // - leaving the page with unsaved changes gets the browser's warning.
 // After each save the form fires `cmnsd:autosaved` (detail: the response),
-// e.g. for the page to update a tab's label.
+// e.g. for the page to update a tab's label. A response with `reload` (the
+// change reaches the whole page - an interface language) reloads it, its
+// messages kept over the reload.
+//
+// [data-autosave-fallback] inside the form - its Save button - is hidden
+// once this binds: with JavaScript every change saves itself; without it
+// the button is how the form is sent.
 //
 // A close button - [data-autosave-close="<form id>"], a link anywhere on
 // the page - is only usable while everything is saved: disabled (and its
@@ -24,7 +30,7 @@
 
 import { request } from './api.js';
 import { once } from './dom.js';
-import { clearError, showError } from './messages.js';
+import { clearError, keepForReload, showError } from './messages.js';
 
 const SELECTOR = 'form[data-cmnsd-autosave]';
 const DELAY = 1200;
@@ -43,6 +49,7 @@ function validationText(data) {
 
 function bindAutosave(form) {
   if (!once(form, 'autosave')) return;
+  form.querySelectorAll('[data-autosave-fallback]').forEach((el) => { el.hidden = true; });
   const status = form.querySelector('[data-autosave-status]');
   let saved = serialize(form);
   let timer = null;
@@ -88,6 +95,11 @@ function bindAutosave(form) {
         clearError(form);
         say(changed() ? 'unsaved' : 'saved');
         form.dispatchEvent(new CustomEvent('cmnsd:autosaved', { detail: data, bubbles: true }));
+        if (data.reload) {
+          keepForReload(data.messages);
+          window.location.reload();
+          return;
+        }
       } else {
         if (code === 409) stopped = true;
         const text = code === 400 ? validationText(data) : data.error;
@@ -129,9 +141,10 @@ function bindAutosave(form) {
     event.preventDefault();
     event.returnValue = '';
   });
-  // A new record (data-cmnsd-autosave="new") starts without a status; an
-  // existing one as saved.
-  if (form.dataset.cmnsdAutosave === 'new') say('new', '');
+  // A new record (data-cmnsd-autosave="new") starts without a status, and so
+  // does a form of settings (="quiet") - nothing done yet, nothing to
+  // confirm; an existing record as saved.
+  if (['new', 'quiet'].includes(form.dataset.cmnsdAutosave)) say('new', '');
   else say('saved');
 }
 
