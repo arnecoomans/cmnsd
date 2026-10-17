@@ -18,6 +18,10 @@
 // no more requests, and the list stays closed. Escape is final for that
 // "@": typing on doesn't open it again. A token (from an address) after
 // "@" finds that object.
+//
+// Your own words as the label: "[the mother of their children](@" and a
+// search fills in only the destination - "person:<token>)" - and the
+// words stay. No second ")" when one follows already.
 
 import { apiUrl, latest, request } from './api.js';
 import { config, dbg } from './context.js';
@@ -44,12 +48,22 @@ export function escapeLabel(text) {
   return text.replace(/([[\]\\])/g, '\\$1');
 }
 
-// mentionAt(text, caret) - the "@..." ending at the caret: {start, query},
-// start being where the "@" is - or null.
+// mentionAt(text, caret) - the "@..." ending at the caret: {start, query,
+// destination}, start being where the "@" is, destination true when it's a
+// link's address after "](" (your own label before it) - or null.
 export function mentionAt(text, caret) {
   const match = TRIGGER.exec(text.slice(0, caret));
   if (!match) return null;
-  return { start: caret - match[2].length - 1, query: match[2] };
+  const start = caret - match[2].length - 1;
+  return { start, query: match[2], destination: text.slice(0, start).endsWith('](') };
+}
+
+// mentionText(found, name, kind, token, after) - what replaces "@...": the
+// whole mention, or after "](" only the destination - its ")" unless the
+// text after the caret starts with one.
+export function mentionText(found, name, kind, token, after = '') {
+  if (found.destination) return `${kind}:${token}${after.startsWith(')') ? '' : ')'}`;
+  return `[${escapeLabel(name)}](${kind}:${token})`;
 }
 
 function bindMentions(textarea) {
@@ -83,9 +97,11 @@ function bindMentions(textarea) {
     if (!current) return;
     const caret = textarea.selectionStart;
     const before = textarea.value.slice(0, current.start);
-    const mention = `[${escapeLabel(option.dataset.pickerName || '')}](${option.dataset.mentionKind}:${option.dataset.pickerChoose})`;
-    textarea.value = before + mention + textarea.value.slice(caret);
-    const end = before.length + mention.length;
+    const after = textarea.value.slice(caret);
+    const mention = mentionText(current, option.dataset.pickerName || '', option.dataset.mentionKind, option.dataset.pickerChoose, after);
+    textarea.value = before + mention + after;
+    // After a destination that had its ")" already: past it.
+    const end = before.length + mention.length + (current.destination && after.startsWith(')') ? 1 : 0);
     textarea.setSelectionRange(end, end);
     close();
     textarea.focus();
