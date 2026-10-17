@@ -60,3 +60,9 @@ A form marked `data-cmnsd-autosave` that posts to a block or child endpoint save
 - A create answers with the new child; the form then keeps saving that one.
 - A 409 stops autosaving until a reload. After each save the form fires `cmnsd:autosaved`.
 - `[data-autosave-close="<form id>"]` - a close link that's disabled until everything is saved.
+
+## Mentions while typing (mentions.js)
+
+A textarea marked `data-cmnsd-mentions="person:People,event:Events,…"` offers mentions as you type: `@` at the start of a word and at least two letters - then words with spaces, "@eric coomans", or a token - search each kind through the API's picker format (`api/<model>/?q=…&format=picker` - only what the writer may see), listed under the field by kind. Enter, Tab or a click writes `[Name](kind:<token>)` in place of `@…` (brackets in a name escaped); arrows move, Escape closes only the list. The textarea then fires `input`, so an edit block or autosave notices. A search that found nothing isn't tried again with more words (each word narrows); Escape is final for that `@`.
+
+The attribute comes from the server, in the request's language: `cmnsd.forms.widgets.MentionTextarea` for a form field, `{% mentions_attrs %}` (load `markdown`) for a hand-written textarea - both from `CMNSD_MENTION_MODELS`. Rendering a mention: the `|markdown:request` filter ([templates](../templates.md)).

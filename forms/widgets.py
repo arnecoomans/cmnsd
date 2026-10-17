@@ -99,3 +99,14 @@ class PickerInput(forms.HiddenInput):
     '' when none."""
     key = f'{form.add_prefix(field)}__new'
     return (form.data.get(key) or '').strip() if form.is_bound else ''
+
+
+class MentionTextarea(forms.Textarea):
+  """A textarea that offers mentions while typing - "@" and a few letters
+  lists people, items, ... to choose (cmnsd.js mentions.js), for a text
+  rendered with |markdown:request. The kinds come from CMNSD_MENTION_MODELS,
+  named in the language of the request that renders it."""
+
+  def get_context(self, name, value, attrs):
+    from cmnsd.markdown.mentions import mention_field_attrs
+    return super().get_context(name, value, {**(attrs or {}), **mention_field_attrs()})

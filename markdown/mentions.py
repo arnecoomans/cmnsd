@@ -41,10 +41,25 @@ CLASS_HIDDEN = 'mention mention--hidden'
 
 
 def mention_models():
-  """{API name: model} for the models that may be mentioned."""
+  """{API name: model} for the models that may be mentioned, in the
+  setting's order."""
   from cmnsd.api.registry import API_REGISTRY
-  wanted = set(getattr(settings, 'CMNSD_MENTION_MODELS', ()))
-  return {entry['name']: model for model, entry in API_REGISTRY.items() if entry['name'] in wanted}
+  by_name = {entry['name']: model for model, entry in API_REGISTRY.items()}
+  return {name: by_name[name] for name in getattr(settings, 'CMNSD_MENTION_MODELS', ()) if name in by_name}
+
+
+def mention_field_attrs():
+  """The attributes that make a textarea offer mentions while typing
+  (cmnsd.js mentions.js): the kinds with their own names in the current
+  language - "person:People,event:Events" - and the API's search
+  parameter. Empty without mentionable models."""
+  from django.utils.text import capfirst
+  from cmnsd.api.filtering import search_character
+  models = mention_models()
+  if not models:
+    return {}
+  kinds = ','.join(f'{name}:{capfirst(model._meta.verbose_name_plural)}' for name, model in models.items())
+  return {'data-cmnsd-mentions': kinds, 'data-cmnsd-mentions-param': search_character()}
 
 
 class MentionProcessor(Treeprocessor):

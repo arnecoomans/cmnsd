@@ -28,6 +28,7 @@ import { bindUploads } from './upload.js';
 import { bindHints } from './hints.js';
 import { bindLightboxes } from './lightbox.js';
 import { bindVia } from './via.js';
+import { bindMentionFields } from './mentions.js';
 import { config, configure, dbg } from './context.js';
 
 function whenReady(fn) {
@@ -56,6 +57,7 @@ export function init(settings = {}) {
   registerEnhancer(bindUploads);
   registerEnhancer(bindHints);
   registerEnhancer(bindVia);
+  registerEnhancer(bindMentionFields);
   registerEnhancer(loadFields);
   whenReady(() => {
     // Delegated, once on the document: they work for HTML added later.

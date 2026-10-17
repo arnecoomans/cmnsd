@@ -46,6 +46,16 @@ def _attribute_filter(tag, attr, value):
   return value
 
 
+@register.simple_tag
+def mentions_attrs():
+  """<textarea ... {% mentions_attrs %}> - a hand-written textarea that
+  offers mentions while typing (cmnsd.js mentions.js), as MentionTextarea
+  does for a form field."""
+  from django.utils.html import format_html_join
+  from cmnsd.markdown.mentions import mention_field_attrs
+  return format_html_join(' ', '{}="{}"', mention_field_attrs().items())
+
+
 @register.filter()
 @stringfilter
 def markdown(value, request=None):

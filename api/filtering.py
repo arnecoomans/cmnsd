@@ -64,7 +64,8 @@ def filter_queryset(model_cls, entry, queryset, params, request=None):
 
   - ?<search character>=jan bakker: every whitespace-separated term must
     match (icontains, accents ignored where the database can -
-    cmnsd.models.search) at least one of the model's search_fields - or the
+    cmnsd.models.search) at least one of the model's search_fields, or be
+    exactly an object's token - or the
     model's own api_search_q(term, request), if it defines one: an opt-in
     for searching related data the model vets itself (e.g. an event by the
     names of the people the viewer may see). It's the model's job to only
@@ -84,8 +85,12 @@ def filter_queryset(model_cls, entry, queryset, params, request=None):
     search_fields = entry.get('search_fields') or []
     extra = getattr(model_cls, 'api_search_q', None)
     if search_fields or extra:
+      # A term that *is* an object's token finds that object too - a token
+      # from an address, pasted into a search or after @ (cmnsd.js
+      # mentions.js). Exact only; visibility applies as to any result.
+      has_token = any(field.name == 'token' for field in model_cls._meta.fields)
       for term in query.split():
-        term_q = Q()
+        term_q = Q(token=term) if has_token else Q()
         for field in search_fields:
           term_q |= Q(**{contains(field): term})
         if extra:
