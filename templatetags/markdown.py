@@ -26,14 +26,20 @@ _SANITIZE_ATTRIBUTES = {
   **nh3.ALLOWED_ATTRIBUTES, 'code': {'class'},
   # target="_blank" on external links (cmnsd/markdown/external_links.py) - nothing
   # else as a target (_attribute_filter).
-  'a': {*nh3.ALLOWED_ATTRIBUTES.get('a', set()), 'target'},
+  'a': {*nh3.ALLOWED_ATTRIBUTES.get('a', set()), 'target', 'class'},
+  # A mention (cmnsd/markdown/mentions.py): its class, nothing else.
+  'span': {*nh3.ALLOWED_ATTRIBUTES.get('span', set()), 'class'},
 }
 _LANGUAGE_CLASS_RE = re.compile(r'^language-[\w-]+$')
+_MENTION_CLASSES = {'mention', 'mention--hidden'}
 
 
 def _attribute_filter(tag, attr, value):
   if tag == 'a' and attr == 'target':
     return value if value == '_blank' else None
+  if tag in ('a', 'span') and attr == 'class':
+    kept = [c for c in value.split() if c in _MENTION_CLASSES]
+    return ' '.join(kept) or None
   if tag == 'code' and attr == 'class':
     kept = [c for c in value.split() if _LANGUAGE_CLASS_RE.match(c)]
     return ' '.join(kept) or None
@@ -42,8 +48,13 @@ def _attribute_filter(tag, attr, value):
 
 @register.filter()
 @stringfilter
-def markdown(value):
-  extensions = getattr(settings, 'CMNSD_MARKDOWN_EXTENSIONS', DEFAULT_MARKDOWN_EXTENSIONS)
+def markdown(value, request=None):
+  """{{ text|markdown:request }} - Markdown as safe HTML. With the request,
+  mentions ([Eric](person:<token>), cmnsd/markdown/mentions.py) link to
+  what this viewer may see; without it nothing is visible - mentions stay
+  text, a person's name obfuscated: fail closed."""
+  from cmnsd.markdown.mentions import MentionExtension
+  extensions = [*getattr(settings, 'CMNSD_MARKDOWN_EXTENSIONS', DEFAULT_MARKDOWN_EXTENSIONS), MentionExtension(request=request)]
   html = md.markdown(value, extensions=extensions)
   # python-markdown has no HTML sanitization of its own (safe_mode was
   # removed in 3.0) - raw <script>/event-handler HTML in the source passes

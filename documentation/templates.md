@@ -23,7 +23,7 @@ Load with `{% load <library> %}`, or add to `TEMPLATES` `builtins`.
 
 | Library | Gives |
 |---|---|
-| `markdown` | `{{ text\|markdown }}` - markdown to HTML, sanitized with nh3: the XSS boundary for anything users write. Extensions: `CMNSD_MARKDOWN_EXTENSIONS` |
+| `markdown` | `{{ text\|markdown:request }}` - markdown to HTML, sanitized with nh3: the XSS boundary for anything users write. Extensions: `CMNSD_MARKDOWN_EXTENSIONS`. Mentions - `[Eric](person:<token>)`, for the API names in `CMNSD_MENTION_MODELS` - link to what this viewer may see (`filter_accessible`); anything else stays text, through a model's `mention_hidden_text(label)` if it has one. **Without the request nothing is visible** (fail closed). An object's address: its `mention_url(request)` if it has one, else `get_absolute_url()` (`cmnsd/markdown/mentions.py`) |
 | `text_filters` | `highlight` (a match in `<mark>`), `{% highlight_search q %}...{% endhighlight_search %}` (marks search terms in rendered HTML), `get_item` (dict by variable key), `replace`, `str_replace`, `prepend`, `without_value` |
 | `query_filters` | `{% update_query_params request add=... to=... %}`, `copy_query_params`, `tojson` (for an HTML attribute) |
 | `queryset_filters` | `filter_by_status`, `filter_by_visibility`, `filter_by_user`, `without`, `match_queryset` |
