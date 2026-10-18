@@ -82,7 +82,7 @@ class Preferences(BasePreferences): ...
 - `mention_problems()`: mentions in any text that lead nowhere - `gone` (no such token), `revoked` or `deleted` - read from the texts themselves (the index doesn't keep unknown tokens); one query per kind of target. For a housekeeping page.
 - `unlink_mention(source, scheme, token)`: removes the link, keeps the words (`[O. RIEDÉ](person:…)` → `O. RIEDÉ`; an empty label becomes the target's name). `may_change_mentions(source, user)`: the source's own `can_change_text(user)` if it has one, else `can_edit`.
 - **Reach:** `mention_reach(obj)` -> `(reach, owner, label)` - `WIDE` (published, public or community), `FAMILY` or `OWNER` (private, draft, revoked, deleted), from StatusMixin and VisibilityMixin or the object's own `mention_reach()`; `reaches_fewer(target, source)` compares (the source's `mention_reach_of()` if it has one - a transcript: its item). `MentionNoticeMiddleware` (after MessageMiddleware) collects the mentions added during a request; `mention_notices(request)` - called by `api_response` and the middleware - warns once about each one that reaches fewer than its text, if the writer may see it.
-- `manage.py mentions_index`: build or repair the index from all texts (after installing, or after a bulk update that skipped `save()`); safe to repeat.
+- `manage.py mentions_index`: build or repair the index from all texts; safe to repeat. Not a step for every update - the index follows every `save()`. Run it once after installing, for a release that gives a model `mention_fields`, or after a bulk update that skipped `save()` (or call it from that release's migration).
 
 ## Page
 
