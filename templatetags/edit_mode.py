@@ -25,7 +25,9 @@ def edit_choices(context, obj, block, style='buttons'):
   ({value: question}) ask a question instead, whose answer is posted as the
   form's `prompt_field` (e.g. a reason) - cancelled or empty, nothing
   happens; `choice_hints` ({value: text}) explain a choice (the button's
-  tooltip), so everyone picks alike.
+  tooltip), so everyone picks alike. A form's choice_warning(value,
+  request) - about this object, e.g. "it's mentioned in 3 texts" before a
+  delete - is added to that value's question (or becomes one).
   Posted like any block form (cmnsd object_form, cmnsd.js edit.js)."""
   from cmnsd.api.registry import API_REGISTRY
   from cmnsd.views.api.object_form import MODIFIED_FIELD, _form_class, _modified, instance_for
@@ -64,6 +66,17 @@ def edit_choices(context, obj, block, style='buttons'):
       # A field that may be empty: "—" for not set - otherwise the browser
       # shows the first real choice as if it were the value.
       choices.insert(0, {'value': '', 'label': '—', 'current': current == '', 'confirm': ''})
+  warn = getattr(form, 'choice_warning', None)
+  if warn:
+    request = context.get('request')
+    for choice in choices:
+      warning = warn(choice['value'], request)
+      if not warning:
+        continue
+      if choice.get('prompt'):
+        choice['prompt'] = f"{choice['prompt']} {warning}"
+      else:
+        choice['confirm'] = f"{choice['confirm']} {warning}".strip()
   return {
     'url': reverse('cmnsd_api:object_form', args=[model, obj.token, block]),
     'field': field, 'choices': choices, 'style': style, 'current_label': current_label,

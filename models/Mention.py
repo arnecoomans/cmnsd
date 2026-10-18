@@ -195,3 +195,80 @@ def mentioned_in(obj, request):
   results.sort(key=lambda row: row['rank'])
   obj._mentioned_in = (request, results)
   return results
+
+
+# [label](scheme:token) with the label - for removing a link but not its words.
+_MENTION_WITH_LABEL = r'\[(?P<label>(?:[^\]\\]|\\.)*)\]\({scheme}:{token}\)'
+
+
+def mention_sources():
+  """The models whose texts may mention (MentionableSourceMixin)."""
+  from django.apps import apps
+  return [model for model in apps.get_models() if issubclass(model, MentionableSourceMixin) and model.mention_fields]
+
+
+def may_change_mentions(source, user):
+  """Whether user may change source's text - to remove a mention's link:
+  the source's own can_change_text(user) if it has one (a comment: its
+  author or staff), else may edit it (cmnsd.edit.mode.can_edit)."""
+  rule = getattr(source, 'can_change_text', None)
+  if rule is not None:
+    return bool(rule(user))
+  from cmnsd.edit.mode import can_edit
+  return can_edit(source, user)
+
+
+def mention_problems():
+  """[{'source', 'field', 'scheme', 'token', 'label', 'problem', 'target'}] -
+  mentions in any text that lead nowhere: 'gone' (no such token - deleted
+  for good, or never right), 'revoked' or 'deleted' (status r / x: most
+  readers see only the words). From the texts themselves, not the index -
+  the index doesn't keep unknown tokens. One query per kind of target.
+  Housekeeping (staff): fix the text - remove the link, the words stay - or
+  restore what it points to."""
+  from cmnsd.markdown.mentions import mention_models
+  kinds = mention_models()
+  found = []
+  for model in mention_sources():
+    for source in model.objects.all().iterator():
+      for field in source.mention_fields:
+        for match in MENTION_IN_TEXT.finditer(getattr(source, field, '') or ''):
+          if match['scheme'] in kinds:
+            label = re.search(_MENTION_WITH_LABEL.format(scheme=re.escape(match['scheme']), token=re.escape(match['token'])), getattr(source, field))
+            found.append({'source': source, 'field': field, 'scheme': match['scheme'], 'token': match['token'], 'label': label['label'] if label else ''})
+  targets = {}
+  for scheme in {row['scheme'] for row in found}:
+    tokens = {row['token'] for row in found if row['scheme'] == scheme}
+    for target in kinds[scheme].objects.filter(token__in=tokens):
+      targets[(scheme, target.token)] = target
+  problems = []
+  for row in found:
+    target = targets.get((row['scheme'], row['token']))
+    status = getattr(target, 'status', None)
+    problem = 'gone' if target is None else {'r': 'revoked', 'x': 'deleted'}.get(status)
+    if problem:
+      problems.append({**row, 'problem': problem, 'target': target})
+  return problems
+
+
+def unlink_mention(source, scheme, token):
+  """Remove the link of every mention of (scheme, token) in source's texts -
+  the words stay: [O. RIEDÉ](person:...) becomes O. RIEDÉ; an empty label
+  becomes the target's name (or nothing, when it's gone). Saved, so the
+  index follows. Returns how many links went."""
+  from cmnsd.markdown.mentions import mention_models
+  model = mention_models().get(scheme)
+  target = model.objects.filter(token=token).first() if model else None
+  pattern = re.compile(_MENTION_WITH_LABEL.format(scheme=re.escape(scheme), token=re.escape(token)))
+  removed = 0
+  changed = []
+  for field in source.mention_fields:
+    text = getattr(source, field, '') or ''
+    new, count = pattern.subn(lambda m: m['label'] if m['label'].strip() else (str(target) if target else ''), text)
+    if count:
+      setattr(source, field, new)
+      changed.append(field)
+      removed += count
+  if changed:
+    source.save()
+  return removed

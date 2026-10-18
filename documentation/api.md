@@ -52,7 +52,7 @@ Only what's declared narrows a list (`api/filtering.py`):
 - `?q=jan bakker` - every word must match one of `search_fields` (`CMNSD_SEARCH_CHARACTER` sets the name).
 - `?<field>=value` - an exact match, only on stored fields exposed with `@api_field`.
 - A model may add its own search with a classmethod `api_search_q(term, request)` returning a `Q` - and must only search what the viewer may see.
-- `format=picker` - compact rows for a picker, best match first.
+- `format=picker` - compact rows for a picker, best match first. Nothing revoked or deleted (StatusMixin): staff may see it, but a picker chooses something to link or mention. Drafts are offered.
 
 Anything else is ignored and reported in `errors`. An open filter on any field would let a caller ask yes-or-no questions about rows they can't see.
 

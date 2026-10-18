@@ -9,6 +9,7 @@ from django.utils.html import conditional_escape
 from django.views.decorators.http import require_GET
 
 from cmnsd.api.filtering import build_list, list_context
+from cmnsd.models.mixins import StatusMixin
 
 from .lookup import resolve_model
 from .response import api_response, api_view
@@ -32,9 +33,16 @@ def object_list(request, model):
 
   ?format=picker: for a picker (cmnsd.js picker.js) - renders
   <model>/<model>_picker.html instead (compact rows to choose from), or
-  falls back to `results`. Same filtering and visibility."""
+  falls back to `results`. Same filtering and visibility - but not what's
+  revoked or deleted (StatusMixin): staff may see it, yet a picker
+  chooses something to link or mention, and that shouldn't lead there.
+  Drafts stay: what you're still working on can be linked."""
   model_cls, entry = resolve_model(model)
-  result = build_list(model_cls, request)
+  suffix = 'picker' if request.GET.get('format') == 'picker' else 'list'
+  queryset = None
+  if suffix == 'picker' and issubclass(model_cls, StatusMixin):
+    queryset = model_cls.objects.exclude(status__in=[StatusMixin.Status.REVOKED, StatusMixin.Status.DELETED])
+  result = build_list(model_cls, request, queryset)
   objects = list(result['objects'])
 
   if result['errors'] and settings.DEBUG:
@@ -43,7 +51,6 @@ def object_list(request, model):
     messages.error(request, f"[DEBUG] List filter errors: {result['errors']}")
 
   response = {'count': len(objects)}
-  suffix = 'picker' if request.GET.get('format') == 'picker' else 'list'
   if suffix == 'picker' and result['query']:
     objects = rank_by_name(objects, result['query'], request)
   try:
