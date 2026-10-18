@@ -54,6 +54,8 @@ def api_response(request, *, status=200, entry=None, obj=None, error=None, error
     data['error'] = str(error)
   if errors:
     data['errors'] = errors
+  from cmnsd.models.Mention import mention_notices
+  mention_notices(request)   # a mention just added that not every reader sees
   data['messages'] = messages_block(request)   # last: anything queued above is included
   if settings.DEBUG and debug is not None:
     data['debug'] = debug

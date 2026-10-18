@@ -16,12 +16,17 @@ No role here: the role of a person on an item is a link of its own
 """
 
 import re
+from contextvars import ContextVar
 
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
+
+# Mentions added during this request: [(source, {(type_pk, pk)})] - set by
+# MentionNoticeMiddleware, read by mention_notices(). None outside a request.
+_ADDED = ContextVar('cmnsd_mentions_added', default=None)
 
 # [label](scheme:token) - in the stored text, before Markdown.
 MENTION_IN_TEXT = re.compile(r'\]\((?P<scheme>[a-z]+):(?P<token>[A-Za-z0-9_-]+)\)')
@@ -101,6 +106,9 @@ def sync_mentions(source):
       Mention(source_content_type=source_type, source_id=source.pk, source_field=field, target_content_type_id=type_pk, target_id=pk)
       for field, type_pk, pk in new
     ])
+    added = _ADDED.get()
+    if added is not None:
+      added.append((source, {(type_pk, pk) for _field, type_pk, pk in new}))
 
 
 class MentionableSourceMixin(models.Model):
@@ -272,3 +280,82 @@ def unlink_mention(source, scheme, token):
   if changed:
     source.save()
   return removed
+
+
+# How far an object reaches - who may see it - for "not everyone reading
+# this sees that link": (reach, owner, label). reach: WIDE (published, and
+# public or community - everyone signed in), FAMILY (the owner's family) or
+# OWNER (private, a draft, revoked or deleted: its owner and staff); label:
+# a word for it, '' when wide.
+OWNER, FAMILY, WIDE = 0, 1, 2
+
+
+def mention_reach(obj):
+  """obj's reach (above): its own mention_reach() if it has one (a private
+  person), else from StatusMixin and VisibilityMixin - a model without
+  either reaches wide."""
+  from django.utils.translation import gettext as _
+  own = getattr(obj, 'mention_reach', None)
+  if own is not None:
+    found = own()
+    if found is not None:
+      return found
+  owner = getattr(obj, 'user_id', None)
+  status = getattr(obj, 'status', 'p')
+  if status != 'p':
+    return (OWNER, owner, {'c': _("draft"), 'r': _("revoked"), 'x': _("deleted")}.get(status, ''))
+  visibility = getattr(obj, 'visibility', 'p')
+  if visibility == 'q':
+    return (OWNER, owner, _("private"))
+  if visibility == 'f':
+    return (FAMILY, owner, _("family only"))
+  return (WIDE, None, '')
+
+
+def reaches_fewer(target, source):
+  """Whether fewer people may see target than may read source - so some
+  readers see only the words of its mention. The source's reach is its
+  mention_reach_of()'s, if it has one (a transcript: its item's). The same
+  narrow reach of another owner counts as fewer: a family's not another's."""
+  holder = source.mention_reach_of() if hasattr(source, 'mention_reach_of') else source
+  reach, owner, _label = mention_reach(target)
+  source_reach, source_owner, _source_label = mention_reach(holder)
+  return reach < source_reach or (reach == source_reach < WIDE and owner != source_owner)
+
+
+def mention_notices(request):
+  """A warning for each mention added during this request (sync_mentions)
+  of something fewer may see than the text it's in: "not everyone sees
+  that link". Only what the writer may see themselves - no name given away.
+  Once: what's told is cleared. Called by api_response and
+  MentionNoticeMiddleware, so the messages land in this response or the
+  next page."""
+  added = _ADDED.get()
+  if not added:
+    return
+  pending = list(added)
+  added.clear()
+  from django.contrib import messages
+  from django.utils.translation import gettext as _
+  from cmnsd.models.access import filter_accessible
+  by_type = {}
+  for source, keys in pending:
+    for type_pk, pk in keys:
+      by_type.setdefault(type_pk, set()).add(pk)
+  targets = {}
+  for type_pk, pks in by_type.items():
+    model = ContentType.objects.get_for_id(type_pk).model_class()
+    if model is None:
+      continue
+    for target in filter_accessible(model.objects.filter(pk__in=pks), request):
+      targets[(type_pk, target.pk)] = target
+  told = set()
+  for source, keys in pending:
+    for key in sorted(keys):
+      target = targets.get(key)
+      if target is None or key in told or not reaches_fewer(target, source):
+        continue
+      told.add(key)
+      messages.warning(request, _("You mentioned “%(name)s” (%(reach)s): not everyone who reads this sees that link - only the words.") % {
+        'name': target, 'reach': mention_reach(target)[2],
+      })
