@@ -65,10 +65,17 @@ def sync_mentions(source):
   """Bring source's Mention rows in line with its text fields
   (source.mention_fields): add what's new, remove what's gone - nothing
   when nothing changed. A token that doesn't exist isn't recorded; the
-  source mentioning itself isn't either."""
+  source mentioning itself isn't either, nor what it says it belongs to:
+  source.mention_excluded_targets() -> [(model, pks)], if it has one (a
+  transcript's own item - "mentioned in the transcript of X" on X's page
+  adds nothing)."""
   from cmnsd.markdown.mentions import mention_models
   kinds = mention_models()
   source_type = ContentType.objects.get_for_model(source)
+  excluded = set()
+  for model, pks in (source.mention_excluded_targets() if hasattr(source, 'mention_excluded_targets') else ()):
+    model_type = ContentType.objects.get_for_model(model)
+    excluded |= {(model_type.pk, pk) for pk in pks}
   wanted = set()
   for field in source.mention_fields:
     found = mentions_in(getattr(source, field, ''))
@@ -79,7 +86,7 @@ def sync_mentions(source):
       model = kinds[scheme]
       target_type = ContentType.objects.get_for_model(model)
       for pk in model.objects.filter(token__in=tokens).values_list('pk', flat=True):
-        if not (target_type == source_type and pk == source.pk):
+        if not (target_type == source_type and pk == source.pk) and (target_type.pk, pk) not in excluded:
           wanted.add((field, target_type.pk, pk))
   existing = {
     (row.source_field, row.target_content_type_id, row.target_id): row.pk

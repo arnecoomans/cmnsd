@@ -22,6 +22,13 @@
 // Your own words as the label: "[the mother of their children](@" and a
 // search fills in only the destination - "person:<token>)" - and the
 // words stay. No second ")" when one follows already.
+//
+// data-cmnsd-mentions-mode="label" - a text that must stay as written (a
+// transcript): only that, never a name from the archive in place of the
+// words; a bare "@" opens nothing (an old document may have one). There,
+// "mention" - a button above the field (its text: data-cmnsd-mentions-
+// button) or Option/Alt+M - turns the selected words into "[words](@" and
+// searches for them at once: choose, and the words link.
 
 import { apiUrl, latest, request } from './api.js';
 import { config, dbg } from './context.js';
@@ -58,6 +65,17 @@ export function mentionAt(text, caret) {
   return { start, query: match[2], destination: text.slice(0, start).endsWith('](') };
 }
 
+// wrapSelection(text, from, to) - the selected words as "[words](@", for
+// a mention around them: {text, caret, found} - found as mentionAt gives it,
+// the search being the words - or null when nothing (but spaces) is selected.
+export function wrapSelection(text, from, to) {
+  const words = text.slice(from, to).trim();
+  if (!words) return null;
+  const wrapped = `[${escapeLabel(text.slice(from, to))}](@`;
+  const caret = from + wrapped.length;
+  return { text: text.slice(0, from) + wrapped + text.slice(to), caret, found: { start: caret - 1, query: words, destination: true } };
+}
+
 // mentionText(found, name, kind, token, after) - what replaces "@...": the
 // whole mention, or after "](" only the destination - its ")" unless the
 // text after the caret starts with one.
@@ -69,6 +87,7 @@ export function mentionText(found, name, kind, token, after = '') {
 function bindMentions(textarea) {
   if (!once(textarea, 'mentions')) return;
   const param = textarea.dataset.cmnsdMentionsParam || 'q';
+  const labelsOnly = textarea.dataset.cmnsdMentionsMode === 'label';
   const box = document.createElement('div');
   box.className = 'mention-results';
   box.hidden = true;
@@ -147,8 +166,14 @@ function bindMentions(textarea) {
     highlight(0);
   };
 
-  const search = latest(async (signal) => {
-    const found = trigger();
+  const search = latest(async (signal, wrapped) => {
+    // wrapped: just made from a selection - "[words](@" with nothing typed
+    // after the "@" yet: search for the words themselves.
+    const found = wrapped || trigger();
+    if (found && labelsOnly && !found.destination) {
+      close();
+      return;
+    }
     // No "@" here; one closed with Escape; or more words after a search that
     // found nothing (each word narrows - there's nothing more to find).
     const hopeless = fruitless && found && found.start === fruitless.start && found.query.startsWith(fruitless.query);
@@ -172,6 +197,34 @@ function bindMentions(textarea) {
     render(groups);
     fruitless = options.length ? null : { start: found.start, query: found.query };
   }, DELAY);
+
+  // The selected words become "[words](@", the caret after the "@", and
+  // the list opens on those words.
+  const mentionSelection = () => {
+    const wrapped = wrapSelection(textarea.value, textarea.selectionStart, textarea.selectionEnd);
+    textarea.focus();
+    if (!wrapped) return;
+    textarea.value = wrapped.text;
+    textarea.setSelectionRange(wrapped.caret, wrapped.caret);
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));   // autosave notices
+    search.now(wrapped.found);   // now() also cancels the input's own search
+  };
+  if (labelsOnly) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'mention-button';
+    button.textContent = textarea.dataset.cmnsdMentionsButton || '@ mention';
+    button.title = `${button.textContent} (Alt+M)`;
+    button.addEventListener('mousedown', (event) => event.preventDefault());   // keep the selection
+    button.addEventListener('click', mentionSelection);
+    textarea.insertAdjacentElement('beforebegin', button);
+    textarea.addEventListener('keydown', (event) => {
+      if (event.altKey && event.code === 'KeyM') {
+        event.preventDefault();   // not "µ"
+        mentionSelection();
+      }
+    });
+  }
 
   textarea.addEventListener('input', () => search());
   textarea.addEventListener('keydown', (event) => {
