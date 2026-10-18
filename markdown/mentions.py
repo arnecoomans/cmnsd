@@ -38,6 +38,9 @@ from markdown.treeprocessors import Treeprocessor
 MENTION = re.compile(r'^(?P<scheme>[a-z]+):(?P<token>[A-Za-z0-9_-]+)$')
 CLASS_VISIBLE = 'mention'
 CLASS_HIDDEN = 'mention mention--hidden'
+# The page you're on, mentioned (an excerpt under "mentioned in"): looks
+# like a mention, isn't a link - it would lead back here.
+CLASS_CURRENT = 'mention mention--current'
 
 
 def mention_models():
@@ -63,9 +66,10 @@ def mention_field_attrs():
 
 
 class MentionProcessor(Treeprocessor):
-  def __init__(self, md, request):
+  def __init__(self, md, request, current=None):
     super().__init__(md)
     self.request = request
+    self.current = current   # (scheme, token) of the page being shown, or None
 
   def run(self, root):
     models = mention_models()
@@ -93,6 +97,9 @@ class MentionProcessor(Treeprocessor):
       if obj is None:
         hide = getattr(models[scheme], 'mention_hidden_text', None)
         self._as_text(link, hide(label) if hide else label, CLASS_HIDDEN)
+        continue
+      if (scheme, token) == self.current:
+        self._as_text(link, label, CLASS_CURRENT)   # this page: no link back to it
         continue
       url = obj.mention_url(self.request) if hasattr(obj, 'mention_url') else obj.get_absolute_url()
       if url:
@@ -139,14 +146,15 @@ class MentionProcessor(Treeprocessor):
 
 
 class MentionExtension(Extension):
-  def __init__(self, request=None, **kwargs):
+  def __init__(self, request=None, current=None, **kwargs):
     self.request = request
+    self.current = current
     super().__init__(**kwargs)
 
   def extendMarkdown(self, md):
     # After 'inline' (priority 20), where links are made; before external
     # links (5) - a mention's address is the site's own.
-    md.treeprocessors.register(MentionProcessor(md, self.request), 'cmnsd_mentions', 6)
+    md.treeprocessors.register(MentionProcessor(md, self.request, self.current), 'cmnsd_mentions', 6)
 
 
 # A mention in the stored text, and a word: one unit with what sticks to it
@@ -166,7 +174,7 @@ def mention_excerpts(text, scheme, token, request, words=4, limit=3):
   initials, for this viewer - an excerpt never shows more than the whole
   would. "…" where the text is cut."""
   from django.utils.safestring import mark_safe
-  from cmnsd.templatetags.markdown import markdown
+  from cmnsd.templatetags.markdown import render_markdown
   units = _UNIT.findall(text or '')
   target = re.compile(rf'\[(?:[^\]\\]|\\.)*\]\({re.escape(scheme)}:{re.escape(token)}\)')
   hits = [i for i, unit in enumerate(units) if target.search(unit)]
@@ -182,7 +190,8 @@ def mention_excerpts(text, scheme, token, request, words=4, limit=3):
   excerpts = []
   for start, end, _count in windows[:limit]:
     window = [target.sub(lambda m: f'**{m.group(0)}**', unit) for unit in units[start:end]]
-    html = str(markdown(' '.join(window), request))
+    # The page's own subject: styled as a mention, not a link back to here.
+    html = str(render_markdown(' '.join(window), request, current=(scheme, token)))
     html = re.sub(r'^\s*<p>|</p>\s*$', '', html)   # one line, not a paragraph
     excerpts.append(mark_safe(('… ' if start else '') + html + (' …' if end < len(units) else '')))
   more = sum(count for _start, _end, count in windows[limit:])

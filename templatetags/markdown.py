@@ -31,7 +31,7 @@ _SANITIZE_ATTRIBUTES = {
   'span': {*nh3.ALLOWED_ATTRIBUTES.get('span', set()), 'class'},
 }
 _LANGUAGE_CLASS_RE = re.compile(r'^language-[\w-]+$')
-_MENTION_CLASSES = {'mention', 'mention--hidden'}
+_MENTION_CLASSES = {'mention', 'mention--hidden', 'mention--current'}
 
 
 def _attribute_filter(tag, attr, value):
@@ -96,13 +96,15 @@ def escape_faithful_markdown(text):
   return re.sub(_FAITHFUL_EM, escape('*'), text)
 
 
-def render_markdown(value, request=None, faithful=False):
+def render_markdown(value, request=None, faithful=False, current=None):
   """Markdown as safe HTML - the |markdown and |markdown_faithful filters.
   With the request, mentions ([Eric](person:<token>), cmnsd/markdown/
   mentions.py) link to what this viewer may see; without it nothing is
-  visible - mentions stay text, a person's name obfuscated: fail closed."""
+  visible - mentions stay text, a person's name obfuscated: fail closed.
+  current: (scheme, token) of the page being shown - its mention is styled,
+  not linked (an excerpt under "mentioned in")."""
   from cmnsd.markdown.mentions import MentionExtension
-  extensions = [*getattr(settings, 'CMNSD_MARKDOWN_EXTENSIONS', DEFAULT_MARKDOWN_EXTENSIONS), MentionExtension(request=request)]
+  extensions = [*getattr(settings, 'CMNSD_MARKDOWN_EXTENSIONS', DEFAULT_MARKDOWN_EXTENSIONS), MentionExtension(request=request, current=current)]
   if faithful:
     extensions = [e for e in extensions if e != 'fenced_code']
   converter = md.Markdown(extensions=extensions)
