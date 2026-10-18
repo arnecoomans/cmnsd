@@ -72,6 +72,15 @@ class Comment(BaseComment): ...
 class Preferences(BasePreferences): ...
 ```
 
+## Mentions
+
+`Mention` (`cmnsd/models/Mention.py`): an index of what texts refer to - `[Eric](person:<token>)`, rendered by `|markdown:request` - so "what mentions this?" is a query. A shadow of the text, never edited by hand:
+
+- `MentionableSourceMixin` with `mention_fields = ('biography',)`: the source's mentions are rebuilt on every `save()` - only the differences written; a `save(update_fields=…)` without those fields leaves them alone. Put it first among the bases.
+- Recorded: what the text says, for the kinds in `CMNSD_MENTION_MODELS`; not unknown tokens, not the source mentioning itself. Rows go with their source or target (a delete; a generic link has no `on_delete`).
+- `mentioned_in(obj, request)`: the sources this viewer may see - `filter_accessible`, or the source model's `mention_sources_for(queryset, request)` (a comment: also its target visible) - one query per kind of source; none without a request.
+- `manage.py mentions_index`: build or repair the index from all texts (after installing, or after a bulk update that skipped `save()`); safe to repeat.
+
 ## Page
 
 A concrete model every project gets as is: a slug, a language, a title and a markdown body - for the cookie statement, a privacy page, an about page. Served at `pages/<slug>/` in the visitor's language, falling back to the site's (`views/pages/page_detail.py`). Edited in the admin.

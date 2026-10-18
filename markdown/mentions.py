@@ -102,19 +102,30 @@ class MentionProcessor(Treeprocessor):
         self._as_text(link, label, CLASS_VISIBLE)   # may be seen, not opened: the name, no link
 
   def _visible(self, models, links):
-    """{(scheme, token): object} this viewer may see - none without a request."""
+    """{(scheme, token): object} this viewer may see - none without a request.
+    Kept on the request: a page rendering many texts (the excerpts of
+    "mentioned in", each naming the page's subject) looks each token up once."""
     if self.request is None:
       return {}
     from cmnsd.models.access import filter_accessible
-    found = {}
+    cache = getattr(self.request, '_cmnsd_mentions', None)
+    if cache is None:
+      cache = {}
+      try:
+        self.request._cmnsd_mentions = cache
+      except AttributeError:   # a request object that takes no attributes: no cache
+        pass
     tokens = {}
     for _link, scheme, token in links:
-      tokens.setdefault(scheme, set()).add(token)
+      if (scheme, token) not in cache:
+        tokens.setdefault(scheme, set()).add(token)
     for scheme, wanted in tokens.items():
       model = models[scheme]
+      for token in wanted:
+        cache[(scheme, token)] = None   # hidden or unknown, unless found below
       for obj in filter_accessible(model.objects.filter(token__in=wanted), self.request):
-        found[(scheme, obj.token)] = obj
-    return found
+        cache[(scheme, obj.token)] = obj
+    return {key: obj for key, obj in cache.items() if obj is not None}
 
   @staticmethod
   def _as_text(link, text, css_class):
@@ -136,3 +147,43 @@ class MentionExtension(Extension):
     # After 'inline' (priority 20), where links are made; before external
     # links (5) - a mention's address is the site's own.
     md.treeprocessors.register(MentionProcessor(md, self.request), 'cmnsd_mentions', 6)
+
+
+# A mention in the stored text, and a word: one unit with what sticks to it
+# ("[Joot](person:...)," - the comma is part of it), however many words its
+# label has.
+_MENTION = r'\[(?:[^\]\\]|\\.)*\]\([a-z]+:[A-Za-z0-9_-]+\)'
+_UNIT = re.compile(rf'\S*?{_MENTION}\S*|\S+')
+
+
+def mention_excerpts(text, scheme, token, request, words=4, limit=3):
+  """([excerpt, ...], more) - the words around each mention of (scheme, token)
+  in text: `words` on either side, the mention in bold, as safe HTML.
+  Mentions close together share one excerpt (both in bold) rather than
+  showing the same words twice; at most `limit` excerpts - `more`: how many
+  further mentions there are. Rendered as the text itself is
+  (|markdown:request): other mentions in it link, or stay text and
+  initials, for this viewer - an excerpt never shows more than the whole
+  would. "…" where the text is cut."""
+  from django.utils.safestring import mark_safe
+  from cmnsd.templatetags.markdown import markdown
+  units = _UNIT.findall(text or '')
+  target = re.compile(rf'\[(?:[^\]\\]|\\.)*\]\({re.escape(scheme)}:{re.escape(token)}\)')
+  hits = [i for i, unit in enumerate(units) if target.search(unit)]
+  # Windows around each hit; overlapping or touching ones merge.
+  windows = []
+  for i in hits:
+    start, end = max(0, i - words), min(len(units), i + words + 1)
+    if windows and start <= windows[-1][1]:
+      windows[-1][1] = end
+      windows[-1][2] += 1
+    else:
+      windows.append([start, end, 1])
+  excerpts = []
+  for start, end, _count in windows[:limit]:
+    window = [target.sub(lambda m: f'**{m.group(0)}**', unit) for unit in units[start:end]]
+    html = str(markdown(' '.join(window), request))
+    html = re.sub(r'^\s*<p>|</p>\s*$', '', html)   # one line, not a paragraph
+    excerpts.append(mark_safe(('… ' if start else '') + html + (' …' if end < len(units) else '')))
+  more = sum(count for _start, _end, count in windows[limit:])
+  return excerpts, more
