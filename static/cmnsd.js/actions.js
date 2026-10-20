@@ -17,6 +17,9 @@
 // area (messages.js) - kept over the reload for insert="reload". An error
 // goes into the form's [data-cmnsd-error] if it has one, else the message area.
 //
+// A select marked data-cmnsd-autosubmit in such a form sends the form when
+// it changes - a choice that saves at once (as in an edit form, edit.js).
+//
 // A form sends its fields (as JSON); a button sends its own name=value
 // if it has a name (<button name="direction" value="earlier">), else
 // nothing. Event delegation: elements added later (a new comment's own
@@ -104,6 +107,11 @@ export function bindActions(root) {
     if (!form) return;
     event.preventDefault();
     run(form, Object.fromEntries(new FormData(form)));
+  });
+  root.addEventListener('change', (event) => {
+    const select = closest(event, 'select[data-cmnsd-autosubmit]');
+    const form = select && select.closest('form[data-cmnsd-action]');
+    if (form) form.requestSubmit();
   });
   root.addEventListener('click', (event) => {
     const button = closest(event, 'button[data-cmnsd-action]');

@@ -25,7 +25,7 @@ A form or button marked `data-cmnsd-action` posts to `api/<model>/<token>/<actio
 | `data-cmnsd-insert` | `append`, `prepend`, `replace`, `remove`, or `reload` - for a change that shows in more than one place |
 | `data-cmnsd-confirm` | A question asked first |
 
-- A form sends its fields as JSON; a button sends nothing, or `{name: value}` when it has both.
+- A form sends its fields as JSON; a button sends nothing, or `{name: value}` when it has both. A `<select data-cmnsd-autosubmit>` in the form sends it when it changes - a choice that saves at once.
 - After `append` the form is reset. An error goes into the form's `[data-cmnsd-error]`, else the message area.
 - Delegated on the document: buttons in HTML added later - a new comment's own delete button - work without binding.
 - The server side - the method, its permission check and the template for `html` - is in [The API](../api.md).
