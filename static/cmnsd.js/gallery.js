@@ -13,6 +13,11 @@
 // hidden while the start item (the page you're on) shows. Elements elsewhere marked data-gallery-show="<index>" (the parts
 // thumbnails) show that item instead of navigating. Without JS: no
 // buttons, and those thumbnails are plain links.
+//
+// An input [data-gallery-value] inside takes the shown item's token - a
+// form that acts on the item you've stepped to ("use this page").
+// data-gallery-keys="off": no ← / → - for a page with several galleries,
+// where one key would step them all.
 
 import { closest, once } from './dom.js';
 import { dbg } from './context.js';
@@ -36,6 +41,7 @@ function bindGallery(gallery) {
   const caption = gallery.querySelector('[data-gallery-caption]');
   const nav = gallery.querySelector('.content-gallery__nav, [data-gallery-nav]');
   const open = gallery.querySelector('[data-gallery-open]');
+  const value = gallery.querySelector('[data-gallery-value]');
   const start = Math.min(Math.max(Number(gallery.dataset.galleryStart) || 0, 0), items.length - 1);
   let current = start;
 
@@ -54,11 +60,12 @@ function bindGallery(gallery) {
       open.href = item.page;
       open.hidden = current === start;
     }
+    if (value) value.value = item.token || '';
   }
 
   gallery.querySelector('[data-gallery-previous]')?.addEventListener('click', () => show(current - 1));
   gallery.querySelector('[data-gallery-next]')?.addEventListener('click', () => show(current + 1));
-  document.addEventListener('keydown', (event) => {
+  if (gallery.dataset.galleryKeys !== 'off') document.addEventListener('keydown', (event) => {
     // Not while typing (the comment form); target may be the document itself.
     if (closest(event, 'input, textarea, select, [contenteditable]')) return;
     if (event.key === 'ArrowLeft') show(current - 1);

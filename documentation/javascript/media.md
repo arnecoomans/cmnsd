@@ -39,6 +39,9 @@ Step through a sequence of images in place - an item and its pages:
 
 ‹ and › and the arrow keys step through, wrapping round; the image, its link, the counter and the caption follow. `data-gallery-start="<n>"` on the container starts at item n - the one whose page this is (a part's page, in a sequence that begins with its whole); `[data-gallery-open]` stays hidden while that one shows. `data-gallery-show="<n>"` elsewhere on the page shows item n instead of navigating. `[data-gallery-open]` links to the shown item's own page. Without JavaScript: no buttons, and the thumbnails are plain links.
 
+- An input `[data-gallery-value]` inside the container takes the shown item's `token` - a form that acts on the item you've stepped to (fmly: "use this one" when choosing which page of a document is an event's proof).
+- `data-gallery-keys="off"` on the container: no arrow keys - for a page with several galleries, where one key press would step them all.
+
 ## Lightbox (lightbox.js)
 
 A link to an image file marked `data-cmnsd-lightbox` opens it full-screen in a viewer instead of navigating to the bare file:
