@@ -52,6 +52,9 @@ export function bindRegions(root) {
 
 const POINT = 0.01;   // smaller than this, both ways: a click - a point
 let marking = null;   // {form, target, hint, start, box}
+// The click a browser fires right after the pointerup that finished marking:
+// it would reach the image's link (a lightbox) - swallowed, once.
+let swallow = null;   // the element it would land in
 
 function fraction(value) {
   return Math.min(Math.max(value, 0), 1);
@@ -91,6 +94,8 @@ function finish(from, to) {
     const input = form.querySelector(`[name="${name}"]`);
     if (input) input.value = box[index].toFixed(4);
   });
+  swallow = marking.target;
+  setTimeout(() => { swallow = null; }, 500);   // no click came (a touch): forget it
   stop();
   form.requestSubmit();
 }
@@ -120,10 +125,12 @@ export function bindRegionMarking(root) {
       target.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
-    // While marking: a click on the image is the marking, not its link.
-    if (marking && marking.target.contains(event.target)) {
+    // While marking - and the click right after it ends: the marking, not the image's link.
+    const area = marking?.target || swallow;
+    if (area && area.contains(event.target)) {
       event.preventDefault();
       event.stopPropagation();
+      swallow = null;
     }
   }, true);
   root.addEventListener('pointerdown', (event) => {
