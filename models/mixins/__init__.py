@@ -9,6 +9,7 @@ from .HierarchyMixin import HierarchyMixin
 from .TranslationAliasMixin import TranslationAliasMixin
 from .SlugMixin import SlugMixin
 from .EditableRelationsMixin import EditableRelationsMixin
+from .RegionMixin import RegionMixin
 
 __all__ = [
   'TimestampMixin',
@@ -24,4 +25,5 @@ __all__ = [
   'TranslationAliasMixin',
   'SlugMixin',
   'EditableRelationsMixin',
+  'RegionMixin',
 ]

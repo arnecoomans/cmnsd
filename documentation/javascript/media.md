@@ -41,6 +41,23 @@ Step through a sequence of images in place - an item and its pages:
 
 - An input `[data-gallery-value]` inside the container takes the shown item's `token` - a form that acts on the item you've stepped to (fmly: "use this one" when choosing which page of a document is an event's proof).
 - `data-gallery-keys="off"` on the container: no arrow keys - for a page with several galleries, where one key press would step them all.
+- `data-gallery-showing` on the container is `start` while the page's own item shows, `other` while another does - CSS can hide what's drawn on the page's own image (its regions).
+
+## Regions (regions.js)
+
+Boxes on an image linked to what they're about - who is where on a photo. The project renders them (`RegionMixin`'s fractions as percent, positioned over the image), so they're there without JavaScript:
+
+```django
+<span class="figure"><img ...>
+  <span class="frame" data-cmnsd-region="{{ person.token }}" style="left: 10%; top: 20%; width: 15%; height: 20%"></span>
+</span>
+...
+<div class="card" data-cmnsd-region-for="{{ person.token }}">...</div>
+```
+
+Hovering or focusing a region or what it's for gives every element with that key the class `is-linked`: the frame lights up with its card, and the other way round. Delegated on the document.
+
+**Marking one:** a button `data-cmnsd-mark="<selector>"` (the element over the image) inside a form with inputs `region_x`, `region_y`, `region_w`, `region_h` starts marking: drag a box, or click for a point (width and height 0) - as fractions of that element, as `RegionMixin` stores them - and the form is sent (an action form, actions.js). `data-cmnsd-mark-hint` is shown below the image meanwhile; Escape cancels. A click on the image doesn't follow its link while marking, and marking doesn't start while an image browser around it shows another item.
 
 ## Lightbox (lightbox.js)
 

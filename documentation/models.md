@@ -19,6 +19,7 @@ All in `models/mixins/`, imported from `cmnsd.models.mixins`.
 | `TranslationAliasMixin` | `translation_alias`: the name in every language that has a translation, for search |
 | `EditableRelationsMixin` | `link` / `unlink` actions for many-to-many relations edited on the page ([Edit mode](edit-mode.md)) |
 | `SearchableMixin` | No fields; field discovery helpers |
+| `RegionMixin` | `region_x`, `region_y`, `region_w`, `region_h`: a box on an image as fractions (0-1) of it as shown - empty for none, size 0 for a point; `region`, `has_region`, `region_is_point`, `set_region()`; `clean()` keeps it whole and within the image. A box, not a circle - show it round with CSS |
 
 Status and visibility together decide who sees a row: [Status, visibility and access](access.md).
 

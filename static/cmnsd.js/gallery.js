@@ -17,7 +17,9 @@
 // An input [data-gallery-value] inside takes the shown item's token - a
 // form that acts on the item you've stepped to ("use this page").
 // data-gallery-keys="off": no ← / → - for a page with several galleries,
-// where one key would step them all.
+// where one key would step them all. data-gallery-showing on the container
+// ("start" or "other") says whether the page's own item shows - CSS can hide
+// what belongs to it (regions drawn on its image) while another does.
 
 import { closest, once } from './dom.js';
 import { dbg } from './context.js';
@@ -61,6 +63,8 @@ function bindGallery(gallery) {
       open.hidden = current === start;
     }
     if (value) value.value = item.token || '';
+    // What belongs to the page's own image (regions on it) hides for another.
+    gallery.dataset.galleryShowing = current === start ? 'start' : 'other';
   }
 
   gallery.querySelector('[data-gallery-previous]')?.addEventListener('click', () => show(current - 1));

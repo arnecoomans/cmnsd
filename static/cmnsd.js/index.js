@@ -29,6 +29,7 @@ import { bindHints } from './hints.js';
 import { bindLightboxes } from './lightbox.js';
 import { bindVia } from './via.js';
 import { bindMentionFields } from './mentions.js';
+import { bindRegionMarking, bindRegions } from './regions.js';
 import { config, configure, dbg } from './context.js';
 
 function whenReady(fn) {
@@ -68,6 +69,8 @@ export function init(settings = {}) {
     bindLightboxes(document);
     bindSuggestions(document);
     bindToggles(document);
+    bindRegions(document);
+    bindRegionMarking(document);
     bindCreateButtons(document);
     enhance(document);
   });
