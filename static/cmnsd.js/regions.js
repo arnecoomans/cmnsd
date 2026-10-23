@@ -14,9 +14,11 @@
 // The element the regions are drawn on, marked data-cmnsd-regions-area: while
 // any of its regions shows, a click or tap on it is about the regions, never
 // its link (a lightbox, full screen) - on a phone there's no hovering, so a
-// tap on a region shows it (is-linked, until tapped again) and a tap
-// elsewhere on the image clears it. With no region showing (switched off,
-// or another image in a browser), clicks go through as ever.
+// tap on a region shows it: the class `is-tapped` on it and what it's for,
+// until it's tapped again (a separate class: a phone's simulated mouse-out
+// after a tap clears is-linked). A tap elsewhere on the image clears it. With
+// no region showing (switched off, or another image in a browser), clicks go
+// through as ever.
 //
 // Marking one: a button marked
 //   data-cmnsd-mark="<selector>"      the element over the image (its box)
@@ -49,15 +51,15 @@ function onAreaClick(event) {
   event.stopPropagation();
   const region = event.target.closest('[data-cmnsd-region]');
   const key = region ? keyOf(region) : '';
-  if (tapped) mark(tapped, false);
+  if (tapped) mark(tapped, false, 'is-tapped');
   tapped = key && key !== tapped ? key : '';
-  if (tapped) mark(tapped, true);
+  if (tapped) mark(tapped, true, 'is-tapped');
 }
 
-function mark(key, on) {
+function mark(key, on, className = 'is-linked') {
   if (!key) return;
   const selector = `[data-cmnsd-region="${CSS.escape(key)}"], [data-cmnsd-region-for="${CSS.escape(key)}"]`;
-  document.querySelectorAll(selector).forEach((el) => el.classList.toggle('is-linked', on));
+  document.querySelectorAll(selector).forEach((el) => el.classList.toggle(className, on));
 }
 
 export function bindRegions(root) {
@@ -71,7 +73,6 @@ export function bindRegions(root) {
     if (!el) return;
     const into = event.relatedTarget?.closest?.(ANY);
     if (into && keyOf(into) === keyOf(el)) return;   // still within the same one
-    if (keyOf(el) === tapped) return;                 // shown by a tap: stays until tapped again
     mark(keyOf(el), false);
   }));
 }
