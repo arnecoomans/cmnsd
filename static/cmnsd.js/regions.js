@@ -11,6 +11,13 @@
 // its frame. Delegated on the document: elements added later work too.
 // Without JS: the regions are there, unlinked.
 //
+// The element the regions are drawn on, marked data-cmnsd-regions-area: while
+// any of its regions shows, a click or tap on it is about the regions, never
+// its link (a lightbox, full screen) - on a phone there's no hovering, so a
+// tap on a region shows it (is-linked, until tapped again) and a tap
+// elsewhere on the image clears it. With no region showing (switched off,
+// or another image in a browser), clicks go through as ever.
+//
 // Marking one: a button marked
 //   data-cmnsd-mark="<selector>"      the element over the image (its box)
 //   data-cmnsd-mark-hint="<text>"     optional, shown while marking
@@ -28,6 +35,25 @@ function keyOf(el) {
   return el.dataset.cmnsdRegion || el.dataset.cmnsdRegionFor || '';
 }
 
+let tapped = '';   // the region shown by a tap (a phone: no hovering)
+
+function showing(area) {
+  return [...area.querySelectorAll('[data-cmnsd-region]')].some((region) => region.getClientRects().length > 0);
+}
+
+function onAreaClick(event) {
+  if (marking || swallow) return;   // marking handles its own clicks
+  const area = event.target.closest?.('[data-cmnsd-regions-area]');
+  if (!area || !showing(area)) return;
+  event.preventDefault();
+  event.stopPropagation();
+  const region = event.target.closest('[data-cmnsd-region]');
+  const key = region ? keyOf(region) : '';
+  if (tapped) mark(tapped, false);
+  tapped = key && key !== tapped ? key : '';
+  if (tapped) mark(tapped, true);
+}
+
 function mark(key, on) {
   if (!key) return;
   const selector = `[data-cmnsd-region="${CSS.escape(key)}"], [data-cmnsd-region-for="${CSS.escape(key)}"]`;
@@ -35,6 +61,7 @@ function mark(key, on) {
 }
 
 export function bindRegions(root) {
+  root.addEventListener('click', onAreaClick, true);   // capture: before the image's link
   ['mouseover', 'focusin'].forEach((type) => root.addEventListener(type, (event) => {
     const el = event.target.closest?.(ANY);
     if (el) mark(keyOf(el), true);
@@ -44,6 +71,7 @@ export function bindRegions(root) {
     if (!el) return;
     const into = event.relatedTarget?.closest?.(ANY);
     if (into && keyOf(into) === keyOf(el)) return;   // still within the same one
+    if (keyOf(el) === tapped) return;                 // shown by a tap: stays until tapped again
     mark(keyOf(el), false);
   }));
 }

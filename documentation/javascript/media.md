@@ -57,6 +57,8 @@ Boxes on an image linked to what they're about - who is where on a photo. The pr
 
 Hovering or focusing a region or what it's for gives every element with that key the class `is-linked`: the frame lights up with its card, and the other way round. Delegated on the document.
 
+Mark the element the regions are drawn on `data-cmnsd-regions-area`: while any of its regions shows, a click or tap on it never follows its link (a lightbox) - a tap on a region shows it (`is-linked`, until tapped again; a phone has no hovering), a tap elsewhere clears it. With none showing, clicks go through.
+
 **Marking one:** a button `data-cmnsd-mark="<selector>"` (the element over the image) inside a form with inputs `region_x`, `region_y`, `region_w`, `region_h` starts marking: drag a box, or click for a point (width and height 0) - as fractions of that element, as `RegionMixin` stores them - and the form is sent (an action form, actions.js). `data-cmnsd-mark-hint` is shown below the image meanwhile; Escape cancels. A click on the image doesn't follow its link while marking, and marking doesn't start while an image browser around it shows another item.
 
 ## Lightbox (lightbox.js)
