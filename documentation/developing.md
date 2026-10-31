@@ -27,7 +27,7 @@ Push cmnsd before the project: a project commit pointing at a cmnsd commit that 
 - A change to a **model** needs a migration in `migrations/`: `python manage.py makemigrations cmnsd`.
 - A change to **cmnsd.js or cmnsd.css** reaches the server through `collectstatic`, which `update.sh` always runs.
 - A change that makes a page in `documentation/` wrong updates it in the same commit.
-- **Translations:** cmnsd's strings are translated in the project's `locale/` for now.
+- **Translations:** cmnsd's strings are translated in cmnsd itself - `cmnsd/locale/nl/` (Dutch), committed with the compiled `.mo`; every project on cmnsd gets them. Update with `django-admin makemessages -l nl` run inside cmnsd (with the project's settings), then `compilemessages`.
 
 ## Tests
 

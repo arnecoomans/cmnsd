@@ -1,0 +1,735 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: cmnsd\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-31 16:22+0100\n"
+"PO-Revision-Date: 2026-10-31 12:00+0100\n"
+"Last-Translator: Arne Coomans\n"
+"Language-Team: Dutch\n"
+"Language: nl\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: admin/actions.py:24
+#, python-format
+msgid "Marked %(count)d object(s) as %(label)s."
+msgstr "%(count)d object(en) gemarkeerd als %(label)s."
+
+#: admin/actions.py:29
+#, python-format
+msgid "Mark as %(label)s"
+msgstr "Markeer als %(label)s"
+
+#: admin/mixins/TranslationAliasAdminMixin.py:26
+msgid "Refetch translation aliases"
+msgstr "Vertaalaliassen opnieuw ophalen"
+
+#: admin/mixins/TranslationAliasAdminMixin.py:32
+#, python-format
+msgid "Refreshed translation aliases for %(count)d object(s)."
+msgstr "Vertaalaliassen vernieuwd voor %(count)d object(en)."
+
+#: forms/profile.py:7
+msgid "Email address"
+msgstr "E-mailadres"
+
+#: forms/profile.py:8
+msgid "First name"
+msgstr "Voornaam"
+
+#: forms/profile.py:9
+msgid "Last name"
+msgstr "Achternaam"
+
+#: forms/registration.py:9
+msgid "email address"
+msgstr "e-mailadres"
+
+#: forms/registration.py:10
+msgid "first name"
+msgstr "voornaam"
+
+#: forms/registration.py:11
+msgid "last name"
+msgstr "achternaam"
+
+#: models/BaseComment.py:12
+msgid "Name"
+msgstr "Naam"
+
+#: models/BaseComment.py:12
+msgid "Define a name for this comment."
+msgstr "Geef deze opmerking een naam."
+
+#: models/BaseComment.py:12
+msgid "optional"
+msgstr "optioneel"
+
+#: models/BaseComment.py:13
+msgid "Content"
+msgstr "Inhoud"
+
+#: models/BaseComment.py:13
+msgid "Define the content of this comment."
+msgstr "De inhoud van deze opmerking."
+
+#: models/BaseComment.py:13
+msgid "required"
+msgstr "verplicht"
+
+#: models/BaseComment.py:27 models/BaseComment.py:37
+msgid "Comment"
+msgstr "Opmerking"
+
+#: models/BaseComment.py:28
+msgid "Comments"
+msgstr "Opmerkingen"
+
+#: models/BaseComment.py:36
+msgid "Unknown"
+msgstr "Onbekend"
+
+#: models/BasePreferences.py:26
+msgid "Leave blank to fall back to browser/site default language detection"
+msgstr "Leeg laten om de taal van de browser of de site te gebruiken"
+
+#: models/BasePreferences.py:38 models/BasePreferences.py:39
+#: models/BasePreferences.py:42
+msgid "Preferences"
+msgstr "Voorkeuren"
+
+#: models/BaseTag.py:9
+msgid "Identifier in URL"
+msgstr "Code in het adres"
+
+#: models/BaseTag.py:9
+msgid "automatically generated"
+msgstr "automatisch gemaakt"
+
+#: models/BaseTag.py:10
+msgid "Name of tag"
+msgstr "Naam van de tag"
+
+#: models/BaseTag.py:11
+msgid "Description of this tag, why it is relevant"
+msgstr "Beschrijving van deze tag, waarom die ertoe doet"
+
+#: models/BaseTag.py:18
+msgid "Tag"
+msgstr "Tag"
+
+#: models/BaseTag.py:19
+msgid "Tags"
+msgstr "Tags"
+
+#: models/Mention.py:306
+msgid "draft"
+msgstr "concept"
+
+#: models/Mention.py:306
+msgid "revoked"
+msgstr "ingetrokken"
+
+#: models/Mention.py:306
+msgid "deleted"
+msgstr "verwijderd"
+
+#: models/Mention.py:309
+msgid "private"
+msgstr "privé"
+
+#: models/Mention.py:311
+msgid "family only"
+msgstr "alleen familie"
+
+#: models/Mention.py:359
+#, python-format
+msgid ""
+"You mentioned “%(name)s” (%(reach)s): not everyone who reads this sees that "
+"link - only the words."
+msgstr ""
+"Je noemde “%(name)s” (%(reach)s): niet iedereen die dit leest ziet die link "
+"- alleen de woorden."
+
+#: models/Page.py:27
+msgid "Identifier in URL - the same for each translation"
+msgstr "Code in het adres - dezelfde voor elke vertaling"
+
+#: models/Page.py:30
+msgid "Language this page is written in"
+msgstr "Taal waarin deze pagina geschreven is"
+
+#: models/Page.py:32
+msgid "Page title"
+msgstr "Paginatitel"
+
+#: models/Page.py:33
+msgid "Markdown source, rendered via the |markdown filter"
+msgstr "Markdown-bron, weergegeven met het |markdown-filter"
+
+#: models/Page.py:36
+msgid "Page"
+msgstr "Pagina"
+
+#: models/Page.py:37
+msgid "Pages"
+msgstr "Pagina's"
+
+#: models/mixins/EditableRelationsMixin.py:50
+#: models/mixins/EditableRelationsMixin.py:55
+msgid "That can't be changed here."
+msgstr "Dat kan hier niet worden gewijzigd."
+
+#: models/mixins/EditableRelationsMixin.py:61
+#: models/mixins/EditableRelationsMixin.py:82
+msgid "That wasn't found."
+msgstr "Dat is niet gevonden."
+
+#: models/mixins/EditableRelationsMixin.py:84
+#, python-format
+msgid "You may not create a new %(model)s."
+msgstr "Je mag geen nieuw(e) %(model)s maken."
+
+#: models/mixins/EditableRelationsMixin.py:112
+#, python-format
+msgid "%(object)s is already linked."
+msgstr "%(object)s is al gekoppeld."
+
+#: models/mixins/EditableRelationsMixin.py:116
+#, python-format
+msgid "%(label)s “%(object)s” created and added."
+msgstr "%(label)s “%(object)s” gemaakt en toegevoegd."
+
+#: models/mixins/EditableRelationsMixin.py:118
+#, python-format
+msgid "%(label)s “%(object)s” added."
+msgstr "%(label)s “%(object)s” toegevoegd."
+
+#: models/mixins/EditableRelationsMixin.py:128
+msgid "That isn't linked."
+msgstr "Dat is niet gekoppeld."
+
+#: models/mixins/EditableRelationsMixin.py:131
+#, python-format
+msgid "%(label)s “%(object)s” removed."
+msgstr "%(label)s “%(object)s” verwijderd."
+
+#: models/mixins/HierarchyMixin.py:33
+#, python-format
+msgid ""
+"Name must not contain the parent/child separator '%(compounder)s' - use the "
+"parent field instead."
+msgstr ""
+"Een naam mag het scheidingsteken '%(compounder)s' niet bevatten - gebruik "
+"daarvoor het veld 'valt onder'."
+
+#: models/mixins/HierarchyMixin.py:39
+msgid "This would make it its own ancestor."
+msgstr "Dan zou het zijn eigen voorouder worden."
+
+#: models/mixins/PartialDateMixin.py:9
+msgid "january"
+msgstr "januari"
+
+#: models/mixins/PartialDateMixin.py:9
+msgid "february"
+msgstr "februari"
+
+#: models/mixins/PartialDateMixin.py:9
+msgid "march"
+msgstr "maart"
+
+#: models/mixins/PartialDateMixin.py:9
+msgid "april"
+msgstr "april"
+
+#: models/mixins/PartialDateMixin.py:10
+msgid "may"
+msgstr "mei"
+
+#: models/mixins/PartialDateMixin.py:10
+msgid "june"
+msgstr "juni"
+
+#: models/mixins/PartialDateMixin.py:10
+msgid "july"
+msgstr "juli"
+
+#: models/mixins/PartialDateMixin.py:10
+msgid "august"
+msgstr "augustus"
+
+#: models/mixins/PartialDateMixin.py:11
+msgid "september"
+msgstr "september"
+
+#: models/mixins/PartialDateMixin.py:11
+msgid "october"
+msgstr "oktober"
+
+#: models/mixins/PartialDateMixin.py:11
+msgid "november"
+msgstr "november"
+
+#: models/mixins/PartialDateMixin.py:11
+msgid "december"
+msgstr "december"
+
+#: models/mixins/PartialDateMixin.py:28
+msgid "exact"
+msgstr "exact"
+
+#: models/mixins/PartialDateMixin.py:29
+msgid "circa"
+msgstr "circa"
+
+#: models/mixins/PartialDateMixin.py:30 models/mixins/PartialDateMixin.py:74
+msgid "before"
+msgstr "voor"
+
+#: models/mixins/PartialDateMixin.py:31 models/mixins/PartialDateMixin.py:75
+msgid "after"
+msgstr "na"
+
+#: models/mixins/PartialDateMixin.py:38
+msgid "How sure the date is"
+msgstr "Hoe zeker de datum is"
+
+#: models/mixins/PartialDateMixin.py:52
+msgid "Enter a year from 1 onwards."
+msgstr "Vul een jaar in vanaf 1."
+
+#: models/mixins/PartialDateMixin.py:54
+msgid "A month needs a year."
+msgstr "Een maand heeft een jaar nodig."
+
+#: models/mixins/PartialDateMixin.py:57
+msgid "A day needs a month."
+msgstr "Een dag heeft een maand nodig."
+
+#: models/mixins/PartialDateMixin.py:62
+msgid "That date doesn't exist."
+msgstr "Die datum bestaat niet."
+
+#: models/mixins/PartialDateMixin.py:73
+msgid "ca."
+msgstr "ca."
+
+#: models/mixins/RegionMixin.py:28
+msgid "region x"
+msgstr "gebied x"
+
+#: models/mixins/RegionMixin.py:29
+msgid "region y"
+msgstr "gebied y"
+
+#: models/mixins/RegionMixin.py:30
+msgid "region width"
+msgstr "gebied breedte"
+
+#: models/mixins/RegionMixin.py:31
+msgid "region height"
+msgstr "gebied hoogte"
+
+#: models/mixins/RegionMixin.py:65
+msgid "A region needs all four: x, y, width and height - or none."
+msgstr "Een gebied heeft alle vier nodig: x, y, breedte en hoogte - of geen."
+
+#: models/mixins/RegionMixin.py:68
+msgid "A region must lie within the image."
+msgstr "Een gebied moet binnen de afbeelding liggen."
+
+#: models/mixins/SlugMixin.py:29
+msgid "A unique identifier, generated from the name"
+msgstr "Een unieke code, gemaakt uit de naam"
+
+#: models/mixins/StatusMixin.py:10
+msgid "Concept"
+msgstr "Concept"
+
+#: models/mixins/StatusMixin.py:11
+msgid "Published"
+msgstr "Gepubliceerd"
+
+#: models/mixins/StatusMixin.py:12
+msgid "Revoked"
+msgstr "Ingetrokken"
+
+#: models/mixins/StatusMixin.py:13
+msgid "Deleted"
+msgstr "Verwijderd"
+
+#: models/mixins/TokenMixin.py:27
+msgid "Short unique ID for public URL / API use"
+msgstr "Korte unieke code voor het openbare adres en de API"
+
+#: models/mixins/TranslationAliasMixin.py:37
+msgid "Comma-separated translations, auto-populated on save"
+msgstr "Vertalingen gescheiden door komma's, ingevuld bij opslaan"
+
+#: models/mixins/VisibilityMixin.py:11
+msgid "Public"
+msgstr "Openbaar"
+
+#: models/mixins/VisibilityMixin.py:12
+msgid "Community"
+msgstr "Leden"
+
+#: models/mixins/VisibilityMixin.py:13
+msgid "Family"
+msgstr "Familie"
+
+#: models/mixins/VisibilityMixin.py:14
+msgid "Private"
+msgstr "Privé"
+
+#: templates/403_csrf.html:10 templates/403_csrf.html:12
+msgid "this page was open too long"
+msgstr "deze pagina stond te lang open"
+
+#: templates/403_csrf.html:13
+msgid ""
+"A form only works for a while, and not after signing in or out somewhere "
+"else. Go back, reload the page and try again - what you typed may need to be"
+" entered again."
+msgstr ""
+"Een formulier werkt maar een tijdje, en niet meer na in- of uitloggen in een"
+" ander venster. Ga terug, laad de pagina opnieuw en probeer het nog eens - "
+"wat je had ingevuld moet je misschien opnieuw invullen."
+
+#: templates/403_csrf.html:15 templates/errorpages/private.html:11
+msgid "go back"
+msgstr "ga terug"
+
+#: templates/403_csrf.html:16 templates/errorpages/403.html:12
+#: templates/errorpages/403.html:14 templates/errorpages/base_error.html:97
+#: templates/errorpages/private.html:10
+msgid "go to homepage"
+msgstr "naar de startpagina"
+
+#: templates/auth/login.html:4 templates/auth/login.html:104
+#: templates/auth/login.html:137
+#: templates/auth/password_reset_complete.html:33
+#: templates/auth/register.html:171 templates/errorpages/403.html:11
+msgid "sign in"
+msgstr "inloggen"
+
+#: templates/auth/login.html:122
+msgid "show password"
+msgstr "wachtwoord tonen"
+
+#: templates/auth/login.html:141
+msgid "forgot password?"
+msgstr "wachtwoord vergeten?"
+
+#: templates/auth/password_change_done.html:4
+#: templates/auth/password_change_done.html:31
+#: templates/auth/password_reset_complete.html:31
+msgid "password updated"
+msgstr "wachtwoord gewijzigd"
+
+#: templates/auth/password_change_done.html:32
+msgid "your password has been changed successfully."
+msgstr "je wachtwoord is gewijzigd."
+
+#: templates/auth/password_change_done.html:33
+#: templates/auth/password_change_form.html:82
+msgid "back to profile"
+msgstr "terug naar profiel"
+
+#: templates/auth/password_change_form.html:4
+#: templates/auth/password_change_form.html:45 templates/auth/profile.html:74
+msgid "change password"
+msgstr "wachtwoord wijzigen"
+
+#: templates/auth/password_change_form.html:76
+msgid "update password"
+msgstr "wachtwoord bijwerken"
+
+#: templates/auth/password_reset_complete.html:4
+msgid "password reset complete"
+msgstr "wachtwoord opnieuw ingesteld"
+
+#: templates/auth/password_reset_complete.html:32
+msgid ""
+"your password has been set. You can now sign in with your new password."
+msgstr ""
+"je wachtwoord is ingesteld. Je kunt nu inloggen met je nieuwe wachtwoord."
+
+#: templates/auth/password_reset_confirm.html:4
+#: templates/auth/password_reset_confirm.html:42
+msgid "choose new password"
+msgstr "kies een nieuw wachtwoord"
+
+#: templates/auth/password_reset_confirm.html:43
+msgid "enter and confirm your new password"
+msgstr "vul je nieuwe wachtwoord in en bevestig het"
+
+#: templates/auth/password_reset_confirm.html:62
+msgid "set new password"
+msgstr "nieuw wachtwoord instellen"
+
+#: templates/auth/password_reset_confirm.html:66
+msgid "this reset link is invalid or has expired. Please request a new one."
+msgstr "deze link is ongeldig of verlopen. Vraag een nieuwe aan."
+
+#: templates/auth/password_reset_confirm.html:69
+msgid "request new link"
+msgstr "nieuwe link aanvragen"
+
+#: templates/auth/password_reset_done.html:4
+#: templates/auth/password_reset_done.html:27
+msgid "check your email"
+msgstr "kijk in je e-mail"
+
+#: templates/auth/password_reset_done.html:29
+msgid ""
+"if an account exists for that address, we've sent a link to reset your "
+"password. Check your spam folder if it doesn't arrive shortly."
+msgstr ""
+"als er een account bij dat adres hoort, hebben we een link gestuurd om je "
+"wachtwoord opnieuw in te stellen. Kijk ook in je spammap als hij niet snel "
+"komt."
+
+#: templates/auth/password_reset_done.html:32
+#: templates/auth/password_reset_form.html:54
+msgid "back to sign in"
+msgstr "terug naar inloggen"
+
+#: templates/auth/password_reset_form.html:4
+#: templates/auth/password_reset_form.html:40
+msgid "reset password"
+msgstr "wachtwoord opnieuw instellen"
+
+#: templates/auth/password_reset_form.html:41
+msgid "enter your email address and we'll send you a reset link"
+msgstr "vul je e-mailadres in, dan sturen we je een link"
+
+#: templates/auth/password_reset_form.html:50
+msgid "send reset link"
+msgstr "link versturen"
+
+#: templates/auth/profile.html:4 templates/auth/profile.html:43
+msgid "my profile"
+msgstr "mijn profiel"
+
+#: templates/auth/profile.html:68
+msgid "save changes"
+msgstr "wijzigingen opslaan"
+
+#: templates/auth/register.html:4 templates/auth/register.html:115
+#: templates/auth/register.html:167
+msgid "create account"
+msgstr "account aanmaken"
+
+#: templates/auth/register.html:150
+msgid "auto-generated from your name — you can change it"
+msgstr "automatisch gemaakt uit je naam — je kunt het wijzigen"
+
+#: templates/auth/register.html:171
+msgid "already have an account"
+msgstr "heb je al een account"
+
+#: templates/cmnsd/edit/block.html:23 templates/cmnsd/edit/child.html:17
+#: templates/cmnsd/edit/child.html:19
+msgid "edit"
+msgstr "bewerken"
+
+#: templates/cmnsd/edit/child.html:24
+#, python-format
+msgid "Remove “%(item)s”?"
+msgstr "“%(item)s” verwijderen?"
+
+#: templates/cmnsd/edit/child.html:24
+msgid "remove"
+msgstr "verwijderen"
+
+#: templates/cmnsd/edit/choices.html:21 templates/cmnsd/edit/choices.html:25
+#: templates/cmnsd/edit/choices.html:35
+msgid "An answer is needed - or Cancel."
+msgstr "Er is een antwoord nodig - of Annuleren."
+
+#: templates/cmnsd/edit/create_form.html:19
+msgid "add"
+msgstr "toevoegen"
+
+#: templates/cmnsd/edit/create_form.html:20 templates/cmnsd/edit/form.html:25
+msgid "cancel"
+msgstr "annuleren"
+
+#: templates/cmnsd/edit/form.html:24
+msgid "save"
+msgstr "opslaan"
+
+#: templates/cmnsd/edit/form.html:26
+msgid "Esc to cancel · Ctrl+Enter to save"
+msgstr "Esc om te annuleren · Ctrl+Enter om op te slaan"
+
+#: templates/cmnsd/edit/link_picker.html:20
+msgid "create"
+msgstr "maken"
+
+#: templates/cmnsd/edit/unlink.html:16
+#, python-format
+msgid "remove “%(item)s”"
+msgstr "“%(item)s” verwijderen"
+
+#: templates/cmnsd/messages.html:13
+msgid "close"
+msgstr "sluiten"
+
+#: templates/errorpages/400.html:4 templates/errorpages/400.html:6
+msgid "bad request"
+msgstr "ongeldig verzoek"
+
+#: templates/errorpages/400.html:7
+msgid "the server could not understand this request."
+msgstr "de server begreep dit verzoek niet."
+
+#: templates/errorpages/403.html:4 templates/errorpages/403.html:6
+msgid "access denied"
+msgstr "geen toegang"
+
+#: templates/errorpages/403.html:7
+msgid "you don't have permission to view this page."
+msgstr "je hebt geen toestemming om deze pagina te bekijken."
+
+#: templates/errorpages/404.html:4 templates/errorpages/404.html:6
+msgid "page not found"
+msgstr "pagina niet gevonden"
+
+#: templates/errorpages/404.html:7
+msgid "the page you're looking for doesn't exist or has been moved."
+msgstr "de pagina die je zoekt bestaat niet of is verplaatst."
+
+#: templates/errorpages/500.html:9 templates/errorpages/500.html:11
+msgid "something went wrong"
+msgstr "er ging iets mis"
+
+#: templates/errorpages/500.html:12
+msgid ""
+"The error has been logged. Try again in a moment - if it keeps happening, "
+"let the archive's staff know what you were doing."
+msgstr ""
+"De fout is vastgelegd. Probeer het zo nog eens - blijft het gebeuren, laat "
+"de beheerders van het archief dan weten wat je aan het doen was."
+
+#: templates/errorpages/base_error.html:7
+msgid "error"
+msgstr "fout"
+
+#: templates/errorpages/private.html:4
+msgid "not available"
+msgstr "niet beschikbaar"
+
+#: templates/errorpages/private.html:6
+msgid "this content is not available to you"
+msgstr "deze inhoud is niet voor jou beschikbaar"
+
+#: templates/errorpages/private.html:7
+msgid "this page exists but is private or restricted to specific people."
+msgstr "deze pagina bestaat, maar is privé of alleen voor bepaalde mensen."
+
+#: templatetags/edit_mode.py:113
+#, python-format
+msgid "add %(name)s"
+msgstr "%(name)s toevoegen"
+
+#: views/api/object_action.py:35 views/api/object_suggest.py:31
+msgid "Sign in to do this."
+msgstr "Log in om dit te doen."
+
+#: views/api/object_action.py:43
+msgid "Not allowed."
+msgstr "Niet toegestaan."
+
+#: views/api/object_children.py:119 views/api/object_create.py:55
+msgid "You may not add this."
+msgstr "Je mag dit niet toevoegen."
+
+#: views/api/object_children.py:130 views/api/object_children.py:174
+#: views/api/object_create.py:65 views/api/object_form.py:162
+msgid "Please correct the errors in the form."
+msgstr "Verbeter de fouten in het formulier."
+
+#: views/api/object_children.py:135
+#, python-format
+msgid "%(label)s added."
+msgstr "%(label)s toegevoegd."
+
+#: views/api/object_children.py:160
+msgid "You may not change this."
+msgstr "Je mag dit niet wijzigen."
+
+#: views/api/object_children.py:168 views/api/object_form.py:153
+msgid ""
+"This was changed by someone else since you opened it - reload the page to "
+"see the new version."
+msgstr ""
+"Iemand anders heeft dit gewijzigd sinds je het opende - laad de pagina "
+"opnieuw om de nieuwe versie te zien."
+
+#: views/api/object_children.py:180 views/api/object_form.py:170
+msgid "Saved."
+msgstr "Opgeslagen."
+
+#: views/api/object_children.py:197
+msgid "You may not remove this."
+msgstr "Je mag dit niet verwijderen."
+
+#: views/api/object_children.py:201
+#, python-format
+msgid "%(label)s removed."
+msgstr "%(label)s verwijderd."
+
+#: views/api/object_create.py:74
+#, python-format
+msgid "%(name)s added."
+msgstr "%(name)s toegevoegd."
+
+#: views/api/response.py:74
+msgid "Not found."
+msgstr "Niet gevonden."
+
+#: views/api/response.py:77
+msgid "That method isn't allowed here."
+msgstr "Die methode is hier niet toegestaan."
+
+#: views/auth/login.py:17
+msgid "You are already signed in."
+msgstr "Je bent al ingelogd."
+
+#: views/auth/login.py:23
+msgid "You have been signed in."
+msgstr "Je bent ingelogd."
+
+#: views/auth/logout.py:9
+msgid "You have been signed out."
+msgstr "Je bent uitgelogd."
+
+#: views/auth/profile.py:15
+msgid "Profile updated."
+msgstr "Profiel bijgewerkt."
+
+#: views/auth/register.py:60
+msgid ""
+"Thanks for registering - your account is pending approval before you can "
+"sign in."
+msgstr ""
+"Bedankt voor je aanmelding - je account moet eerst worden goedgekeurd "
+"voordat je kunt inloggen."
+
+#: views/ui.py:63
+msgid "Edit mode is on."
+msgstr "Bewerkmodus staat aan."
+
+#: views/ui.py:63
+msgid "Edit mode is off."
+msgstr "Bewerkmodus staat uit."
