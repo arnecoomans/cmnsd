@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.utils.translation import get_language
 
 
 def setting_data(request):
@@ -9,7 +10,9 @@ def setting_data(request):
     'site_name': getattr(settings, 'SITE_NAME', ''),
     'meta_description': getattr(settings, 'META_DESCRIPTION', ''),
 
-    'language_code': getattr(settings, 'LANGUAGE_CODE', 'en'),
+    # The language this page is in - the user's choice or the browser's -
+    # not the setting: <html lang> tells screen readers and browsers.
+    'language_code': get_language() or getattr(settings, 'LANGUAGE_CODE', 'en'),
     'charset': getattr(settings, 'DEFAULT_CHARSET', 'utf-8'),
 
     'load_on_ready': getattr(settings, 'CMNSD_LOAD_ON_READY', True),
