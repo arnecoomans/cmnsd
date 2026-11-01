@@ -82,6 +82,6 @@ A container `[data-cmnsd-upload="<url>"]` is a drop area, with a file input `[da
 
 - Files - dropped or chosen - are posted one at a time, sorted by name with numbers as numbers, each as its own request (field `file`) with a progress bar. A large scan doesn't hold up the rest; one failure stops nothing else.
 - Each row shows the answer: `created` `{name, url, thumb}` - a link to the new item - or `duplicate` `{name, url}`, or the error.
-- `[data-upload-done]` is shown when the queue is done. `data-upload-count="<selector>"` counts up with every added file; `data-upload-thumbs="<selector>"` adds each new file's thumbnail to a strip, at most `data-upload-thumbs-max`.
+- `[data-upload-done]` is shown when the queue is done - or, with `data-upload-reload` on the container, the page reloads when anything was added or linked and nothing was refused or failed (a refused file's row stays readable; then `[data-upload-done]` shows). `data-upload-count="<selector>"` counts up with every added file; `data-upload-thumbs="<selector>"` adds each new file's thumbnail to a strip, at most `data-upload-thumbs-max`.
 
 The project writes the view at `<url>`, answering in the [API response shape](../api.md) - cmnsd decides nothing about where files go.

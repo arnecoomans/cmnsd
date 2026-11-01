@@ -23,6 +23,12 @@
 // view decides what they mean (fmly: link the new item to that person).
 // A `duplicate` answered with `linked: true` means the project linked the
 // existing item instead (data-text-duplicate-linked).
+//
+// data-upload-reload on the container: when the queue is done and anything
+// was added or linked, the page reloads - for an upload that changes what
+// the page shows in more than one place (fmly: an item's new parts, in order).
+// Not when a file was refused or failed: its row must stay readable - then
+// [data-upload-done] shows, which can hold a link to reload by hand.
 
 import { csrfToken } from './csrf.js';
 import { once } from './dom.js';
@@ -66,15 +72,18 @@ function send(url, file, item, labels, params) {
       status.textContent = '';
       if (xhr.status === 200 && data.created) {
         item.classList.add('is-done');
+        labels.changed = true;
         labels.onAdded?.(data.created);
         if (data.created.thumb) item.querySelector('.upload-row__thumb').innerHTML = `<img src="${data.created.thumb}" alt="">`;
         status.append(link(data.created.url, labels.added));
       } else if (xhr.status === 200 && data.duplicate) {
         item.classList.add('is-duplicate');
+        if (data.duplicate.linked) labels.changed = true; else labels.problems = true;
         status.textContent = data.duplicate.deleted ? labels.duplicateDeleted : data.duplicate.linked ? labels.duplicateLinked : labels.duplicate;
         if (data.duplicate.url) { status.append(' '); status.append(link(data.duplicate.url, data.duplicate.name)); }
       } else {
         item.classList.add('is-error');
+        labels.problems = true;
         status.textContent = data.error || (xhr.status === 413 ? labels.tooLarge : `${labels.failed} (HTTP ${xhr.status || '-'})`);
       }
       resolve();
@@ -132,7 +141,13 @@ function bindUpload(zone) {
       const params = [...zone.querySelectorAll('[data-upload-param]')].map((input) => ({ name: input.name, value: input.value }));
       queue = queue.then(() => send(zone.dataset.cmnsdUpload, file, item, labels, params));
     });
-    queue = queue.then(() => { if (done) done.hidden = false; });
+    queue = queue.then(() => {
+      if (zone.dataset.uploadReload !== undefined && labels.changed && !labels.problems) {
+        window.location.reload();
+        return;
+      }
+      if (done) done.hidden = false;
+    });
   };
   input?.addEventListener('change', () => { add(input.files); input.value = ''; });
   ['dragenter', 'dragover'].forEach((type) => zone.addEventListener(type, (event) => {
