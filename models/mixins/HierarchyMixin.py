@@ -14,7 +14,9 @@ class HierarchyMixin(models.Model):
 
   Assumes the composing model has a plain CharField `name`. If it also has
   OwnershipMixin's `user`, an auto-created ancestor inherits it (user has no
-  field default by design); otherwise no 'user' default is passed.
+  field default by design); otherwise no 'user' default is passed. The same
+  for `status` and `visibility` (StatusMixin, VisibilityMixin): a new
+  ancestor starts as published and as visible as the child it's made for.
   """
   parent = models.ForeignKey("self", on_delete=models.PROTECT, related_name='children', null=True, blank=True)
 
@@ -48,7 +50,10 @@ class HierarchyMixin(models.Model):
       parent_name, remainder = parent_name.strip(), remainder.strip()
       if not (parent_name and remainder):
         break
-      defaults = {'user': self.user} if hasattr(self, 'user') else {}
+      # A parent made here starts as its child is made: the same owner, and
+      # where the model has them the same status and visibility - not the
+      # model's defaults (a concept parent of a published tag shows to no one).
+      defaults = {name: getattr(self, name) for name in ('user', 'status', 'visibility') if hasattr(self, name)}
       parent, _created = self.__class__.objects.get_or_create(
         name=parent_name, parent=self.parent, defaults=defaults,
       )
