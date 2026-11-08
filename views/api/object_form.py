@@ -122,7 +122,9 @@ def object_form(request, model, identifier, name):
   - choice = True: a choice block - buttons that save on click
     (cmnsd/edit/choices.html), no pencil;
   - reload_page = True: the change affects more of the page (an item's
-    kind) - the response says `reload`;
+    kind) - the response says `reload`; 'always': also after a save that
+    changed nothing (a block the page can't redraw on its own - one
+    section of a text, whose number is in the address);
   - dialog_title = '...': the block edits in a dialog with that title
     (cmnsd.js edit.js), e.g. a portrait crop;
   - confirm = {value: question}: ask before saving that value (a choice
@@ -180,7 +182,7 @@ def object_form(request, model, identifier, name):
   if not visible_queryset(model_cls, entry, request).filter(pk=obj.pk).exists():
     list_url = getattr(obj, 'get_list_url', None)
     response['redirect'] = list_url() if list_url else '/'
-  elif getattr(form_class, 'reload_page', False) and changed:
+  elif getattr(form_class, 'reload_page', False) and (changed or form_class.reload_page == 'always'):
     response['reload'] = True
   else:
     response['html'] = block_html(entry, obj, name, request)
