@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: cmnsd\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-31 16:22+0100\n"
+"POT-Creation-Date: 2026-11-09 19:08+0100\n"
 "PO-Revision-Date: 2026-10-31 12:00+0100\n"
 "Last-Translator: Arne Coomans\n"
 "Language-Team: Dutch\n"
@@ -26,6 +26,41 @@ msgstr "%(count)d object(en) gemarkeerd als %(label)s."
 #, python-format
 msgid "Mark as %(label)s"
 msgstr "Markeer als %(label)s"
+
+#: admin/login_links.py:40 admin/login_links.py:60
+msgid "state"
+msgstr "status"
+
+#: admin/login_links.py:44
+msgid "Revoke the selected open login links"
+msgstr "De geselecteerde open inloglinks intrekken"
+
+#: admin/login_links.py:47
+#, python-format
+msgid "%(n)s login link revoked."
+msgid_plural "%(n)s login links revoked."
+msgstr[0] "%(n)s inloglink ingetrokken."
+msgstr[1] "%(n)s inloglinks ingetrokken."
+
+#: admin/login_links.py:58
+msgid "login links (revoke them under Login links)"
+msgstr "inloglinks (intrekken onder Inloglinks)"
+
+#: admin/login_links.py:85 admin/login_links.py:91 models/LoginLink.py:46
+msgid "login link"
+msgstr "inloglink"
+
+#: admin/login_links.py:95
+msgid "Send login link"
+msgstr "Inloglink sturen"
+
+#: admin/login_links.py:95
+msgid "Revoke a link"
+msgstr "Een link intrekken"
+
+#: admin/login_links.py:97
+msgid "Send login link…"
+msgstr "Inloglink sturen…"
 
 #: admin/mixins/TranslationAliasAdminMixin.py:26
 msgid "Refetch translation aliases"
@@ -48,7 +83,7 @@ msgstr "Voornaam"
 msgid "Last name"
 msgstr "Achternaam"
 
-#: forms/registration.py:9
+#: forms/registration.py:9 views/auth/login_link.py:70
 msgid "email address"
 msgstr "e-mailadres"
 
@@ -59,6 +94,22 @@ msgstr "voornaam"
 #: forms/registration.py:11
 msgid "last name"
 msgstr "achternaam"
+
+#: login_links.py:119
+msgid "You may not send login links."
+msgstr "Je mag geen inloglinks sturen."
+
+#: login_links.py:121
+msgid "a staff account - only a superuser sends those a login link"
+msgstr "een beheerdersaccount - alleen een superuser stuurt die een inloglink"
+
+#: login_links.py:123
+msgid "no email address"
+msgstr "geen e-mailadres"
+
+#: login_links.py:125
+msgid "not active - or waiting for approval"
+msgstr "niet actief - of wacht op goedkeuring"
 
 #: models/BaseComment.py:12
 msgid "Name"
@@ -100,8 +151,7 @@ msgstr "Onbekend"
 msgid "Leave blank to fall back to browser/site default language detection"
 msgstr "Leeg laten om de taal van de browser of de site te gebruiken"
 
-#: models/BasePreferences.py:38 models/BasePreferences.py:39
-#: models/BasePreferences.py:42
+#: models/BasePreferences.py:38 models/BasePreferences.py:39 models/BasePreferences.py:42
 msgid "Preferences"
 msgstr "Voorkeuren"
 
@@ -129,13 +179,37 @@ msgstr "Tag"
 msgid "Tags"
 msgstr "Tags"
 
+#: models/LoginLink.py:27
+msgid "invite"
+msgstr "uitnodiging"
+
+#: models/LoginLink.py:28
+msgid "request"
+msgstr "aanvraag"
+
+#: models/LoginLink.py:47
+msgid "login links"
+msgstr "inloglinks"
+
+#: models/LoginLink.py:64
+msgid "used"
+msgstr "gebruikt"
+
+#: models/LoginLink.py:64 models/Mention.py:306
+msgid "revoked"
+msgstr "ingetrokken"
+
+#: models/LoginLink.py:64
+msgid "expired"
+msgstr "verlopen"
+
+#: models/LoginLink.py:64
+msgid "open"
+msgstr "open"
+
 #: models/Mention.py:306
 msgid "draft"
 msgstr "concept"
-
-#: models/Mention.py:306
-msgid "revoked"
-msgstr "ingetrokken"
 
 #: models/Mention.py:306
 msgid "deleted"
@@ -151,12 +225,8 @@ msgstr "alleen familie"
 
 #: models/Mention.py:359
 #, python-format
-msgid ""
-"You mentioned “%(name)s” (%(reach)s): not everyone who reads this sees that "
-"link - only the words."
-msgstr ""
-"Je noemde “%(name)s” (%(reach)s): niet iedereen die dit leest ziet die link "
-"- alleen de woorden."
+msgid "You mentioned “%(name)s” (%(reach)s): not everyone who reads this sees that link - only the words."
+msgstr "Je noemde “%(name)s” (%(reach)s): niet iedereen die dit leest ziet die link - alleen de woorden."
 
 #: models/Page.py:27
 msgid "Identifier in URL - the same for each translation"
@@ -182,13 +252,11 @@ msgstr "Pagina"
 msgid "Pages"
 msgstr "Pagina's"
 
-#: models/mixins/EditableRelationsMixin.py:50
-#: models/mixins/EditableRelationsMixin.py:55
+#: models/mixins/EditableRelationsMixin.py:50 models/mixins/EditableRelationsMixin.py:55
 msgid "That can't be changed here."
 msgstr "Dat kan hier niet worden gewijzigd."
 
-#: models/mixins/EditableRelationsMixin.py:61
-#: models/mixins/EditableRelationsMixin.py:82
+#: models/mixins/EditableRelationsMixin.py:61 models/mixins/EditableRelationsMixin.py:82
 msgid "That wasn't found."
 msgstr "Dat is niet gevonden."
 
@@ -221,16 +289,12 @@ msgstr "Dat is niet gekoppeld."
 msgid "%(label)s “%(object)s” removed."
 msgstr "%(label)s “%(object)s” verwijderd."
 
-#: models/mixins/HierarchyMixin.py:33
+#: models/mixins/HierarchyMixin.py:35
 #, python-format
-msgid ""
-"Name must not contain the parent/child separator '%(compounder)s' - use the "
-"parent field instead."
-msgstr ""
-"Een naam mag het scheidingsteken '%(compounder)s' niet bevatten - gebruik "
-"daarvoor het veld 'valt onder'."
+msgid "Name must not contain the parent/child separator '%(compounder)s' - use the parent field instead."
+msgstr "Een naam mag het scheidingsteken '%(compounder)s' niet bevatten - gebruik daarvoor het veld 'valt onder'."
 
-#: models/mixins/HierarchyMixin.py:39
+#: models/mixins/HierarchyMixin.py:41
 msgid "This would make it its own ancestor."
 msgstr "Dan zou het zijn eigen voorouder worden."
 
@@ -395,43 +459,167 @@ msgid "this page was open too long"
 msgstr "deze pagina stond te lang open"
 
 #: templates/403_csrf.html:13
-msgid ""
-"A form only works for a while, and not after signing in or out somewhere "
-"else. Go back, reload the page and try again - what you typed may need to be"
-" entered again."
-msgstr ""
-"Een formulier werkt maar een tijdje, en niet meer na in- of uitloggen in een"
-" ander venster. Ga terug, laad de pagina opnieuw en probeer het nog eens - "
-"wat je had ingevuld moet je misschien opnieuw invullen."
+msgid "A form only works for a while, and not after signing in or out somewhere else. Go back, reload the page and try again - what you typed may need to be entered again."
+msgstr "Een formulier werkt maar een tijdje, en niet meer na in- of uitloggen in een ander venster. Ga terug, laad de pagina opnieuw en probeer het nog eens - wat je had ingevuld moet je misschien opnieuw invullen."
 
 #: templates/403_csrf.html:15 templates/errorpages/private.html:11
 msgid "go back"
 msgstr "ga terug"
 
-#: templates/403_csrf.html:16 templates/errorpages/403.html:12
-#: templates/errorpages/403.html:14 templates/errorpages/base_error.html:97
-#: templates/errorpages/private.html:10
+#: templates/403_csrf.html:16 templates/errorpages/403.html:12 templates/errorpages/403.html:14 templates/errorpages/base_error.html:97 templates/errorpages/private.html:10
 msgid "go to homepage"
 msgstr "naar de startpagina"
 
-#: templates/auth/login.html:4 templates/auth/login.html:104
-#: templates/auth/login.html:137
-#: templates/auth/password_reset_complete.html:33
-#: templates/auth/register.html:171 templates/errorpages/403.html:11
+#: templates/auth/login.html:4 templates/auth/login.html:108 templates/auth/login.html:141 templates/auth/login_link.html:12 templates/auth/login_link.html:18 templates/auth/login_link.html:27 templates/auth/mail/login_link.html:5 templates/auth/password_reset_complete.html:33 templates/auth/register.html:171 templates/errorpages/403.html:11
 msgid "sign in"
 msgstr "inloggen"
 
-#: templates/auth/login.html:122
+#: templates/auth/login.html:126
 msgid "show password"
 msgstr "wachtwoord tonen"
 
-#: templates/auth/login.html:141
+#: templates/auth/login.html:146
+msgid "or"
+msgstr "of"
+
+#: templates/auth/login.html:147 templates/auth/login_link_request.html:9 templates/auth/login_link_request.html:15 templates/auth/login_link_request.html:31
+msgid "mail me a login link"
+msgstr "mail me een inloglink"
+
+#: templates/auth/login.html:151
 msgid "forgot password?"
 msgstr "wachtwoord vergeten?"
 
-#: templates/auth/password_change_done.html:4
-#: templates/auth/password_change_done.html:31
-#: templates/auth/password_reset_complete.html:31
+#: templates/auth/login_link.html:22
+#, python-format
+msgid "You're signed in as %(current)s - this link signs you in as someone else."
+msgstr "Je bent ingelogd als %(current)s - deze link logt je in als iemand anders."
+
+#: templates/auth/login_link.html:24
+#, python-format
+msgid "Sign in as %(name)s."
+msgstr "Inloggen als %(name)s."
+
+#: templates/auth/login_link.html:29
+msgid "This link works once."
+msgstr "Deze link werkt één keer."
+
+#: templates/auth/login_link.html:32
+msgid "This login link has been used already - each one works once."
+msgstr "Deze inloglink is al gebruikt - elke link werkt één keer."
+
+#: templates/auth/login_link.html:33
+msgid "This login link was revoked."
+msgstr "Deze inloglink is ingetrokken."
+
+#: templates/auth/login_link.html:34
+msgid "This login link has expired."
+msgstr "Deze inloglink is verlopen."
+
+#: templates/auth/login_link.html:38
+#, python-format
+msgid "You're signed in as %(current)s."
+msgstr "Je bent ingelogd als %(current)s."
+
+#: templates/auth/login_link.html:39
+msgid "continue"
+msgstr "verder"
+
+#: templates/auth/login_link.html:41
+msgid "Ask for a new one below, or ask the person who sent it."
+msgstr "Vraag hieronder een nieuwe aan, of vraag het degene die hem stuurde."
+
+#: templates/auth/login_link.html:42
+msgid "mail me a new login link"
+msgstr "mail me een nieuwe inloglink"
+
+#: templates/auth/login_link.html:43 templates/auth/login_link_request.html:33
+msgid "sign in with a password"
+msgstr "inloggen met een wachtwoord"
+
+#: templates/auth/login_link_request.html:18
+#, python-format
+msgid "If %(email)s belongs to an account, a login link is on its way. It works once, for a short while."
+msgstr "Als %(email)s bij een account hoort, is er een inloglink onderweg. Die werkt één keer, voor korte tijd."
+
+#: templates/auth/login_link_request.html:19
+msgid "Nothing after a few minutes? Check your spam folder, or ask one of the people who run this site."
+msgstr "Na een paar minuten nog niets? Kijk in je spammap, of vraag het een van de beheerders van deze site."
+
+#: templates/auth/login_link_request.html:20 templates/auth/password_reset_done.html:32 templates/auth/password_reset_form.html:54
+msgid "back to sign in"
+msgstr "terug naar inloggen"
+
+#: templates/auth/login_link_request.html:22
+msgid "No password needed: we mail you a link that signs you in."
+msgstr "Geen wachtwoord nodig: we mailen je een link waarmee je inlogt."
+
+#: templates/auth/login_link_send.html:10 templates/auth/login_link_send.html:16
+msgid "send login link"
+msgstr "inloglink sturen"
+
+#: templates/auth/login_link_send.html:17
+#, python-format
+msgid "A link that signs them in once, valid for %(days)s day."
+msgid_plural "A link that signs them in once, valid for %(days)s days."
+msgstr[0] "Een link die één keer inlogt, %(days)s dag geldig."
+msgstr[1] "Een link die één keer inlogt, %(days)s dagen geldig."
+
+#: templates/auth/login_link_send.html:22
+msgid "not sent"
+msgstr "niet verstuurd"
+
+#: templates/auth/login_link_send.html:23
+msgid "has an open login link - this one replaces it"
+msgstr "heeft een open inloglink - deze vervangt hem"
+
+#: templates/auth/login_link_send.html:40
+msgid "send"
+msgstr "versturen"
+
+#: templates/auth/login_link_send.html:43 templates/cmnsd/edit/create_form.html:20 templates/cmnsd/edit/form.html:25
+msgid "cancel"
+msgstr "annuleren"
+
+#: templates/auth/mail/login_link.html:3 templates/auth/mail/login_link.txt:1
+#, python-format
+msgid "%(name)s invites you to %(site)s."
+msgstr "%(name)s nodigt je uit voor %(site)s."
+
+#: templates/auth/mail/login_link.html:3 templates/auth/mail/login_link.txt:1
+#, python-format
+msgid "You asked for a link to sign in to %(site)s."
+msgstr "Je vroeg om een link om in te loggen bij %(site)s."
+
+#: templates/auth/mail/login_link.html:6 templates/auth/mail/login_link.txt:8
+#, python-format
+msgid "It works once, until %(when)s."
+msgstr "Hij werkt één keer, tot %(when)s."
+
+#: templates/auth/mail/login_link.html:6 templates/auth/mail/login_link.txt:9
+msgid "Didn't ask for it? Then you can ignore this mail - nobody can sign in without it."
+msgstr "Niet aangevraagd? Dan kun je deze mail negeren - zonder deze link kan niemand inloggen."
+
+#: templates/auth/mail/login_link.html:7 templates/auth/mail/login_link.txt:10
+#, python-format
+msgid "Your username: %(username)s"
+msgstr "Je gebruikersnaam: %(username)s"
+
+#: templates/auth/mail/login_link.txt:5
+msgid "Sign in with this link - no password needed:"
+msgstr "Log in met deze link - geen wachtwoord nodig:"
+
+#: templates/auth/mail/login_link_subject.txt:1
+#, python-format
+msgid "Your invitation to %(site)s"
+msgstr "Je uitnodiging voor %(site)s"
+
+#: templates/auth/mail/login_link_subject.txt:1
+#, python-format
+msgid "Your login link for %(site)s"
+msgstr "Je inloglink voor %(site)s"
+
+#: templates/auth/password_change_done.html:4 templates/auth/password_change_done.html:31 templates/auth/password_reset_complete.html:31
 msgid "password updated"
 msgstr "wachtwoord gewijzigd"
 
@@ -439,13 +627,11 @@ msgstr "wachtwoord gewijzigd"
 msgid "your password has been changed successfully."
 msgstr "je wachtwoord is gewijzigd."
 
-#: templates/auth/password_change_done.html:33
-#: templates/auth/password_change_form.html:82
+#: templates/auth/password_change_done.html:33 templates/auth/password_change_form.html:82
 msgid "back to profile"
 msgstr "terug naar profiel"
 
-#: templates/auth/password_change_form.html:4
-#: templates/auth/password_change_form.html:45 templates/auth/profile.html:74
+#: templates/auth/password_change_form.html:4 templates/auth/password_change_form.html:45 templates/auth/profile.html:79
 msgid "change password"
 msgstr "wachtwoord wijzigen"
 
@@ -458,13 +644,10 @@ msgid "password reset complete"
 msgstr "wachtwoord opnieuw ingesteld"
 
 #: templates/auth/password_reset_complete.html:32
-msgid ""
-"your password has been set. You can now sign in with your new password."
-msgstr ""
-"je wachtwoord is ingesteld. Je kunt nu inloggen met je nieuwe wachtwoord."
+msgid "your password has been set. You can now sign in with your new password."
+msgstr "je wachtwoord is ingesteld. Je kunt nu inloggen met je nieuwe wachtwoord."
 
-#: templates/auth/password_reset_confirm.html:4
-#: templates/auth/password_reset_confirm.html:42
+#: templates/auth/password_reset_confirm.html:4 templates/auth/password_reset_confirm.html:42
 msgid "choose new password"
 msgstr "kies een nieuw wachtwoord"
 
@@ -484,27 +667,15 @@ msgstr "deze link is ongeldig of verlopen. Vraag een nieuwe aan."
 msgid "request new link"
 msgstr "nieuwe link aanvragen"
 
-#: templates/auth/password_reset_done.html:4
-#: templates/auth/password_reset_done.html:27
+#: templates/auth/password_reset_done.html:4 templates/auth/password_reset_done.html:27
 msgid "check your email"
 msgstr "kijk in je e-mail"
 
 #: templates/auth/password_reset_done.html:29
-msgid ""
-"if an account exists for that address, we've sent a link to reset your "
-"password. Check your spam folder if it doesn't arrive shortly."
-msgstr ""
-"als er een account bij dat adres hoort, hebben we een link gestuurd om je "
-"wachtwoord opnieuw in te stellen. Kijk ook in je spammap als hij niet snel "
-"komt."
+msgid "if an account exists for that address, we've sent a link to reset your password. Check your spam folder if it doesn't arrive shortly."
+msgstr "als er een account bij dat adres hoort, hebben we een link gestuurd om je wachtwoord opnieuw in te stellen. Kijk ook in je spammap als hij niet snel komt."
 
-#: templates/auth/password_reset_done.html:32
-#: templates/auth/password_reset_form.html:54
-msgid "back to sign in"
-msgstr "terug naar inloggen"
-
-#: templates/auth/password_reset_form.html:4
-#: templates/auth/password_reset_form.html:40
+#: templates/auth/password_reset_form.html:4 templates/auth/password_reset_form.html:40
 msgid "reset password"
 msgstr "wachtwoord opnieuw instellen"
 
@@ -516,16 +687,49 @@ msgstr "vul je e-mailadres in, dan sturen we je een link"
 msgid "send reset link"
 msgstr "link versturen"
 
-#: templates/auth/profile.html:4 templates/auth/profile.html:43
+#: templates/auth/profile.html:4 templates/auth/profile.html:48
 msgid "my profile"
 msgstr "mijn profiel"
 
-#: templates/auth/profile.html:68
+#: templates/auth/profile.html:73
 msgid "save changes"
 msgstr "wijzigingen opslaan"
 
-#: templates/auth/register.html:4 templates/auth/register.html:115
-#: templates/auth/register.html:167
+#: templates/auth/profile.html:84
+msgid "ways to sign in"
+msgstr "manieren om in te loggen"
+
+#: templates/auth/profile.html:86
+msgid "a password"
+msgstr "een wachtwoord"
+
+#: templates/auth/profile.html:86
+msgid "no password - sign in with a login link"
+msgstr "geen wachtwoord - inloggen met een inloglink"
+
+#: templates/auth/profile.html:87
+msgid "a login link by mail - on the sign-in page"
+msgstr "een inloglink per mail - op de inlogpagina"
+
+#: templates/auth/profile.html:90
+#, python-format
+msgid "open login link, sent by %(name)s"
+msgstr "open inloglink, gestuurd door %(name)s"
+
+#: templates/auth/profile.html:90
+msgid "open login link, requested"
+msgstr "open inloglink, aangevraagd"
+
+#: templates/auth/profile.html:90
+#, python-format
+msgid "until %(when)s"
+msgstr "tot %(when)s"
+
+#: templates/auth/profile.html:91
+msgid "revoke"
+msgstr "intrekken"
+
+#: templates/auth/register.html:4 templates/auth/register.html:115 templates/auth/register.html:167
 msgid "create account"
 msgstr "account aanmaken"
 
@@ -537,8 +741,7 @@ msgstr "automatisch gemaakt uit je naam — je kunt het wijzigen"
 msgid "already have an account"
 msgstr "heb je al een account"
 
-#: templates/cmnsd/edit/block.html:23 templates/cmnsd/edit/child.html:17
-#: templates/cmnsd/edit/child.html:19
+#: templates/cmnsd/edit/block.html:23 templates/cmnsd/edit/child.html:17 templates/cmnsd/edit/child.html:19
 msgid "edit"
 msgstr "bewerken"
 
@@ -551,18 +754,13 @@ msgstr "“%(item)s” verwijderen?"
 msgid "remove"
 msgstr "verwijderen"
 
-#: templates/cmnsd/edit/choices.html:21 templates/cmnsd/edit/choices.html:25
-#: templates/cmnsd/edit/choices.html:35
+#: templates/cmnsd/edit/choices.html:21 templates/cmnsd/edit/choices.html:25 templates/cmnsd/edit/choices.html:35
 msgid "An answer is needed - or Cancel."
 msgstr "Er is een antwoord nodig - of Annuleren."
 
 #: templates/cmnsd/edit/create_form.html:19
 msgid "add"
 msgstr "toevoegen"
-
-#: templates/cmnsd/edit/create_form.html:20 templates/cmnsd/edit/form.html:25
-msgid "cancel"
-msgstr "annuleren"
 
 #: templates/cmnsd/edit/form.html:24
 msgid "save"
@@ -614,12 +812,8 @@ msgid "something went wrong"
 msgstr "er ging iets mis"
 
 #: templates/errorpages/500.html:12
-msgid ""
-"The error has been logged. Try again in a moment - if it keeps happening, "
-"let the archive's staff know what you were doing."
-msgstr ""
-"De fout is vastgelegd. Probeer het zo nog eens - blijft het gebeuren, laat "
-"de beheerders van het archief dan weten wat je aan het doen was."
+msgid "The error has been logged. Try again in a moment - if it keeps happening, let the archive's staff know what you were doing."
+msgstr "De fout is vastgelegd. Probeer het zo nog eens - blijft het gebeuren, laat de beheerders van het archief dan weten wat je aan het doen was."
 
 #: templates/errorpages/base_error.html:7
 msgid "error"
@@ -654,8 +848,7 @@ msgstr "Niet toegestaan."
 msgid "You may not add this."
 msgstr "Je mag dit niet toevoegen."
 
-#: views/api/object_children.py:130 views/api/object_children.py:174
-#: views/api/object_create.py:65 views/api/object_form.py:162
+#: views/api/object_children.py:130 views/api/object_children.py:174 views/api/object_create.py:65 views/api/object_form.py:164
 msgid "Please correct the errors in the form."
 msgstr "Verbeter de fouten in het formulier."
 
@@ -668,15 +861,11 @@ msgstr "%(label)s toegevoegd."
 msgid "You may not change this."
 msgstr "Je mag dit niet wijzigen."
 
-#: views/api/object_children.py:168 views/api/object_form.py:153
-msgid ""
-"This was changed by someone else since you opened it - reload the page to "
-"see the new version."
-msgstr ""
-"Iemand anders heeft dit gewijzigd sinds je het opende - laad de pagina "
-"opnieuw om de nieuwe versie te zien."
+#: views/api/object_children.py:168 views/api/object_form.py:155
+msgid "This was changed by someone else since you opened it - reload the page to see the new version."
+msgstr "Iemand anders heeft dit gewijzigd sinds je het opende - laad de pagina opnieuw om de nieuwe versie te zien."
 
-#: views/api/object_children.py:180 views/api/object_form.py:170
+#: views/api/object_children.py:180 views/api/object_form.py:172
 msgid "Saved."
 msgstr "Opgeslagen."
 
@@ -702,29 +891,55 @@ msgstr "Niet gevonden."
 msgid "That method isn't allowed here."
 msgstr "Die methode is hier niet toegestaan."
 
-#: views/auth/login.py:17
+#: views/auth/login.py:19 views/auth/login_link.py:56
 msgid "You are already signed in."
 msgstr "Je bent al ingelogd."
 
-#: views/auth/login.py:23
+#: views/auth/login.py:29 views/auth/login_link.py:50
 msgid "You have been signed in."
 msgstr "Je bent ingelogd."
+
+#: views/auth/login_link.py:99
+msgid "personal message"
+msgstr "persoonlijk bericht"
+
+#: views/auth/login_link.py:100
+msgid "Optional - in the mail, above the link."
+msgstr "Optioneel - in de mail, boven de link."
+
+#: views/auth/login_link.py:103
+msgid "page to land on"
+msgstr "pagina om op uit te komen"
+
+#: views/auth/login_link.py:104
+msgid "Optional - an address on this site, e.g. a photo you want them to see."
+msgstr "Optioneel - een adres op deze site, bijvoorbeeld een foto die ze moeten zien."
+
+#: views/auth/login_link.py:139
+#, python-format
+msgid "Login link sent to %(names)s."
+msgstr "Inloglink gestuurd naar %(names)s."
+
+#: views/auth/login_link.py:141
+#, python-format
+msgid "Not sent - the mail couldn't be delivered: %(names)s."
+msgstr "Niet verstuurd - de mail kon niet worden afgeleverd: %(names)s."
+
+#: views/auth/login_link.py:167
+msgid "Login link revoked."
+msgstr "Inloglink ingetrokken."
 
 #: views/auth/logout.py:9
 msgid "You have been signed out."
 msgstr "Je bent uitgelogd."
 
-#: views/auth/profile.py:15
+#: views/auth/profile.py:16
 msgid "Profile updated."
 msgstr "Profiel bijgewerkt."
 
 #: views/auth/register.py:60
-msgid ""
-"Thanks for registering - your account is pending approval before you can "
-"sign in."
-msgstr ""
-"Bedankt voor je aanmelding - je account moet eerst worden goedgekeurd "
-"voordat je kunt inloggen."
+msgid "Thanks for registering - your account is pending approval before you can sign in."
+msgstr "Bedankt voor je aanmelding - je account moet eerst worden goedgekeurd voordat je kunt inloggen."
 
 #: views/ui.py:63
 msgid "Edit mode is on."

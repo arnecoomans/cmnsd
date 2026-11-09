@@ -2,6 +2,7 @@ from django.contrib import admin
 
 from cmnsd.admin.mixins import TimestampAdminMixin, StatusAdminMixin
 from cmnsd.models import Page
+from cmnsd.admin.login_links import LoginLinkAdmin, LoginLinkUserAdminMixin  # noqa: F401 - registers LoginLink; the mixin for a project's UserAdmin
 
 
 @admin.register(Page)

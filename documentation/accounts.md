@@ -1,6 +1,6 @@
 # Accounts
 
-Sign in and out, registration, profile and passwords - on Django's own `django.contrib.auth` and `auth.User`, mounted with one include. No models of its own.
+Sign in and out, registration, profile and passwords - on Django's own `django.contrib.auth` and `auth.User`, mounted with one include. One model of its own: `LoginLink`, for login links (below, off unless turned on).
 
 ## Setup
 
@@ -52,3 +52,23 @@ Approval is one yes-or-no gate. What an approved account may do is decided by it
 ## The profile
 
 `profile` edits the `User`'s own fields only. A project that wants preferences (language, family) on the same page writes its own form and view for them.
+
+## Login links (`CMNSD_LOGIN_LINKS`)
+
+A mailed link that signs its user in once, instead of a password. **Off unless the project sets `CMNSD_LOGIN_LINKS = True`**: off, its pages are 404 and nothing offers it. Needs a working mail backend. Logic in `login_links.py`, model `models/LoginLink.py`, pages `views/auth/login_link.py`.
+
+- **Invite:** staff (`is_staff` + `auth.change_user`) send it from the admin (users: the action *Send login link…*, or the button on a user's page) or a page of the project's (`login_link_send?user=<pk>&next=&back=`). An optional message and page to land on. Valid `CMNSD_LOGIN_LINK_INVITE_MAX_AGE` seconds (7 days). Sending again revokes the open invite.
+- **Request:** *Mail me a login link* on the sign-in page. The same answer whether the address is known or not; at most `CMNSD_LOGIN_LINK_REQUESTS_PER_HOUR` (3) per account. Valid `CMNSD_LOGIN_LINK_REQUEST_MAX_AGE` seconds (15 minutes); a new one revokes the earlier open request.
+- **Using it:** the link opens a page with a button; only its POST signs in, so a mail scanner opening the link doesn't use it up. Once only; an inactive account (waiting for approval) never. Lands on the link's page, else `LOGIN_REDIRECT_URL`, as a password sign-in.
+- **Language of the mail:** the user's chosen language (`Preferences.language`); without one, a request comes in the language the sign-in page was used in, an invite in the site's (`LANGUAGE_CODE`).
+- **Rules:** a staff or superuser account gets a link only from a superuser. Only a SHA-256 hash of the token is stored. Every send, revoke and use is in the user's admin history - never the token.
+- **Revoke:** in the admin (*Login links*, or from the user's page), or by the user on their profile (*ways to sign in*).
+- **Admin:** compose `LoginLinkUserAdminMixin` (`cmnsd.admin.login_links`) into the project's `UserAdmin`, before Django's.
+- **Cleanup:** `manage.py login_links_cleanup` deletes used, revoked and expired links older than 30 days (`--days`).
+
+| Name | Path | |
+|---|---|---|
+| `login_link_request` | `accounts/login/link/` | *Mail me a login link* |
+| `login_link_send` | `accounts/login/link/send/` | Staff: send to `?user=<pk>` (several allowed) |
+| `login_link_revoke` | `accounts/login/link/<pk>/revoke/` | POST: its own user, or staff |
+| `login_link` | `accounts/login/link/<token>/` | The mailed link |

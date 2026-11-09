@@ -1,0 +1,8 @@
+{% load i18n %}<!doctype html>
+<html><body style="font-family: -apple-system, Segoe UI, Helvetica, Arial, sans-serif; color: #111827; line-height: 1.5; max-width: 520px; margin: 0 auto; padding: 24px;">
+  <p>{% if sender %}{% blocktranslate with name=sender.get_full_name|default:sender.username site=site_name %}{{ name }} invites you to {{ site }}.{% endblocktranslate %}{% else %}{% blocktranslate with site=site_name %}You asked for a link to sign in to {{ site }}.{% endblocktranslate %}{% endif %}</p>
+  {% if message %}<p style="padding: 12px 16px; background: #f9fafb; border-left: 3px solid #d1d5db;">{{ message|linebreaksbr }}</p>{% endif %}
+  <p><a href="{{ url }}" style="display: inline-block; padding: 11px 20px; background: #374151; color: #fff; border-radius: 10px; text-decoration: none; font-weight: 600;">{% translate "sign in"|capfirst %}</a></p>
+  <p style="font-size: 13px; color: #6b7280;">{% blocktranslate with when=expires_at|date:"DATETIME_FORMAT" %}It works once, until {{ when }}.{% endblocktranslate %}{% if not sender %} {% translate "Didn't ask for it? Then you can ignore this mail - nobody can sign in without it." %}{% endif %}</p>
+  <p style="font-size: 13px; color: #6b7280;">{% blocktranslate with username=user.username %}Your username: {{ username }}{% endblocktranslate %}</p>
+</body></html>

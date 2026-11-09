@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% comment %}
+  A mailed login link (cmnsd.views.auth.login_link). Valid: a button - only
+  its POST logs in, so a mail scanner opening the link doesn't use it up.
+  Not valid: why (used, revoked, expired - an unknown link reads as
+  expired) and the way forward: a new link, or - signed in as someone
+  else - on as them (their own link doesn't get here: the view goes on).
+  Context: link (valid only), state, signed_in_as.
+{% endcomment %}
+
+{% block title %}{% translate "sign in"|capfirst %}{% endblock %}
+{% block template_css %}{% include 'auth/_card_style.html' %}{% endblock %}
+
+{% block content %}
+<div class="auth-wrap">
+  <div class="auth-card">
+    <h1 class="auth-card__title">{% translate "sign in"|capfirst %}</h1>
+    {% if site_name %}<div class="auth-card__sub">{{ site_name }}</div>{% endif %}
+    {% if link %}
+      {% if signed_in_as and signed_in_as != link.user %}
+        <div class="auth-note">{% blocktranslate with current=signed_in_as.username %}You're signed in as {{ current }} - this link signs you in as someone else.{% endblocktranslate %}</div>
+      {% endif %}
+      <p>{% blocktranslate with name=link.user.get_full_name|default:link.user.username %}Sign in as {{ name }}.{% endblocktranslate %}</p>
+      <form method="post">
+        {% csrf_token %}
+        <button type="submit" class="auth-btn">{% translate "sign in"|capfirst %}</button>
+      </form>
+      <div class="auth-footer">{% translate "This link works once." %}</div>
+    {% else %}
+      <div class="auth-alert">
+        {% if state == 'used' %}{% translate "This login link has been used already - each one works once." %}
+        {% elif state == 'revoked' %}{% translate "This login link was revoked." %}
+        {% else %}{% translate "This login link has expired." %}{% endif %}
+      </div>
+      {% if signed_in_as %}
+        {# Someone else's link (their own goes straight on, without this page). #}
+        <div class="auth-note">{% blocktranslate with current=signed_in_as.username %}You're signed in as {{ current }}.{% endblocktranslate %}</div>
+        <a class="auth-btn" href="/">{% translate "continue"|capfirst %}</a>
+      {% else %}
+        <p>{% translate "Ask for a new one below, or ask the person who sent it." %}</p>
+        <a class="auth-btn" href="{% url 'login_link_request' %}">{% translate "mail me a new login link"|capfirst %}</a>
+        <div class="auth-footer"><a href="{% url 'login' %}">{% translate "sign in with a password"|capfirst %}</a></div>
+      {% endif %}
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

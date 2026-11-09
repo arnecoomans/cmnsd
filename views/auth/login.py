@@ -6,6 +6,8 @@ from django.contrib.auth.views import LoginView
 from django.shortcuts import redirect
 from django.utils.translation import gettext as _
 
+from cmnsd import login_links
+
 logger = logging.getLogger(__name__)
 
 
@@ -17,6 +19,10 @@ class RedirectAuthenticatedLoginView(LoginView):
       messages.info(request, _('You are already signed in.'))
       return redirect(getattr(settings, 'LOGIN_REDIRECT_URL', '/'))
     return super().dispatch(request, *args, **kwargs)
+
+  def get_context_data(self, **kwargs):
+    # "Mail me a login link" next to the password (CMNSD_LOGIN_LINKS).
+    return {**super().get_context_data(**kwargs), 'login_links': login_links.enabled()}
 
   def form_valid(self, form):
     response = super().form_valid(form)

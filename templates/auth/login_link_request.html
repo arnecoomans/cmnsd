@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% comment %}
+  "Mail me a login link" (cmnsd.views.auth.request_login_link): an address,
+  then the same answer whether it's known or not. Context: form and next,
+  or sent and email.
+{% endcomment %}
+
+{% block title %}{% translate "mail me a login link"|capfirst %}{% endblock %}
+{% block template_css %}{% include 'auth/_card_style.html' %}{% endblock %}
+
+{% block content %}
+<div class="auth-wrap">
+  <div class="auth-card">
+    <h1 class="auth-card__title">{% translate "mail me a login link"|capfirst %}</h1>
+    {% if site_name %}<div class="auth-card__sub">{{ site_name }}</div>{% endif %}
+    {% if sent %}
+      <div class="auth-note">{% blocktranslate %}If {{ email }} belongs to an account, a login link is on its way. It works once, for a short while.{% endblocktranslate %}</div>
+      <p>{% translate "Nothing after a few minutes? Check your spam folder, or ask one of the people who run this site." %}</p>
+      <div class="auth-footer"><a href="{% url 'login' %}">{% translate "back to sign in"|capfirst %}</a></div>
+    {% else %}
+      <p>{% translate "No password needed: we mail you a link that signs you in." %}</p>
+      <form method="post">
+        {% csrf_token %}
+        {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+        <div class="auth-field">
+          {{ form.email.label_tag }}
+          {{ form.email }}
+          {% if form.email.errors %}<div class="auth-field__errors">{% for error in form.email.errors %}{{ error }}{% endfor %}</div>{% endif %}
+        </div>
+        <button type="submit" class="auth-btn">{% translate "mail me a login link"|capfirst %}</button>
+      </form>
+      <div class="auth-footer"><a href="{% url 'login' %}{% if next %}?next={{ next|urlencode }}{% endif %}">{% translate "sign in with a password"|capfirst %}</a></div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

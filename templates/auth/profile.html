@@ -34,6 +34,11 @@
   .auth-divider { border: none; border-top: 1px solid #e5e7eb; margin: 24px 0; }
   .auth-footer { font-size: 13px; color: #6b7280; }
   .auth-footer a { color: #374151; font-weight: 600; }
+  .auth-ways { list-style: none; margin: 8px 0 0; padding: 0; font-size: 14px; color: #374151; }
+  .auth-ways li { padding: 6px 0; border-bottom: 1px solid #f3f4f6; }
+  .auth-ways__link { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .auth-ways__link form { margin: 0; }
+  .auth-ways__revoke { background: none; border: 1px solid #d1d5db; border-radius: 8px; padding: 2px 10px; font: inherit; font-size: 12px; color: #b91c1c; cursor: pointer; }
 </style>
 {% endblock %}
 
@@ -73,6 +78,21 @@
     <div class="auth-footer">
       <a href="{% url 'password_change' %}">{% translate "change password"|capfirst %}</a>
     </div>
+    {% if login_links %}
+      {# Ways to log in (CMNSD_LOGIN_LINKS): a password, and open login links - each to revoke. Passkeys go here later. #}
+      <hr class="auth-divider">
+      <h2 class="auth-card__title" style="font-size: 17px;">{% translate "ways to sign in"|capfirst %}</h2>
+      <ul class="auth-ways">
+        <li>{% if has_password %}{% translate "a password" %}{% else %}{% translate "no password - sign in with a login link" %}{% endif %}</li>
+        <li>{% translate "a login link by mail - on the sign-in page" %}</li>
+        {% for link in open_links %}
+          <li class="auth-ways__link">
+            <span>{% if link.created_by %}{% blocktranslate with name=link.created_by.get_full_name|default:link.created_by.username %}open login link, sent by {{ name }}{% endblocktranslate %}{% else %}{% translate "open login link, requested" %}{% endif %} · {% blocktranslate with when=link.expires_at|date:"j M H:i" %}until {{ when }}{% endblocktranslate %}</span>
+            <form method="post" action="{% url 'login_link_revoke' link.pk %}">{% csrf_token %}<button type="submit" class="auth-ways__revoke">{% translate "revoke" %}</button></form>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

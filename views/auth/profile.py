@@ -3,6 +3,7 @@ from django.contrib import messages
 from django.shortcuts import redirect, render
 from django.utils.translation import gettext as _
 
+from cmnsd import login_links
 from cmnsd.forms import ProfileForm
 
 
@@ -16,4 +17,9 @@ def profile(request):
       return redirect('profile')
   else:
     form = ProfileForm(instance=request.user)
-  return render(request, 'auth/profile.html', {'form': form})
+  # Ways to log in: a password or not, and open login links - each to revoke (CMNSD_LOGIN_LINKS).
+  context = {'form': form, 'login_links': login_links.enabled()}
+  if context['login_links']:
+    context['has_password'] = request.user.has_usable_password()
+    context['open_links'] = list(request.user.login_links.open().select_related('created_by'))
+  return render(request, 'auth/profile.html', context)

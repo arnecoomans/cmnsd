@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% comment %}
+  Staff send login links (cmnsd.views.auth.send_login_link): who they go to
+  - and why not for some (login_links.refusal) - an optional message and
+  page to land on. Sending replaces a recipient's open invite. Context:
+  form, recipients (.refusal, .open_invites), back, can_send, max_age_days.
+{% endcomment %}
+
+{% block title %}{% translate "send login link"|capfirst %}{% endblock %}
+{% block template_css %}{% include 'auth/_card_style.html' %}{% endblock %}
+
+{% block content %}
+<div class="auth-wrap">
+  <div class="auth-card auth-card--wide">
+    <h1 class="auth-card__title">{% translate "send login link"|capfirst %}</h1>
+    <div class="auth-card__sub">{% blocktranslate count days=max_age_days %}A link that signs them in once, valid for {{ days }} day.{% plural %}A link that signs them in once, valid for {{ days }} days.{% endblocktranslate %}</div>
+    <ul class="auth-list">
+      {% for recipient in recipients %}
+        <li>
+          <strong>{{ recipient.get_full_name|default:recipient.username }}</strong>{% if recipient.email %} · {{ recipient.email }}{% endif %}
+          {% if recipient.refusal %}<span class="auth-list__why">{% translate "not sent" %}: {{ recipient.refusal }}</span>
+          {% elif recipient.open_invites %}<span class="auth-list__meta">{% translate "has an open login link - this one replaces it" %}</span>{% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+    {% if can_send %}
+      <form method="post">
+        {% csrf_token %}
+        {% for recipient in recipients %}<input type="hidden" name="user" value="{{ recipient.pk }}">{% endfor %}
+        {% if back %}<input type="hidden" name="back" value="{{ back }}">{% endif %}
+        {% for field in form %}
+          <div class="auth-field">
+            {{ field.label_tag }}
+            {{ field }}
+            {% if field.help_text %}<div class="auth-field__help">{{ field.help_text }}</div>{% endif %}
+            {% if field.errors %}<div class="auth-field__errors">{% for error in field.errors %}{{ error }}{% endfor %}</div>{% endif %}
+          </div>
+        {% endfor %}
+        <button type="submit" class="auth-btn">{% translate "send"|capfirst %}</button>
+      </form>
+    {% endif %}
+    <div class="auth-footer"><a href="{% if back %}{{ back }}{% else %}{% url 'admin:auth_user_changelist' %}{% endif %}">{% translate "cancel"|capfirst %}</a></div>
+  </div>
+</div>
+{% endblock %}

@@ -26,6 +26,9 @@ Every setting cmnsd reads. All are optional: cmnsd reads them with `getattr(sett
 |---|---|---|
 | `CMNSD_REGISTRATION_REQUIRES_APPROVAL` | `False` | New accounts start inactive until staff activate them |
 | `REGISTER_DEFAULT_GROUPS` | `[]` | Groups a new account joins (a missing group is skipped) |
+| `CMNSD_LOGIN_LINKS` | `False` | Login links by mail (accounts.md) |
+| `CMNSD_LOGIN_LINK_INVITE_MAX_AGE`, `CMNSD_LOGIN_LINK_REQUEST_MAX_AGE` | 7 days, 15 minutes | How long a link works, in seconds |
+| `CMNSD_LOGIN_LINK_REQUESTS_PER_HOUR` | `3` | Requested links per account per hour |
 | `REGISTRATION_NOTIFY_EMAIL` | `None` | Address told about each new registration |
 | `DEFAULT_FROM_EMAIL` | Django's | Sender of that notice |
 

@@ -87,6 +87,10 @@
     margin-top: 4px;
   }
   .auth-btn:hover { background: #1f2937; }
+  .auth-btn--secondary { display: block; text-align: center; text-decoration: none; background: #fff; color: #374151; }
+  .auth-btn--secondary:hover { background: #f3f4f6; color: #111827; }
+  .auth-or { display: flex; align-items: center; gap: 10px; margin: 18px 0 14px; font-size: 12px; color: #9ca3af; }
+  .auth-or::before, .auth-or::after { content: ''; flex: 1; border-top: 1px solid #e5e7eb; }
   .auth-field--password { position: relative; }
   .auth-field--password input { padding-right: 44px; }
   .auth-toggle {
@@ -136,6 +140,12 @@
 
       <button type="submit" class="auth-btn">{% translate "sign in"|capfirst %}</button>
     </form>
+
+    {% if login_links %}
+      {# No password needed (CMNSD_LOGIN_LINKS): a mailed link that signs in once. #}
+      <div class="auth-or"><span>{% translate "or" %}</span></div>
+      <a class="auth-btn auth-btn--secondary" href="{% url 'login_link_request' %}{% if next %}?next={{ next|urlencode }}{% endif %}">{% translate "mail me a login link"|capfirst %}</a>
+    {% endif %}
 
     <div style="margin-top: 16px; font-size: 13px; color: #6b7280; text-align: center;">
       <a href="{% url 'password_reset' %}" style="color: #374151; font-weight: 600;">{% translate "forgot password?"|capfirst %}</a>

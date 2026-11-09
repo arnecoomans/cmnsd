@@ -1,0 +1,1 @@
+{% load i18n %}{% if sender %}{% blocktranslate with site=site_name %}Your invitation to {{ site }}{% endblocktranslate %}{% else %}{% blocktranslate with site=site_name %}Your login link for {{ site }}{% endblocktranslate %}{% endif %}

@@ -3,3 +3,4 @@ from .BaseComment import BaseComment
 from .BasePreferences import BasePreferences
 from .Page import Page
 from .Mention import Mention, MentionableSourceMixin
+from .LoginLink import LoginLink

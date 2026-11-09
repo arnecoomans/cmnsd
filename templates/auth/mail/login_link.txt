@@ -1,0 +1,11 @@
+{% load i18n %}{% autoescape off %}{% if sender %}{% blocktranslate with name=sender.get_full_name|default:sender.username site=site_name %}{{ name }} invites you to {{ site }}.{% endblocktranslate %}{% else %}{% blocktranslate with site=site_name %}You asked for a link to sign in to {{ site }}.{% endblocktranslate %}{% endif %}
+{% if message %}
+{{ message }}
+{% endif %}
+{% translate "Sign in with this link - no password needed:" %}
+{{ url }}
+
+{% blocktranslate with when=expires_at|date:"DATETIME_FORMAT" %}It works once, until {{ when }}.{% endblocktranslate %}
+{% if not sender %}{% translate "Didn't ask for it? Then you can ignore this mail - nobody can sign in without it." %}{% endif %}
+{% blocktranslate with username=user.username %}Your username: {{ username }}{% endblocktranslate %}
+{% endautoescape %}
