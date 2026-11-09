@@ -53,13 +53,15 @@ class LoginLinkInline(admin.TabularInline):
   fields = ('purpose', 'created_by', 'created_at', 'expires_at', 'state_display')
   readonly_fields = fields
   extra = 0
-  max_num = 0
   can_delete = False
   verbose_name_plural = _("login links (revoke them under Login links)")
 
   @admin.display(description=_("state"))
   def state_display(self, link):
     return link.get_state_display()
+
+  def has_add_permission(self, request, obj=None):
+    return False   # made by sending one - no empty row to fill in
 
   def get_queryset(self, request):
     return super().get_queryset(request).select_related('created_by')

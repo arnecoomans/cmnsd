@@ -51,7 +51,10 @@ class LoginLink(models.Model):
 
   @property
   def state(self):
-    """'used', 'revoked', 'expired' or 'open' - the link's own state."""
+    """'used', 'revoked', 'expired' or 'open' - the link's own state; '' for
+    one not made yet (an admin inline's empty row)."""
+    if self.expires_at is None:
+      return ''
     if self.used_at:
       return 'used'
     if self.revoked_at:
@@ -61,7 +64,7 @@ class LoginLink(models.Model):
     return 'open'
 
   def get_state_display(self):
-    return {'used': _("used"), 'revoked': _("revoked"), 'expired': _("expired"), 'open': _("open")}[self.state]
+    return {'used': _("used"), 'revoked': _("revoked"), 'expired': _("expired"), 'open': _("open"), '': ''}[self.state]
 
   def is_valid(self):
     """Open, and its account may log in (active - not waiting for approval)."""

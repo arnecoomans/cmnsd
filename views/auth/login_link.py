@@ -108,7 +108,7 @@ class SendForm(forms.Form):
 def send_login_link(request):
   """Staff (auth.change_user): mail the chosen users (?user=<pk>, several
   allowed) an invite - each checked on its own (login_links.refusal): a
-  staff account only by a superuser, an address needed, an active account.
+  an address needed, an active account.
   GET: who it goes to, why not for some, the form. POST: sent, back to
   `back` (an internal path) or the admin's user list."""
   _require_enabled()

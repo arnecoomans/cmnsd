@@ -20,7 +20,7 @@ class LoginLinkTests(TestCase):
   """Login links (cmnsd/login_links.py): a mailed link that signs in once -
   sent by staff (an invite) or asked for on the login page (a request).
   Stored as a hash; revocable; only through the button; only for an active
-  account; a staff account only from a superuser."""
+  account - staff too, yourself too."""
 
   def setUp(self):
     User = get_user_model()
@@ -104,14 +104,11 @@ class LoginLinkTests(TestCase):
     self.invite(self.ilse)
     self.assertEqual(len(mail.outbox), 0)                                       # not sent: waiting for approval
 
-  def test_a_staff_account_only_from_a_superuser(self):
+  def test_a_staff_account_and_yourself(self):
+    """Staff accounts like any other; and to yourself - another device."""
     other = get_user_model().objects.create(username='collega', email='c@example.org', is_staff=True)
-    self.invite(other)
-    self.assertEqual(len(mail.outbox), 0)
-    self.staff.is_superuser = True
-    self.staff.save()
-    self.invite(other)
-    self.assertEqual(len(mail.outbox), 1)
+    self.invite(other, self.staff)
+    self.assertEqual(sorted(message.to[0] for message in mail.outbox), ['beheer@example.org', 'c@example.org'])
 
   def test_only_staff_who_may_change_users_send(self):
     client = Client()
@@ -166,6 +163,16 @@ class LoginLinkTests(TestCase):
     self.invite(self.ilse)                                                        # the first is revoked
     LoginLink.objects.update(created_at=timezone.now() - timedelta(days=40))
     self.assertEqual(login_links.cleanup(30), 1)                                 # the open one stays
+
+  def test_the_users_admin_page(self):
+    """The user's page in the admin: their links, and "send login link"."""
+    self.staff.is_superuser = True
+    self.staff.save()
+    self.invite(self.ilse)
+    page = self.staff_client.get(f'/admin/auth/user/{self.ilse.pk}/change/')
+    self.assertEqual(page.status_code, 200)
+    self.assertContains(page, f'/accounts/login/link/send/?user={self.ilse.pk}')
+    self.assertEqual(self.staff_client.get(f'/admin/auth/user/{self.staff.pk}/change/').status_code, 200)   # without links too
 
   def test_the_admin_action(self):
     self.staff.is_superuser = True

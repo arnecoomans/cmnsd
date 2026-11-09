@@ -14,8 +14,9 @@ The token (secrets.token_urlsafe) is only in the mail; the database has
 its SHA-256 hash. The link opens a page with a button and only that POST
 logs in (views/auth/login_link.py): mail scanners that open every link
 don't use it up. Only an active account (not waiting for approval) logs
-in. Staff and superuser accounts get a link only from a superuser - a
-mailbox shouldn't be a way into staff rights.
+in. Staff accounts too, from anyone who may send: whoever reads their
+mail can reset their password already - a login link adds no way in. And
+to yourself: signing in on another device.
 
 Every send, revoke and use is logged on the user (admin history) - never
 the token.
@@ -117,8 +118,6 @@ def refusal(sender, recipient):
   """Why `sender` may not send `recipient` a login link - '' if they may."""
   if not (sender.is_staff and sender.has_perm('auth.change_user')):
     return _("You may not send login links.")
-  if (recipient.is_staff or recipient.is_superuser) and not sender.is_superuser:
-    return _("a staff account - only a superuser sends those a login link")
   if not recipient.email:
     return _("no email address")
   if not recipient.is_active:
