@@ -110,6 +110,44 @@ class LoginLinkTests(TestCase):
     self.invite(other, self.staff)
     self.assertEqual(sorted(message.to[0] for message in mail.outbox), ['beheer@example.org', 'c@example.org'])
 
+  def test_a_superuser_copies_a_link_to_pass_on(self):
+    """Not mailed: the address on a page, once - no email address needed.
+    Superusers only: whoever holds it signs in as that user."""
+    root = get_user_model().objects.create(username='root', is_staff=True, is_superuser=True)
+    client = Client()
+    client.force_login(root)
+    self.ilse.email = ''
+    self.ilse.save()
+    self.invite(self.ilse)                                                       # refused by mail: no address
+    response = client.post('/accounts/login/link/copy/', {'user': self.ilse.pk, 'back': '/dashboard/'})
+    self.assertEqual(response.status_code, 200)
+    self.assertIn('no-store', response.headers['Cache-Control'])
+    self.assertEqual(len(mail.outbox), 0)
+    path = LINK.search(response.content.decode()).group(1)
+    self.assertEqual(LoginLink.objects.get().purpose, LoginLink.Purpose.INVITE)
+    self.assertTrue(LogEntry.objects.filter(object_id=str(self.ilse.pk), change_message='Login link copied', user=root).exists())
+    other = Client()
+    other.post(path)
+    self.assertEqual(int(other.session['_auth_user_id']), self.ilse.pk)
+    # Again: a new one, the open one revoked; GET does nothing.
+    client.post('/accounts/login/link/copy/', {'user': self.ilse.pk})
+    client.post('/accounts/login/link/copy/', {'user': self.ilse.pk})
+    self.assertEqual(LoginLink.objects.open().count(), 1)
+    self.assertEqual(client.get(f'/accounts/login/link/copy/?user={self.ilse.pk}').status_code, 405)
+
+  def test_only_a_superuser_copies(self):
+    self.assertEqual(self.staff_client.post('/accounts/login/link/copy/', {'user': self.ilse.pk}).status_code, 404)
+    root = get_user_model().objects.create(username='root', is_staff=True, is_superuser=True)
+    client = Client()
+    client.force_login(root)
+    self.ilse.is_active = False
+    self.ilse.save()
+    response = client.post('/accounts/login/link/copy/', {'user': self.ilse.pk, 'back': '/dashboard/'})
+    self.assertRedirects(response, '/dashboard/', fetch_redirect_response=False)   # not active: back, with why
+    self.assertFalse(LoginLink.objects.exists())
+    with override_settings(CMNSD_LOGIN_LINKS=False):
+      self.assertEqual(client.post('/accounts/login/link/copy/', {'user': self.ilse.pk}).status_code, 404)
+
   def test_only_staff_who_may_change_users_send(self):
     client = Client()
     client.force_login(self.ilse)

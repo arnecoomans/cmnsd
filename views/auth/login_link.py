@@ -10,6 +10,8 @@ Login links (cmnsd/login_links.py) - the pages:
 - send_login_link: staff mail one or more users a link (an invite), with
   an optional message and page to land on - from the admin's user action
   or a person's page (?user=<pk>&user=...&next=...&back=...).
+- copy_login_link: a superuser makes a link to pass on themselves (a
+  chat, a text) - shown once, with copy and share.
 - revoke_login_link: revoke one open link - its own user, or staff.
 
 All 404 while the project hasn't turned login links on (CMNSD_LOGIN_LINKS).
@@ -24,6 +26,7 @@ from django.contrib.auth import get_user_model
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.translation import gettext as _, gettext_lazy
+from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 
 from cmnsd import login_links
@@ -145,6 +148,26 @@ def send_login_link(request):
     'can_send': any(not recipient.refusal for recipient in recipients),
     'max_age_days': login_links.max_age(LoginLink.Purpose.INVITE).days,
   })
+
+
+@require_POST
+@never_cache
+def copy_login_link(request):
+  """A superuser (login_links.may_copy): a new invite for `user`, not
+  mailed - its address on a page, once, to copy or share. Refused (not
+  active): back to `back` with why."""
+  _require_enabled()
+  if not login_links.may_copy(request.user):
+    raise Http404
+  user = get_object_or_404(get_user_model(), pk=request.POST.get('user') if (request.POST.get('user') or '').isdigit() else None)
+  back = login_links.safe_next(request.POST.get('back', ''), request)
+  refusal = login_links.copy_refusal(request.user, user)
+  if refusal:
+    messages.error(request, _("No login link for %(name)s: %(why)s.") % {'name': user, 'why': refusal})
+    return redirect(back or 'admin:auth_user_changelist')
+  link, url = login_links.copy(request, user, request.user)
+  logger.info(f"Login link copied for {user} by {request.user}")
+  return render(request, 'auth/login_link_copy.html', {'link': link, 'url': url, 'back': back})
 
 
 def masked(email):

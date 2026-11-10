@@ -3,7 +3,7 @@ from django.shortcuts import redirect
 from django.urls import path
 
 from cmnsd.views.auth.login import RedirectAuthenticatedLoginView
-from cmnsd.views.auth.login_link import login_link, request_login_link, revoke_login_link, send_login_link
+from cmnsd.views.auth.login_link import copy_login_link, login_link, request_login_link, revoke_login_link, send_login_link
 from cmnsd.views.auth.logout import MessageLogoutView
 from cmnsd.views.auth.register import register
 from cmnsd.views.auth.profile import profile
@@ -14,6 +14,7 @@ urlpatterns = [
   # Login links (cmnsd/login_links.py) - 404 unless CMNSD_LOGIN_LINKS.
   path('login/link/', request_login_link, name='login_link_request'),
   path('login/link/send/', send_login_link, name='login_link_send'),
+  path('login/link/copy/', copy_login_link, name='login_link_copy'),
   path('login/link/<int:pk>/revoke/', revoke_login_link, name='login_link_revoke'),
   path('login/link/<str:token>/', login_link, name='login_link'),
   path('logout/', MessageLogoutView.as_view(), name='logout'),

@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% comment %}
+  A login link to pass on yourself (cmnsd.views.auth.copy_login_link) - a
+  superuser's, not mailed: its address, shown this once, to copy or share
+  (the phone's share sheet: a chat, a text). Context: link, url, back.
+{% endcomment %}
+
+{% block title %}{% translate "copy login link"|capfirst %}{% endblock %}
+{% block template_css %}{% include 'auth/_card_style.html' %}
+<style>
+  .auth-copy { width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 10px; font: inherit; font-size: 13px; color: #111827; background: #f9fafb; margin-bottom: 10px; }
+  .auth-copy-actions { display: flex; gap: 8px; margin-bottom: 18px; }
+  .auth-copy-actions .auth-btn { margin-top: 0; }
+</style>
+{% endblock %}
+
+{% block content %}
+{% with name=link.user.get_full_name|default:link.user.username %}
+<div class="auth-wrap">
+  <div class="auth-card auth-card--wide">
+    <h1 class="auth-card__title">{% translate "copy login link"|capfirst %}</h1>
+    <div class="auth-card__sub">{% blocktranslate with when=link.expires_at|date:"j F, H:i" %}Signs {{ name }} in once, until {{ when }}.{% endblocktranslate %}</div>
+    <input class="auth-copy" id="login-link-url" type="text" value="{{ url }}" readonly aria-label="{% translate 'login link' %}">
+    <div class="auth-copy-actions">
+      <button type="button" class="auth-btn" id="login-link-copy" data-done="{% translate 'copied'|capfirst %}"><i class="bi bi-clipboard"></i> {% translate "copy"|capfirst %}</button>
+      <button type="button" class="auth-btn auth-btn--secondary" id="login-link-share" hidden><i class="bi bi-share"></i> {% translate "share"|capfirst %}</button>
+    </div>
+    <div class="auth-note">{% blocktranslate %}Shown only now - copy it before you leave this page. Whoever has it signs in as {{ name }}: send it to them alone. It replaces their open login link; not needed after all? Revoke it on Accounts.{% endblocktranslate %}</div>
+    <div class="auth-footer"><a href="{% if back %}{{ back }}{% else %}{% url 'admin:auth_user_changelist' %}{% endif %}">{% translate "back"|capfirst %}</a></div>
+  </div>
+</div>
+{% endwith %}
+{% endblock %}
+
+{% block template_js %}
+<script>
+  (() => {
+    const input = document.getElementById('login-link-url');
+    const copy = document.getElementById('login-link-copy');
+    const share = document.getElementById('login-link-share');
+    copy.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(input.value);
+      } catch {
+        input.select();
+        document.execCommand('copy');
+      }
+      copy.innerHTML = '<i class="bi bi-check-lg"></i> ' + copy.dataset.done;
+    });
+    if (navigator.share) {
+      share.hidden = false;
+      share.addEventListener('click', () => navigator.share({url: input.value}).catch(() => {}));
+    }
+    input.addEventListener('focus', () => input.select());
+  })();
+</script>
+{% endblock %}

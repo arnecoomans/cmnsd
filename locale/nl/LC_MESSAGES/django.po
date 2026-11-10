@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: cmnsd\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-09 19:22+0100\n"
+"POT-Creation-Date: 2026-11-10 19:08+0100\n"
 "PO-Revision-Date: 2026-10-31 12:00+0100\n"
 "Last-Translator: Arne Coomans\n"
 "Language-Team: Dutch\n"
@@ -47,6 +47,7 @@ msgid "login links (revoke them under Login links)"
 msgstr "inloglinks (intrekken onder Inloglinks)"
 
 #: admin/login_links.py:87 admin/login_links.py:93 models/LoginLink.py:46
+#: templates/auth/login_link_copy.html:24
 msgid "login link"
 msgstr "inloglink"
 
@@ -83,7 +84,7 @@ msgstr "Voornaam"
 msgid "Last name"
 msgstr "Achternaam"
 
-#: forms/registration.py:9 views/auth/login_link.py:70
+#: forms/registration.py:9 views/auth/login_link.py:73
 msgid "email address"
 msgstr "e-mailadres"
 
@@ -95,17 +96,21 @@ msgstr "voornaam"
 msgid "last name"
 msgstr "achternaam"
 
-#: login_links.py:120
+#: login_links.py:126
 msgid "You may not send login links."
 msgstr "Je mag geen inloglinks sturen."
 
-#: login_links.py:122
+#: login_links.py:128
 msgid "no email address"
 msgstr "geen e-mailadres"
 
-#: login_links.py:124
+#: login_links.py:130 login_links.py:145
 msgid "not active - or waiting for approval"
 msgstr "niet actief - of wacht op goedkeuring"
+
+#: login_links.py:143
+msgid "Only a superuser may copy a login link."
+msgstr "Alleen een superuser mag een inloglink kopiëren."
 
 #: models/BaseComment.py:12
 msgid "Name"
@@ -226,8 +231,8 @@ msgid ""
 "You mentioned “%(name)s” (%(reach)s): not everyone who reads this sees that "
 "link - only the words."
 msgstr ""
-"Je noemde “%(name)s” (%(reach)s): niet iedereen die dit leest ziet die link "
-"- alleen de woorden."
+"Je noemde “%(name)s” (%(reach)s): niet iedereen die dit leest ziet die link -"
+" alleen de woorden."
 
 #: models/Page.py:27
 msgid "Identifier in URL - the same for each translation"
@@ -472,8 +477,8 @@ msgid ""
 "entered again."
 msgstr ""
 "Een formulier werkt maar een tijdje, en niet meer na in- of uitloggen in een "
-"ander venster. Ga terug, laad de pagina opnieuw en probeer het nog eens - "
-"wat je had ingevuld moet je misschien opnieuw invullen."
+"ander venster. Ga terug, laad de pagina opnieuw en probeer het nog eens - wat"
+" je had ingevuld moet je misschien opnieuw invullen."
 
 #: templates/403_csrf.html:15 templates/errorpages/private.html:11
 msgid "go back"
@@ -561,6 +566,42 @@ msgstr "mail me een nieuwe inloglink"
 msgid "sign in with a password"
 msgstr "inloggen met een wachtwoord"
 
+#: templates/auth/login_link_copy.html:9 templates/auth/login_link_copy.html:22
+msgid "copy login link"
+msgstr "inloglink kopiëren"
+
+#: templates/auth/login_link_copy.html:23
+#, python-format
+msgid "Signs %(name)s in once, until %(when)s."
+msgstr "Logt %(name)s één keer in, tot %(when)s."
+
+#: templates/auth/login_link_copy.html:26
+msgid "copied"
+msgstr "gekopieerd"
+
+#: templates/auth/login_link_copy.html:26
+msgid "copy"
+msgstr "kopiëren"
+
+#: templates/auth/login_link_copy.html:27
+msgid "share"
+msgstr "delen"
+
+#: templates/auth/login_link_copy.html:29
+#, python-format
+msgid ""
+"Shown only now - copy it before you leave this page. Whoever has it signs in "
+"as %(name)s: send it to them alone. It replaces their open login link; not "
+"needed after all? Revoke it on Accounts."
+msgstr ""
+"Alleen nu te zien - kopieer hem voor je deze pagina verlaat. Wie hem heeft, "
+"logt in als %(name)s: stuur hem alleen aan hen. Hij vervangt hun open "
+"inloglink; toch niet nodig? Trek hem in bij Accounts."
+
+#: templates/auth/login_link_copy.html:30
+msgid "back"
+msgstr "terug"
+
 #: templates/auth/login_link_request.html:18
 #, python-format
 msgid ""
@@ -572,8 +613,8 @@ msgstr ""
 
 #: templates/auth/login_link_request.html:19
 msgid ""
-"Nothing after a few minutes? Check your spam folder, or ask one of the "
-"people who run this site."
+"Nothing after a few minutes? Check your spam folder, or ask one of the people"
+" who run this site."
 msgstr ""
 "Na een paar minuten nog niets? Kijk in je spammap, of vraag het een van de "
 "beheerders van deze site."
@@ -634,11 +675,11 @@ msgstr "Hij werkt één keer, tot %(when)s."
 
 #: templates/auth/mail/login_link.html:6 templates/auth/mail/login_link.txt:9
 msgid ""
-"Didn't ask for it? Then you can ignore this mail - nobody can sign in "
-"without it."
+"Didn't ask for it? Then you can ignore this mail - nobody can sign in without"
+" it."
 msgstr ""
-"Niet aangevraagd? Dan kun je deze mail negeren - zonder deze link kan "
-"niemand inloggen."
+"Niet aangevraagd? Dan kun je deze mail negeren - zonder deze link kan niemand"
+" inloggen."
 
 #: templates/auth/mail/login_link.html:7 templates/auth/mail/login_link.txt:10
 #, python-format
@@ -869,11 +910,11 @@ msgstr "er ging iets mis"
 
 #: templates/errorpages/500.html:12
 msgid ""
-"The error has been logged. Try again in a moment - if it keeps happening, "
-"let the archive's staff know what you were doing."
+"The error has been logged. Try again in a moment - if it keeps happening, let"
+" the archive's staff know what you were doing."
 msgstr ""
-"De fout is vastgelegd. Probeer het zo nog eens - blijft het gebeuren, laat "
-"de beheerders van het archief dan weten wat je aan het doen was."
+"De fout is vastgelegd. Probeer het zo nog eens - blijft het gebeuren, laat de"
+" beheerders van het archief dan weten wat je aan het doen was."
 
 #: templates/errorpages/base_error.html:7
 msgid "error"
@@ -924,8 +965,8 @@ msgstr "Je mag dit niet wijzigen."
 
 #: views/api/object_children.py:168 views/api/object_form.py:155
 msgid ""
-"This was changed by someone else since you opened it - reload the page to "
-"see the new version."
+"This was changed by someone else since you opened it - reload the page to see"
+" the new version."
 msgstr ""
 "Iemand anders heeft dit gewijzigd sinds je het opende - laad de pagina "
 "opnieuw om de nieuwe versie te zien."
@@ -956,42 +997,47 @@ msgstr "Niet gevonden."
 msgid "That method isn't allowed here."
 msgstr "Die methode is hier niet toegestaan."
 
-#: views/auth/login.py:19 views/auth/login_link.py:56
+#: views/auth/login.py:19 views/auth/login_link.py:59
 msgid "You are already signed in."
 msgstr "Je bent al ingelogd."
 
-#: views/auth/login.py:29 views/auth/login_link.py:50
+#: views/auth/login.py:29 views/auth/login_link.py:53
 msgid "You have been signed in."
 msgstr "Je bent ingelogd."
 
-#: views/auth/login_link.py:99
+#: views/auth/login_link.py:102
 msgid "personal message"
 msgstr "persoonlijk bericht"
 
-#: views/auth/login_link.py:100
+#: views/auth/login_link.py:103
 msgid "Optional - in the mail, above the link."
 msgstr "Optioneel - in de mail, boven de link."
 
-#: views/auth/login_link.py:103
+#: views/auth/login_link.py:106
 msgid "page to land on"
 msgstr "pagina om op uit te komen"
 
-#: views/auth/login_link.py:104
+#: views/auth/login_link.py:107
 msgid "Optional - an address on this site, e.g. a photo you want them to see."
 msgstr ""
 "Optioneel - een adres op deze site, bijvoorbeeld een foto die ze moeten zien."
 
-#: views/auth/login_link.py:139
+#: views/auth/login_link.py:142
 #, python-format
 msgid "Login link sent to %(names)s."
 msgstr "Inloglink gestuurd naar %(names)s."
 
-#: views/auth/login_link.py:141
+#: views/auth/login_link.py:144
 #, python-format
 msgid "Not sent - the mail couldn't be delivered: %(names)s."
 msgstr "Niet verstuurd - de mail kon niet worden afgeleverd: %(names)s."
 
-#: views/auth/login_link.py:167
+#: views/auth/login_link.py:166
+#, python-format
+msgid "No login link for %(name)s: %(why)s."
+msgstr "Geen inloglink voor %(name)s: %(why)s."
+
+#: views/auth/login_link.py:190
 msgid "Login link revoked."
 msgstr "Inloglink ingetrokken."
 
@@ -1005,11 +1051,11 @@ msgstr "Profiel bijgewerkt."
 
 #: views/auth/register.py:60
 msgid ""
-"Thanks for registering - your account is pending approval before you can "
-"sign in."
+"Thanks for registering - your account is pending approval before you can sign"
+" in."
 msgstr ""
-"Bedankt voor je aanmelding - je account moet eerst worden goedgekeurd "
-"voordat je kunt inloggen."
+"Bedankt voor je aanmelding - je account moet eerst worden goedgekeurd voordat"
+" je kunt inloggen."
 
 #: views/ui.py:63
 msgid "Edit mode is on."
@@ -1018,7 +1064,3 @@ msgstr "Bewerkmodus staat aan."
 #: views/ui.py:63
 msgid "Edit mode is off."
 msgstr "Bewerkmodus staat uit."
-
-#~ msgid "a staff account - only a superuser sends those a login link"
-#~ msgstr ""
-#~ "een beheerdersaccount - alleen een superuser stuurt die een inloglink"

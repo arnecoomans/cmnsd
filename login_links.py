@@ -18,7 +18,13 @@ in. Staff accounts too, from anyone who may send: whoever reads their
 mail can reset their password already - a login link adds no way in. And
 to yourself: signing in on another device.
 
-Every send, revoke and use is logged on the user (admin history) - never
+- A copied link: a superuser makes an invite without a mail, to pass on
+  themselves - a chat, a text (copy_login_link view). Superusers only:
+  whoever holds the link can sign in as that user, and a superuser may do
+  anything already. No address needed. It's an invite like any other -
+  same age, and it replaces the open one.
+
+Every send, copy, revoke and use is logged on the user (admin history) - never
 the token.
 
 Off unless the project turns it on: CMNSD_LOGIN_LINKS = True (fmly: from
@@ -123,6 +129,29 @@ def refusal(sender, recipient):
   if not recipient.is_active:
     return _("not active - or waiting for approval")
   return ''
+
+
+def may_copy(sender):
+  """Whether `sender` may copy login links to pass on themselves."""
+  return enabled() and bool(sender and sender.is_authenticated and sender.is_active and sender.is_superuser)
+
+
+def copy_refusal(sender, recipient):
+  """Why `sender` may not copy a login link for `recipient` - '' if they
+  may. No address needed: the link doesn't go by mail."""
+  if not may_copy(sender):
+    return _("Only a superuser may copy a login link.")
+  if not recipient.is_active:
+    return _("not active - or waiting for approval")
+  return ''
+
+
+def copy(request, user, sender):
+  """Make an invite to pass on without a mail: (LoginLink, its address).
+  The address is only in this answer - shown once."""
+  link, token = create(user, LoginLink.Purpose.INVITE, created_by=sender)
+  _log(sender, user, "Login link copied")
+  return link, request.build_absolute_uri(reverse('login_link', args=[token]))
 
 
 def _language(user, purpose):
