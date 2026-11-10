@@ -12,7 +12,7 @@ path('accounts/', include('cmnsd.auth_urls')),
 LOGOUT_REDIRECT_URL = '/'
 ```
 
-`LOGIN_URL` and `LOGIN_REDIRECT_URL` can stay at Django's defaults: they match `accounts/`. `LOGOUT_REDIRECT_URL` can't: without it, Django renders the admin's "Logged out" page after sign-out, and the "You have been signed out" message isn't seen.
+`LOGIN_URL` can stay at Django's default: it matches `accounts/`. So can `LOGIN_REDIRECT_URL`, but it then lands on the profile - after a sign-in without a page to return to, and a login link without one; set it to the site's home for a friendlier first page. `LOGOUT_REDIRECT_URL` can't: without it, Django renders the admin's "Logged out" page after sign-out, and the "You have been signed out" message isn't seen.
 
 ## URLs
 
