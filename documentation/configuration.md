@@ -29,6 +29,9 @@ Every setting cmnsd reads. All are optional: cmnsd reads them with `getattr(sett
 | `CMNSD_LOGIN_LINKS` | `False` | Login links by mail (accounts.md) |
 | `CMNSD_LOGIN_LINK_INVITE_MAX_AGE`, `CMNSD_LOGIN_LINK_REQUEST_MAX_AGE` | 7 days, 15 minutes | How long a link works, in seconds |
 | `CMNSD_LOGIN_LINK_REQUESTS_PER_HOUR` | `3` | Requested links per account per hour |
+| `CMNSD_LOGIN_ATTEMPTS_PER_ACCOUNT`, `CMNSD_LOGIN_ATTEMPTS_PER_IP` | `5`, `20` | Failed sign-ins before a username, or an address, is refused for a while (accounts.md); `0` turns one off |
+| `CMNSD_LOGIN_ATTEMPTS_WINDOW` | 15 minutes | How long failures count, in seconds |
+| `CMNSD_PROXY_COUNT` | `0` | Proxies in front of Django (nginx: 1): the visitor's address is then read from `X-Forwarded-For` - for sign-in limits and the log |
 | `REGISTRATION_NOTIFY_EMAIL` | `None` | Address told about each new registration |
 | `DEFAULT_FROM_EMAIL` | Django's | Sender of that notice |
 

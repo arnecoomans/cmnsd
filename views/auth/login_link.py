@@ -30,6 +30,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 
 from cmnsd import login_links
+from cmnsd.login_throttle import client_ip
 from cmnsd.models.LoginLink import LoginLink
 
 logger = logging.getLogger(__name__)
@@ -51,7 +52,7 @@ def login_link(request, token):
   if request.method == 'POST' and valid:
     login_links.use(request, link)
     messages.success(request, _('You have been signed in.'))
-    logger.info(f"Login link used: {link.user} from {request.META.get('REMOTE_ADDR')}")
+    logger.info(f"Login link used: {link.user} from {client_ip(request)}")
     return redirect(login_links.safe_next(link.next, request) or _home())
   if not valid and link is not None and request.user.is_authenticated and link.user_id == request.user.pk:
     # Their own link, opened again (a second click, the back button): they're
@@ -59,7 +60,7 @@ def login_link(request, token):
     messages.info(request, _('You are already signed in.'))
     return redirect(login_links.safe_next(link.next, request) or _home())
   if request.method == 'POST':
-    logger.warning(f"Login link refused ({link.state if link else 'unknown'}) from {request.META.get('REMOTE_ADDR')}")
+    logger.warning(f"Login link refused ({link.state if link else 'unknown'}) from {client_ip(request)}")
   # Not valid: why - an unknown token reads as expired, nothing more to tell.
   state = 'open' if valid else (link.state if link and link.state != 'open' else 'expired')
   context = {
@@ -87,7 +88,7 @@ def request_login_link(request):
     users = get_user_model().objects.filter(email__iexact=form.cleaned_data['email'], is_active=True)
     for user in users:
       if login_links.requested_recently(user) >= login_links.requests_per_hour():
-        logger.warning(f"Login link request over the limit: {user} from {request.META.get('REMOTE_ADDR')}")
+        logger.warning(f"Login link request over the limit: {user} from {client_ip(request)}")
         continue
       try:
         login_links.send(request, user, LoginLink.Purpose.REQUEST, next_url=next_url)

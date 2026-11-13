@@ -14,6 +14,20 @@ LOGOUT_REDIRECT_URL = '/'
 
 `LOGIN_URL` can stay at Django's default: it matches `accounts/`. So can `LOGIN_REDIRECT_URL`, but it then lands on the profile - after a sign-in without a page to return to, and a login link without one; set it to the site's home for a friendlier first page. `LOGOUT_REDIRECT_URL` can't: without it, Django renders the admin's "Logged out" page after sign-out, and the "You have been signed out" message isn't seen.
 
+## Password guesses
+
+Failed sign-ins are counted (`login_throttle.py`): after `CMNSD_LOGIN_ATTEMPTS_PER_ACCOUNT` (5) for one username, or `CMNSD_LOGIN_ATTEMPTS_PER_IP` (20) from one address, within `CMNSD_LOGIN_ATTEMPTS_WINDOW` (15 minutes), the next is refused before any password is checked - the right one too, until the window has passed. A success starts its account over.
+
+- **Setup:** its backend first, Django's after it - the system check `cmnsd.auth.W001` says so when it's missing:
+
+  ```python
+  AUTHENTICATION_BACKENDS = ['cmnsd.login_throttle.ThrottleBackend', 'django.contrib.auth.backends.ModelBackend']
+  ```
+- **Every sign-in through `authenticate()`:** the site's form and the admin's. The form says why ("Too many attempts", and *mail yourself a login link* when those are on); the admin only that it failed.
+- **By the username typed,** whether it exists or not - nothing tells who has an account. Login links and password reset don't go through it: a guesser can't lock the real user out for good.
+- **The address** is `REMOTE_ADDR`, or behind a proxy the entry it added to `X-Forwarded-For` (`CMNSD_PROXY_COUNT`, counted from the right - what the client sends itself is never trusted). Unknown (gunicorn on a unix socket, no proxy count): only the account limit - never one shared count for everyone.
+- **Counted in the default cache,** which has to be shared by all worker processes: a database or file cache. Django's default local-memory cache counts per process, so the limit multiplies by the workers.
+
 ## URLs
 
 | Name | Path | |

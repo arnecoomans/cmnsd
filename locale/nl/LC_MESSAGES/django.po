@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: cmnsd\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-10 19:08+0100\n"
+"POT-Creation-Date: 2026-11-13 12:45+0100\n"
 "PO-Revision-Date: 2026-10-31 12:00+0100\n"
 "Last-Translator: Arne Coomans\n"
 "Language-Team: Dutch\n"
@@ -84,7 +84,7 @@ msgstr "Voornaam"
 msgid "Last name"
 msgstr "Achternaam"
 
-#: forms/registration.py:9 views/auth/login_link.py:73
+#: forms/registration.py:9 views/auth/login_link.py:74
 msgid "email address"
 msgstr "e-mailadres"
 
@@ -850,8 +850,8 @@ msgstr "“%(item)s” verwijderen?"
 msgid "remove"
 msgstr "verwijderen"
 
-#: templates/cmnsd/edit/choices.html:21 templates/cmnsd/edit/choices.html:25
-#: templates/cmnsd/edit/choices.html:35
+#: templates/cmnsd/edit/choices.html:22 templates/cmnsd/edit/choices.html:26
+#: templates/cmnsd/edit/choices.html:38
 msgid "An answer is needed - or Cancel."
 msgstr "Er is een antwoord nodig - of Annuleren."
 
@@ -997,47 +997,55 @@ msgstr "Niet gevonden."
 msgid "That method isn't allowed here."
 msgstr "Die methode is hier niet toegestaan."
 
-#: views/auth/login.py:19 views/auth/login_link.py:59
+#: views/auth/login.py:19 views/auth/login_link.py:60
 msgid "You are already signed in."
 msgstr "Je bent al ingelogd."
 
-#: views/auth/login.py:29 views/auth/login_link.py:53
+#: views/auth/login.py:29 views/auth/login_link.py:54
 msgid "You have been signed in."
 msgstr "Je bent ingelogd."
 
-#: views/auth/login_link.py:102
+#: views/auth/login.py:38
+msgid "Too many attempts to sign in. Try again in a while."
+msgstr "Te vaak geprobeerd in te loggen. Probeer het over een tijdje opnieuw."
+
+#: views/auth/login.py:40
+msgid "Or mail yourself a login link."
+msgstr "Of mail jezelf een inloglink."
+
+#: views/auth/login_link.py:103
 msgid "personal message"
 msgstr "persoonlijk bericht"
 
-#: views/auth/login_link.py:103
+#: views/auth/login_link.py:104
 msgid "Optional - in the mail, above the link."
 msgstr "Optioneel - in de mail, boven de link."
 
-#: views/auth/login_link.py:106
+#: views/auth/login_link.py:107
 msgid "page to land on"
 msgstr "pagina om op uit te komen"
 
-#: views/auth/login_link.py:107
+#: views/auth/login_link.py:108
 msgid "Optional - an address on this site, e.g. a photo you want them to see."
 msgstr ""
 "Optioneel - een adres op deze site, bijvoorbeeld een foto die ze moeten zien."
 
-#: views/auth/login_link.py:142
+#: views/auth/login_link.py:143
 #, python-format
 msgid "Login link sent to %(names)s."
 msgstr "Inloglink gestuurd naar %(names)s."
 
-#: views/auth/login_link.py:144
+#: views/auth/login_link.py:145
 #, python-format
 msgid "Not sent - the mail couldn't be delivered: %(names)s."
 msgstr "Niet verstuurd - de mail kon niet worden afgeleverd: %(names)s."
 
-#: views/auth/login_link.py:166
+#: views/auth/login_link.py:167
 #, python-format
 msgid "No login link for %(name)s: %(why)s."
 msgstr "Geen inloglink voor %(name)s: %(why)s."
 
-#: views/auth/login_link.py:190
+#: views/auth/login_link.py:191
 msgid "Login link revoked."
 msgstr "Inloglink ingetrokken."
 

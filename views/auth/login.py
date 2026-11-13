@@ -6,7 +6,7 @@ from django.contrib.auth.views import LoginView
 from django.shortcuts import redirect
 from django.utils.translation import gettext as _
 
-from cmnsd import login_links
+from cmnsd import login_links, login_throttle
 
 logger = logging.getLogger(__name__)
 
@@ -27,9 +27,16 @@ class RedirectAuthenticatedLoginView(LoginView):
   def form_valid(self, form):
     response = super().form_valid(form)
     messages.success(self.request, _('You have been signed in.'))
-    logger.info(f"Login success: {form.get_user()} from {self.request.META.get('REMOTE_ADDR')}")
+    logger.info(f"Login success: {form.get_user()} from {login_throttle.client_ip(self.request)}")
     return response
 
   def form_invalid(self, form):
-    logger.warning(f"Login failure: {form.data.get('username')} from {self.request.META.get('REMOTE_ADDR')}")
+    logger.warning(f"Login failure: {form.data.get('username')} from {login_throttle.client_ip(self.request)}")
+    if getattr(self.request, 'login_throttled', False):
+      # Too many guesses (cmnsd/login_throttle.py): said, not only "wrong
+      # password" - and the way in that stays open.
+      message = _("Too many attempts to sign in. Try again in a while.")
+      if login_links.enabled():
+        message = f"{message} {_('Or mail yourself a login link.')}"
+      messages.error(self.request, message)
     return super().form_invalid(form)
